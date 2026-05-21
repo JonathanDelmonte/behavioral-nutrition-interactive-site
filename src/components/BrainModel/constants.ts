@@ -1,4 +1,8 @@
-export const MODEL_PATH = "/models/v7_sweetspot.glb";
+// NEXT_PUBLIC_BASE_PATH is empty on local dev / Vercel / normal builds, and
+// set to "/<repo>" only when we're building for GitHub Pages — this keeps the
+// GLB URL valid in every hosting scenario.
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+export const MODEL_PATH = `${BASE_PATH}/models/v7_sweetspot.glb`;
 export const DRACO_DECODER_PATH =
   "https://www.gstatic.com/draco/versioned/decoders/1.5.6/";
 
