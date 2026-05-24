@@ -57,7 +57,19 @@ export function BrainModel({
           toneMappingExposure: 1.05,
           outputColorSpace: SRGBColorSpace,
         }}
-        style={{ width: "100%", height: "100%" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          // On touch devices, dragging a finger over the brain should drive the
+          // hover field — the same way moving a mouse does on desktop. Browsers
+          // default `touch-action: auto`, which lets the OS hijack the gesture
+          // for scroll/zoom before R3F sees it. Disabling that hands every
+          // pointermove to the canvas, so the finger acts as a "hovering cursor"
+          // for as long as it's down. `user-select: none` keeps text/image
+          // selection from triggering on long drags.
+          touchAction: "none",
+          userSelect: "none",
+        }}
       >
         <BrainStateProvider intensity={merged}>
           <ErrorBoundary>
