@@ -45,8 +45,13 @@ export const fontSerif = localFont({
   ],
 });
 
+// Pinyon Script — a 19th-century-style copperplate / engraver's script with
+// ornate capitals (looped J, swashed D). Used by the brandmark only; if a
+// future design wants a different feel, swap the .woff2 here (Allura, Great
+// Vibes, Tangerine, and Italianno all live in the same family of formal
+// scripts and would slot in identically).
 export const fontScript = localFont({
   variable: "--font-script",
   display: "swap",
-  src: "../../public/fonts/sacramento-400-latin.woff2",
+  src: "../../public/fonts/pinyon-script-400-latin.woff2",
 });
