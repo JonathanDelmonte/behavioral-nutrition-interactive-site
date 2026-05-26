@@ -12,8 +12,10 @@
   --color-gold-soft:  #C9A35F;
   --color-ink:        #2a2a26;
 
-  /* Type stacks (driven by self-hosted webfonts in src/styles/fonts.css) */
-  --font-sans:    'Montserrat', sans-serif;
-  --font-serif:   'Playfair Display', serif;
-  --font-script:  'Sacramento', cursive;
+  /* Type stacks live in src/styles/fonts.ts via next/font/local, which writes
+     --font-sans / --font-serif / --font-script onto the <html> element. We
+     intentionally don't redeclare them here — that would override next/font's
+     generated names and reintroduce the basePath bug (raw 'Montserrat' /
+     'Playfair Display' silently fall back to system fonts when the .woff2s
+     are 404). */
 }

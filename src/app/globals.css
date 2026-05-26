@@ -2,12 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Site-wide foundations — tokens (CSS variables) and webfonts. Section CSS
-   modules consume these via var(--color-*) and var(--font-*). Note: @keyframes
-   live inside each section's *.module.css because CSS Modules scope animation
-   names, so animation references and their @keyframes must share a module. */
+/* Site-wide foundations — color tokens. The font CSS variables are wired up
+   by next/font/local in src/styles/fonts.ts and exposed via the className on
+   <html> in app/layout.tsx (NOT via @import here — that path was the bug that
+   broke webfonts on GitHub Pages, because raw url() in static CSS doesn't
+   respect basePath/assetPrefix). Section CSS modules read both via
+   var(--color-*) and var(--font-*). @keyframes live inside each section's
+   *.module.css because CSS Modules scope animation names, so animation
+   references and their @keyframes must share a module. */
 @import "../styles/tokens.css";
-@import "../styles/fonts.css";
 
 body {
   margin: 0;
