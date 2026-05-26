@@ -87,11 +87,15 @@ export function BrainGroup() {
     coreOffsetY,
     intensity,
     normScale: normScaleRef,
+    brainWorldScale,
     hoverPoint,
     isHoveringBrain,
     hoverIntensity,
     pulses,
   } = useBrainState();
+
+  /** Scratch vector reused each frame by the world-scale probe; avoids GC. */
+  const worldScaleScratch = useMemo(() => new Vector3(), []);
 
   const gltf = useGLTF(MODEL_PATH, DRACO_DECODER_PATH) as unknown as {
     nodes: GLTFNodes;
@@ -114,11 +118,18 @@ export function BrainGroup() {
     // authored-in-normalized animation amplitudes back to pre-normalize units.
     normScaleRef.current = scaleFactor;
 
+    // Brain parts get a tint toward a deeper, muted beige-brown to match the
+    // editorial reference photo (GLB authored color is a pale pink). The
+    // multipliers reduce all channels (darker) with green/blue dropping more
+    // than red (warmer pastel feel). 1.0 = no change.
+    const brainTint: [number, number, number] = [0.6, 0.5, 0.46];
+
     const brainPartsLocal = BRAIN_PART_NAMES
       .map((name) => nodes[name])
       .filter((n): n is Object3D => Boolean(n))
-      .map((n) => nodeToRender(n, undefined, center));
+      .map((n) => nodeToRender(n, { colorTint: brainTint }, center));
 
+    // Seed (green stem) keeps its authored color.
     const seed = nodes[SEED_NAME]
       ? nodeToRender(nodes[SEED_NAME], undefined, center)
       : null;
@@ -130,11 +141,13 @@ export function BrainGroup() {
         return {
           name,
           phase: phaseFor(i),
-          // Promote fruit materials to MeshPhysicalMaterial with very faint clearcoat —
-          // adds just a hint of fresh-looking sheen without reading as "wet".
+          // Clearcoat tuned for the "fresh from the fridge" look in the
+          // reference: small bright highlights that read as juicy, without
+          // the over-glazed plastic feel that high values produce. The
+          // higher roughness keeps highlights soft, not mirror-like.
           render: nodeToRender(
             node,
-            { clearcoat: 0.15, clearcoatRoughness: 0.35 },
+            { clearcoat: 0.22, clearcoatRoughness: 0.32 },
             center,
           ),
         };
@@ -173,6 +186,9 @@ export function BrainGroup() {
   // when it leaves, target=0. Damping makes the transition smooth, so fruits
   // experience the SAME Gaussian field while it gradually fades to zero,
   // producing a consistent rise/fall curve in both directions.
+  // Also publishes the brain's effective world scale every frame — Fruit and
+  // the pointer handlers below read it to scale normalized-unit constants
+  // (SIGMA, maxRadius, …) into the matching world units.
   useFrame((_state, dt) => {
     const target = isHoveringBrain.current ? 1 : 0;
     hoverIntensity.current = MathUtils.damp(
@@ -181,6 +197,12 @@ export function BrainGroup() {
       ANIMATION.hover.intensityLambda,
       dt,
     );
+
+    if (outerRef.current) {
+      outerRef.current.getWorldScale(worldScaleScratch);
+      // Uniform scale assumed — the host shouldn't pass per-axis scales here.
+      brainWorldScale.current = worldScaleScratch.x || 1;
+    }
   });
 
   // Brain impact reaction — combines three layers, all gamma-decayed:
@@ -269,13 +291,13 @@ export function BrainGroup() {
           isHoveringBrain.current = true;
         }}
         onPointerMove={(e) => {
-          // Compute where the cursor's picking ray would intersect a unit
-          // sphere centered at the brain origin (radius = brain surface).
+          // Compute where the cursor's picking ray would intersect a sphere
+          // matching the brain's CURRENT world radius (= host-applied scale).
           // This gives the exact point on the brain the cursor is aiming at,
           // independent of the actual collider sphere's size. Falls back to
-          // the closest-point-on-ray if the ray misses the unit sphere
-          // (cursor aiming outside the brain but inside the aura).
-          rayUnitSphereHit(e.ray, hoverPoint.current);
+          // the closest-point-on-ray if the ray misses the sphere (cursor
+          // aiming outside the brain but inside the aura).
+          rayUnitSphereHit(e.ray, hoverPoint.current, brainWorldScale.current);
         }}
         onPointerLeave={() => {
           isHoveringBrain.current = false;
@@ -284,18 +306,21 @@ export function BrainGroup() {
           e.stopPropagation();
           const now = performance.now() / 1000;
           const PULSE_LIFETIME = ANIMATION.pulse.lifetime;
-          const COOLDOWN_DIST = ANIMATION.pulse.cooldownDistance;
+          // cooldownDistance is authored in normalized units; convert to world
+          // units so the "are these two clicks too close to coexist?" check
+          // stays in the same coordinate space as the projected click points.
+          const COOLDOWN_DIST =
+            ANIMATION.pulse.cooldownDistance * brainWorldScale.current;
 
           // Prune pulses that are past their lifetime.
           const active = pulses.current.filter(
             (p) => now - p.startTime < PULSE_LIFETIME,
           );
 
-          // Same fix as hover: where would the cursor's ray hit a unit sphere
-          // at the brain center? That's the click point we want, not the
-          // intersection with the larger aura collider.
+          // Same fix as hover: project the cursor's ray to the brain's actual
+          // (scaled) surface, not the unit sphere or the larger aura collider.
           const projected = new Vector3();
-          rayUnitSphereHit(e.ray, projected);
+          rayUnitSphereHit(e.ray, projected, brainWorldScale.current);
 
           // Reject the new click only if there's an ACTIVE pulse close to the
           // new point — close enough that the two ripples would visually
@@ -377,6 +402,10 @@ interface MaterialOverrides {
   clearcoat?: number;
   /** Roughness of the clearcoat layer (lower = sharper highlight). */
   clearcoatRoughness?: number;
+  /** Per-channel multiplier applied to the base color [r, g, b]. Useful to
+   *  darken / tint the brain to match a reference shot without touching
+   *  the GLB's authored colors. */
+  colorTint?: [number, number, number];
 }
 
 /** Build a renderable description from a raw GLB node — captures all descendant meshes
@@ -452,7 +481,9 @@ function applyOverrides(
 ): Material | Material[] {
   if (!overrides) return material;
   const hasAny =
-    (overrides.emissiveBoost ?? 0) > 0 || overrides.clearcoat !== undefined;
+    (overrides.emissiveBoost ?? 0) > 0 ||
+    overrides.clearcoat !== undefined ||
+    overrides.colorTint !== undefined;
   if (!hasAny) return material;
   if (Array.isArray(material)) {
     return material.map((m) => applyOverridesOne(m, overrides));
@@ -462,7 +493,12 @@ function applyOverrides(
 
 function applyOverridesOne(
   material: Material,
-  { emissiveBoost = 0, clearcoat, clearcoatRoughness = 0.25 }: MaterialOverrides,
+  {
+    emissiveBoost = 0,
+    clearcoat,
+    clearcoatRoughness = 0.25,
+    colorTint,
+  }: MaterialOverrides,
 ): Material {
   let out: Material = material;
 
@@ -532,6 +568,25 @@ function applyOverridesOne(
     }
   }
 
+  // Color tint — multiplies the base color per-channel. Useful to darken or
+  // shift the hue of a material (e.g., make the GLB's pinkish brain read as
+  // a warmer, deeper beige to match a reference shot).
+  if (colorTint) {
+    const target =
+      out === material
+        ? (material as Material & { clone: () => Material }).clone()
+        : out;
+    const m = target as Material & {
+      color?: { r: number; g: number; b: number };
+    };
+    if (m.color) {
+      m.color.r *= colorTint[0];
+      m.color.g *= colorTint[1];
+      m.color.b *= colorTint[2];
+      out = target;
+    }
+  }
+
   return out;
 }
 
@@ -540,21 +595,28 @@ function phaseFor(i: number) {
   return (((i * 9301 + 49297) % 233280) / 233280) * Math.PI * 2;
 }
 
-/** Solves where a picking ray hits a unit sphere centered at the brain origin
- *  and writes the result into `out`. If the ray misses the sphere, falls back
- *  to the closest-point-on-ray (so off-brain cursor positions still produce a
- *  consistent surface point near the brain). */
+/** Solves where a picking ray hits a sphere of given `radius` centered at the
+ *  brain origin and writes the result into `out`. If the ray misses the sphere,
+ *  falls back to the closest-point-on-ray projected to the surface (so off-brain
+ *  cursor positions still produce a consistent surface point near the brain).
+ *
+ *  `radius` defaults to 1 — i.e. unit sphere — which is correct when the brain
+ *  is rendered at scale 1. When the host scales the model via the `scale` prop,
+ *  the caller passes the live world scale so the projected point lands on the
+ *  ACTUAL brain surface instead of inside it. */
 function rayUnitSphereHit(
   ray: { origin: Vector3; direction: Vector3 },
   out: Vector3,
+  radius: number = 1,
 ): Vector3 {
-  // |O + t·D|² = 1  (unit sphere at origin, D is normalized)
-  // t² + 2t(O·D) + (|O|² − 1) = 0
+  // |O + t·D|² = r²  (sphere of radius r at origin, D is normalized)
+  // t² + 2t(O·D) + (|O|² − r²) = 0
+  const r2 = radius * radius;
   const O = ray.origin;
   const D = ray.direction;
   const ODdot = O.x * D.x + O.y * D.y + O.z * D.z;
   const OOlenSq = O.x * O.x + O.y * O.y + O.z * O.z;
-  const disc = ODdot * ODdot - OOlenSq + 1;
+  const disc = ODdot * ODdot - OOlenSq + r2;
   if (disc >= 0) {
     // Front hit (smaller t — closer to ray origin).
     const t = -ODdot - Math.sqrt(disc);
@@ -563,16 +625,17 @@ function rayUnitSphereHit(
     out.z = O.z + t * D.z;
     return out;
   }
-  // Ray misses — use closest approach to origin, projected to the unit sphere.
+  // Ray misses — use closest approach to origin, projected to the sphere.
   // closestPoint = O - (O·D) D
   out.x = O.x - ODdot * D.x;
   out.y = O.y - ODdot * D.y;
   out.z = O.z - ODdot * D.z;
-  // Normalize to the surface so the math downstream stays in the same space.
+  // Project onto the sphere of the given radius.
   const len = Math.hypot(out.x, out.y, out.z) || 1;
-  out.x /= len;
-  out.y /= len;
-  out.z /= len;
+  const k = radius / len;
+  out.x *= k;
+  out.y *= k;
+  out.z *= k;
   return out;
 }
 

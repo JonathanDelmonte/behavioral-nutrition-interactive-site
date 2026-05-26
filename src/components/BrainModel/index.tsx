@@ -54,7 +54,7 @@ export function BrainModel({
           antialias: true,
           alpha: true,
           toneMapping: ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
+          toneMappingExposure: 1.18,
           outputColorSpace: SRGBColorSpace,
         }}
         style={{
@@ -76,12 +76,12 @@ export function BrainModel({
             <Suspense fallback={<LoaderCube />}>
               <Scene scale={scale} position={position} />
               <EffectComposer>
-                <HueSaturation hue={0} saturation={0.22} />
-                <BrightnessContrast brightness={0.02} contrast={0.13} />
+                <HueSaturation hue={0} saturation={0.4} />
+                <BrightnessContrast brightness={0.04} contrast={0.2} />
                 <Bloom
-                  intensity={0.26}
-                  luminanceThreshold={0.83}
-                  luminanceSmoothing={0.35}
+                  intensity={0.28}
+                  luminanceThreshold={0.85}
+                  luminanceSmoothing={0.4}
                   mipmapBlur
                 />
               </EffectComposer>

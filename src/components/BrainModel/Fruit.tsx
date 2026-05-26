@@ -28,6 +28,7 @@ export function Fruit({ render }: FruitProps) {
   const {
     intensity,
     normScale,
+    brainWorldScale,
     hoverPoint,
     hoverIntensity,
     pulses,
@@ -48,6 +49,14 @@ export function Fruit({ render }: FruitProps) {
 
     const inv = 1 / (normScale.current || 1);
 
+    // All distance-based animation constants (coneSigma, maxRadius, speed)
+    // are authored in NORMALIZED units (brain ~2 wide → radius 1). The
+    // distances we measure below are in WORLD units, scaled by the host's
+    // <BrainModel scale={…}> prop. Multiplying the constants by the brain's
+    // effective world scale keeps the cone-around-the-cursor consistent at
+    // any scale — at scale 1 the multiplier is 1 and behavior is unchanged.
+    const bws = brainWorldScale.current || 1;
+
     // Base world position (without the live lift offset), used for both the
     // hover field and the click ripple distance calculations.
     tmp.set(bx, by, bz).applyMatrix4(g.parent.matrixWorld);
@@ -58,7 +67,7 @@ export function Fruit({ render }: FruitProps) {
     // smoothly fades the strength of the entire field. So fruits' rise and
     // fall both follow the same continuous curve.
     const distHover = tmp.distanceTo(hoverPoint.current);
-    const SIGMA = ANIMATION.hover.coneSigma;
+    const SIGMA = ANIMATION.hover.coneSigma * bws;
     const baseTarget =
       distHover < SIGMA * 3
         ? Math.exp((-distHover * distHover) / (2 * SIGMA * SIGMA))
@@ -85,9 +94,11 @@ export function Fruit({ render }: FruitProps) {
     let pulseLift = 0;
     if (pulses.current.length > 0) {
       const now = performance.now() / 1000;
-      const speed = ANIMATION.pulse.speed;
+      // speed (world units / sec) and maxRadius (world units) scale with the
+      // brain's world size — peakTime is a pure duration and stays as-is.
+      const speed = ANIMATION.pulse.speed * bws;
       const peakTime = ANIMATION.pulse.peakTime;
-      const maxRadius = ANIMATION.pulse.maxRadius;
+      const maxRadius = ANIMATION.pulse.maxRadius * bws;
       const amplitude = ANIMATION.pulse.amplitude;
 
       for (const pulse of pulses.current) {

@@ -23,7 +23,7 @@ export function Scene({ scale, position }: SceneProps) {
       <Lighting />
       {/* HDRI environment — gives subtle, photo-realistic reflections on the
           fruit and brain surfaces. `background={false}` keeps the page white. */}
-      <Environment preset="studio" background={false} environmentIntensity={0.22} />
+      <Environment preset="studio" background={false} environmentIntensity={0.35} />
       <CameraTarget tx={0} ty={0} tz={0} />
       <group scale={scale} position={position}>
         <BrainGroup />

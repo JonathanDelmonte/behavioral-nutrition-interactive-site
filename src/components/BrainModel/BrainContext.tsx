@@ -16,6 +16,15 @@ interface BrainStateValue {
    *  amplitudes in `constants.ts` are authored in normalized units; consumers
    *  inside the normalize chain divide by this to compensate. */
   normScale: { current: number };
+  /** Effective world-space uniform scale of the brain (everything above the
+   *  normalize chain — e.g. the `scale` prop the host passes to BrainModel).
+   *  Driven by BrainGroup each frame from the outer group's worldMatrix.
+   *  Hover / pulse math reads this to keep the cursor-driven Gaussian field
+   *  consistent regardless of how the host scales the model: when the brain
+   *  is bigger in world units, SIGMA and the collider sphere both scale up
+   *  by the same factor so the cone-around-the-cursor preserves its angular
+   *  reach. Defaults to 1 so behavior at scale=1 is unchanged. */
+  brainWorldScale: { current: number };
   /** Last known cursor intersection on the brain (world coords). Updated
    *  continuously by the hover collider while the cursor is over it. */
   hoverPoint: { current: Vector3 };
@@ -48,6 +57,7 @@ export function BrainStateProvider({
 }) {
   const coreOffsetY = useRef(0);
   const normScale = useRef(1);
+  const brainWorldScale = useRef(1);
   const hoverPoint = useRef(new Vector3(0, 9999, 0));
   const isHoveringBrain = useRef(false);
   const hoverIntensity = useRef(0);
@@ -57,6 +67,7 @@ export function BrainStateProvider({
       coreOffsetY,
       intensity,
       normScale,
+      brainWorldScale,
       hoverPoint,
       isHoveringBrain,
       hoverIntensity,
