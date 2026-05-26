@@ -2,16 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body,
-#__next {
-  height: 100%;
-}
+/* Site-wide foundations — tokens (CSS variables) and webfonts. Section CSS
+   modules consume these via var(--color-*) and var(--font-*). Note: @keyframes
+   live inside each section's *.module.css because CSS Modules scope animation
+   names, so animation references and their @keyframes must share a module. */
+@import "../styles/tokens.css";
+@import "../styles/fonts.css";
 
 body {
   margin: 0;
-  background: #ffffff;
-  color: #000;
+  background: var(--color-offwhite);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }

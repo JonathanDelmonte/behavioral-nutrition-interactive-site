@@ -1,0 +1,19 @@
+/* Design tokens — site-wide CSS custom properties.
+   Keep palette + spacing scales here so every component can reach them. */
+
+:root {
+  /* Brand palette */
+  --color-green-deep: #0A4C21;
+  --color-green-moss: #2E6B47;
+  --color-green-sage: #A8B89A;
+  --color-sand:       #F2E9D6;
+  --color-offwhite:   #F7F6F2;
+  --color-gold:       #B8924A;
+  --color-gold-soft:  #C9A35F;
+  --color-ink:        #2a2a26;
+
+  /* Type stacks (driven by self-hosted webfonts in src/styles/fonts.css) */
+  --font-sans:    'Montserrat', sans-serif;
+  --font-serif:   'Playfair Display', serif;
+  --font-script:  'Sacramento', cursive;
+}
