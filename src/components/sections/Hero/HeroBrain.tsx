@@ -17,7 +17,7 @@ const BrainModel = dynamic(
    side (see .canvasFrame in Hero.module.css), so the canvas is ~960px even
    though the wrap is still 740px — we trim the scale to land on the same
    visible brain size. */
-const SCALE_DESKTOP = 1.45;
+const SCALE_DESKTOP = 1.55;
 const SCALE_MOBILE  = 1.85;
 const DESKTOP_BREAKPOINT = 760;
 

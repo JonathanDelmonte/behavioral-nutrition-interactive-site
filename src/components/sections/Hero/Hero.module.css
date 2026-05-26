@@ -259,7 +259,10 @@
    narrow on mobile. Explicit height sidesteps the negotiation entirely. */
 .brainWrap {
   position: relative;
-  margin-top: -40px;
+  /* Slight upward pull keeps the brain close to the headline above without
+     letting the larger scale (SCALE_DESKTOP = 1.55) crowd it. If the brain
+     ever grows past ~1.65 this value should ease further (-10px or 0). */
+  margin-top: -20px;
   width:  min(740px, 65vw);
   height: min(740px, 65vw);
   z-index: 2;
@@ -390,7 +393,12 @@
   .lead { text-align: center; max-width: 320px; }
 
   .display   { font-size: clamp(48px, 14vw, 84px); }
-  .brainWrap { width: 90vw; height: 90vw; margin-top: -10px; }
+  /* Real phones (vs DevTools mobile emulation) have dynamic address bars,
+     safe-areas, and OS-level text scaling that make the headline above feel
+     closer to the brain than the emulator suggests. Easing the negative pull
+     here gives the brain a little extra breathing room on actual devices
+     without affecting desktop. */
+  .brainWrap { width: 90vw; height: 90vw; margin-top: 6px; }
   /* Horizontal viewport-edge bleed is inherited from the default
      .canvasFrame rule (the same calc evaluates to -5vw when the wrap is
      90vw). Mobile only needs to drop the vertical bleed — the brain
