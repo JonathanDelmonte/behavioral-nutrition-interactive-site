@@ -1,0 +1,45 @@
+.cta {
+  --pad-x: 28px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px var(--pad-x);
+  background: var(--color-green-deep);
+  color: var(--color-offwhite);
+  border: none;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  /* Re-enable pointer events that Hero's .row turns off for its children, so
+     the button is clickable inside an otherwise pass-through row. */
+  pointer-events: auto;
+  box-shadow:
+    0 10px 24px -12px rgba(10, 76, 33, .5),
+    0 1px 0 rgba(255, 255, 255, .06) inset;
+  transition:
+    transform .35s cubic-bezier(.2, .7, .2, 1),
+    box-shadow .35s ease,
+    background .3s ease;
+}
+.cta:hover  { transform: translateY(-2px); background: #0c5827; box-shadow: 0 18px 30px -14px rgba(10, 76, 33, .55); }
+.cta:active { transform: translateY(0); }
+
+.arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .12);
+  transition: transform .4s cubic-bezier(.2, .7, .2, 1), background .3s;
+}
+.cta:hover .arrow { transform: translateX(4px); background: rgba(255, 255, 255, .22); }
+.arrow svg { width: 11px; height: 11px; }

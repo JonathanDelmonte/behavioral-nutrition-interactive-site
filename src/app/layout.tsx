@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Brain Model — Fase 1",
+  title: "Juliana Delmonte · Nutrição Comportamental",
+  description:
+    "Nutrição comportamental para quem está cansado de começar de novo toda segunda-feira.",
 };
 
 export default function RootLayout({

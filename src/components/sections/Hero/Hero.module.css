@@ -1,0 +1,376 @@
+/* Hero section — CSS Module. Class names are scoped at build time so
+   nothing here can collide with future sections. Tokens (--color-*, --font-*)
+   come from src/styles/tokens.css. Keyframes are defined at the bottom of
+   this file: CSS Modules scope @keyframes names, so animation references
+   must resolve to keyframes declared inside the same module. */
+
+.hero {
+  position: relative;
+  width: 100%;
+  /* svh = "small viewport height" — uses the smallest visible viewport
+     even on mobile browsers where the address bar can hide and show. With
+     plain `vh` the hero can briefly become taller than the visible area
+     when the URL bar collapses, creating the "site is too tall" feel.
+     svh sidesteps that. Box-sizing is border-box (set by Tailwind
+     preflight) so the padding below sits INSIDE this min-height instead
+     of adding to it. */
+  min-height: 100svh;
+  padding: 38px clamp(28px, 5vw, 72px) 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 80% at 50% 110%, rgba(10, 76, 33, 0.05), transparent 60%),
+    radial-gradient(80%  50% at 50% -10%, rgba(184, 146, 74, 0.04), transparent 60%),
+    var(--color-offwhite);
+  /* Hero copy is presentational — no need for text selection or the I-beam
+     cursor. Pointer-events on individual text elements (below) handle the
+     more important job of not blocking the brain canvas behind. */
+  user-select: none;
+}
+
+/* --- top header --- */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 5;
+}
+
+.brandmark {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+.brandmark img {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 0 rgba(10, 76, 33, .05));
+  transition: transform .5s ease;
+}
+.brandmark:hover img { transform: rotate(-4deg); }
+
+.lockup { display: flex; flex-direction: column; line-height: 1; }
+.name {
+  font-family: var(--font-script);
+  font-size: clamp(24px, 2.1vw, 30px);
+  color: var(--color-green-deep);
+  letter-spacing: .5px;
+  line-height: 1;
+}
+.role {
+  font-family: var(--font-sans);
+  font-size: clamp(7px, 0.55vw, 8px);
+  color: var(--color-green-moss);
+  letter-spacing: .34em;
+  margin-top: 4px;
+  text-transform: uppercase;
+  opacity: .85;
+}
+
+/* --- vertical side text --- */
+.rail {
+  position: absolute;
+  top: 50%;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  letter-spacing: .55em;
+  color: var(--color-green-deep);
+  opacity: .55;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.railLeft  { left: 24px;  transform: translateY(-50%) rotate(-90deg); transform-origin: center; }
+.railRight { right: 24px; transform: translateY(-50%) rotate( 90deg); transform-origin: center; }
+
+/* --- decorative botanical layer --- */
+.botanical {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.leaf {
+  position: absolute;
+  opacity: .14;
+  filter: saturate(.7);
+  user-select: none;
+  will-change: transform;
+  transform: translate(var(--px, 0px), var(--py, 0px)) rotate(var(--rot));
+}
+
+/* All sizes and offsets in fixed px (no vw, no %). This is intentional:
+   we want the leaves to LOOK identical on a 1280px laptop, a 1920px
+   monitor, and a 4K screen — same size, same distance from each corner.
+   On wider screens the empty middle just grows; on narrower screens
+   below the mobile breakpoint, the override block at the bottom of this
+   file steps each leaf down to a smaller px size so they don't span the
+   whole phone. Numbers are calibrated to match how the page looked at
+   the 1280×900 desktop preset (which is what the design was tuned to). */
+.l1 { /* top-left */
+  top: -130px; left: -155px;
+  width: 490px;
+  --rot: 15deg; --pf: 18;
+}
+.l2 { /* top-right */
+  top: -165px; right: -180px;
+  width: 540px;
+  --rot: 155deg; --pf: -22;
+}
+.l3 { /* bottom-left */
+  bottom: -110px; left: -100px;
+  width: 435px;
+  --rot: 25deg; --pf: 14;
+}
+.l4 { /* bottom-right */
+  bottom: -200px; right: -120px;
+  width: 515px;
+  --rot: 40deg; --pf: -16;
+}
+.l5 { /* mid-left small */
+  top: 380px; left: -75px;
+  width: 230px;
+  --rot: 95deg; --pf: 28;
+  opacity: .10;
+}
+.l6 { /* mid-right small — moved down to avoid l2 overlap */
+  top: auto; bottom: 270px;
+  right: -40px;
+  width: 140px;
+  --rot: -80deg; --pf: -30;
+  opacity: .08;
+}
+
+/* --- center stack --- */
+.stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: clamp(40px, 6vw, 80px);
+  text-align: center;
+  z-index: 3;
+}
+
+.eyebrow {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--color-gold);
+  font-size: clamp(13px, 1.05vw, 16px);
+  letter-spacing: .04em;
+  margin-bottom: 14px;
+  opacity: 0;
+  animation: rise .9s .1s ease-out forwards;
+}
+.eyebrow::before,
+.eyebrow::after { content: "—"; margin: 0 10px; color: var(--color-gold-soft); }
+
+.headline {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  color: var(--color-green-deep);
+  font-size: clamp(28px, 3.2vw, 46px);
+  letter-spacing: -0.005em;
+  line-height: 1.15;
+  opacity: 0;
+  animation: rise .9s .25s ease-out forwards;
+}
+
+.display {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-green-deep);
+  font-size: clamp(64px, 10.5vw, 170px);
+  line-height: .96;
+  letter-spacing: -0.015em;
+  margin-top: 8px;
+  text-wrap: balance;
+  opacity: 0;
+  animation: rise 1.1s .4s ease-out forwards;
+}
+.line { display: block; }
+.dot  { color: var(--color-green-deep); }
+
+/* --- CTA row: lead paragraph + button (above brain) --- */
+.row {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3vw, 40px);
+  margin-top: clamp(28px, 3.5vw, 46px);
+  margin-bottom: -30px;
+  max-width: 680px;
+  width: 100%;
+  justify-content: center;
+  opacity: 0;
+  animation: rise 1s .65s ease-out forwards;
+}
+.lead {
+  font-family: var(--font-sans);
+  font-size: clamp(11px, 0.85vw, 13px);
+  line-height: 1.55;
+  color: var(--color-ink);
+  max-width: 260px;
+  text-align: left;
+  opacity: .82;
+}
+
+/* --- 3D brain mount ---
+   The wrap is the *visual* footprint that defines layout flow (740px desktop).
+   But inside, .canvasFrame extends absolutely beyond it so the R3F canvas has
+   extra room — fruits launched outward by hover/click animations have empty
+   page space to swing into instead of clipping at the canvas raster edge.
+   The model's `scale` prop in HeroBrain.tsx is dialed down accordingly so the
+   perceived brain size still matches the wrap (not the larger canvas).
+
+   width + height are set explicitly (rather than width + aspect-ratio) because
+   R3F's <Canvas> child claims `height: 100%`, which fights aspect-ratio's
+   width-derived height once the canvas mounts — the wrap ends up tall and
+   narrow on mobile. Explicit height sidesteps the negotiation entirely. */
+.brainWrap {
+  position: relative;
+  margin-top: -40px;
+  width:  min(740px, 65vw);
+  height: min(740px, 65vw);
+  z-index: 2;
+  opacity: 0;
+  animation: floatIn 1.4s .8s cubic-bezier(.2, .7, .2, 1) forwards;
+}
+.canvasFrame {
+  position: absolute;
+  /* Horizontal: bleed all the way to the viewport edges so hover/pulse
+     overshoots have the real screen edge as their limit, not an arbitrary
+     box inside it. The trig: wrap is centered in the viewport, so its left
+     edge sits at (100vw − wrap_width)/2 from the page edge — subtracting
+     that distance from the wrap's left lands canvasFrame exactly at 0 / 100vw.
+     `100%` here resolves to the wrap's width, so the calc adapts as the wrap
+     resizes with viewport changes.
+     Vertical: a modest ~110px bleed is enough for the impact spring and
+     hover lift — the brain doesn't push that far up/down. */
+  left:  calc((100% - 100vw) / 2);
+  right: calc((100% - 100vw) / 2);
+  top: -110px;
+  bottom: -110px;
+  /* Sits below .row (z 4) and .top (z 5) so the brandmark + CTA still
+     receive pointer events even where the canvas overlaps them visually. */
+  z-index: 1;
+}
+.brainWrap::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 4%;
+  height: 24px;
+  background: radial-gradient(closest-side, rgba(10, 76, 33, .22), transparent 70%);
+  filter: blur(8px);
+  z-index: -1;
+}
+
+/* --- scroll hint pinned to viewport bottom --- */
+.scrollHint {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  letter-spacing: .4em;
+  color: var(--color-green-deep);
+  opacity: .5;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 10;
+}
+.scrollHint::after {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 18px;
+  margin: 8px auto 0;
+  background: var(--color-green-deep);
+  opacity: .4;
+  animation: dash 1.8s ease-in-out infinite;
+}
+
+/* --- pointer-events policy ---
+   Only the brandmark link (top-left) and the CTA button are meant to be
+   interactive. Every other piece of chrome — the eyebrow/headline/display
+   typography, the lead paragraph, the side rails — gets pointer-events: none
+   so the cursor "falls through" to the brain canvas underneath. Without this,
+   the .row (z-index 4, sitting above the canvas where the canvas bleeds
+   upward) would intercept the cursor as soon as it crossed the lead text and
+   the brain's hover field would stutter. */
+.top,
+.eyebrow,
+.headline,
+.display, .display *,
+.row,
+.lead,
+.rail {
+  pointer-events: none;
+}
+.brandmark {
+  pointer-events: auto;
+}
+
+/* --- keyframes (scoped to this module) --- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes floatIn {
+  from { opacity: 0; transform: translateY(40px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes dash {
+  0%   { transform: scaleY(.2); transform-origin: top; }
+  50%  { transform: scaleY(1); }
+  100% { transform: scaleY(.2); transform-origin: bottom; }
+}
+
+
+/* --- mobile overrides --- */
+@media (max-width: 760px) {
+  /* On phones the hero shouldn't be forced to 100svh: the content (text +
+     CTA + brain) is much shorter than a phone's height, so the flex:1 on
+     .stage would stretch and leave a big empty band below the brain. Let
+     the hero be content-height. ScrollHint is position:fixed so it still
+     sits at the bottom of the viewport regardless. */
+  .hero { padding: 22px 22px 0; min-height: auto; }
+
+  .name { font-size: 20px; }
+  .brandmark img { width: 64px; height: 64px; }
+
+  .rail { display: none; }
+
+  /* Mobile leaves: same px-based "fixed visual" approach, just stepped
+     down to ~45% of desktop so they don't span the whole narrow phone
+     viewport. Like the desktop block, all values are in px — never
+     vw/% — so a leaf occupies the same screen real estate on a 360px
+     phone as on a 414px phone. */
+  .l1 { top: -55px;    left: -70px;   width: 220px; opacity: .11; }
+  .l2 { top: -75px;    right: -80px;  width: 240px; opacity: .11; }
+  .l3 { bottom: -50px; left: -45px;   width: 195px; opacity: .09; }
+  .l4 { bottom: -100px; right: -61px;  width: 230px; opacity: .09; }
+  .l5 { top: 170px;    left: -30px;   width: 105px; opacity: .07; }
+  .l6 { bottom: 120px; right: -20px;  width: 65px;  opacity: .06; }
+
+  .row  { flex-direction: column; gap: 18px; }
+  .lead { text-align: center; max-width: 320px; }
+
+  .display   { font-size: clamp(48px, 14vw, 84px); }
+  .brainWrap { width: 90vw; height: 90vw; margin-top: -10px; }
+  /* Horizontal viewport-edge bleed is inherited from the default
+     .canvasFrame rule (the same calc evaluates to -5vw when the wrap is
+     90vw). Mobile only needs to drop the vertical bleed — the brain
+     doesn't reach the top/bottom of the wrap at this smaller render size. */
+  .canvasFrame { top: 0; bottom: 0; }
+}
