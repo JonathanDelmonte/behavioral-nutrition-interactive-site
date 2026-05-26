@@ -45,13 +45,14 @@ export const fontSerif = localFont({
   ],
 });
 
-// Pinyon Script — a 19th-century-style copperplate / engraver's script with
-// ornate capitals (looped J, swashed D). Used by the brandmark only; if a
-// future design wants a different feel, swap the .woff2 here (Allura, Great
-// Vibes, Tangerine, and Italianno all live in the same family of formal
-// scripts and would slot in identically).
+// Allura — calligraphic script with visible thin/thick stroke contrast
+// (closest free analog to the paid Angeletta the user referenced). Elegant
+// italic, looped J, swashed D. Used by the brandmark only. Same-idiom
+// alternatives if a future design wants a different feel: Great Vibes
+// (rounder, wedding-script), Yellowtail (uniform brush, retro), Tangerine,
+// Petit Formal Script.
 export const fontScript = localFont({
   variable: "--font-script",
   display: "swap",
-  src: "../../public/fonts/pinyon-script-400-latin.woff2",
+  src: "../../public/fonts/allura-400-latin.woff2",
 });
