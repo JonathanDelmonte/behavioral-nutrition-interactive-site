@@ -136,7 +136,7 @@
   --rot: 15deg; --pf: 18;
 }
 .l2 { /* top-right */
-  top: -165px; right: -180px;
+  top: -225px; right: -180px;
   width: 540px;
   --rot: 155deg; --pf: -22;
 }
@@ -156,12 +156,14 @@
   --rot: 95deg; --pf: 28;
   opacity: .10;
 }
-.l6 { /* mid-right small — moved down to avoid l2 overlap */
-  top: auto; bottom: 270px;
-  right: -40px;
-  width: 140px;
+.l6 { /* mid-right — paired with .l5 on the opposite side. Sized up and pulled
+         inward so it reads as an intentional mid-height accent instead of a
+         peek from the edge. */
+  top: 560px; bottom: auto;
+  right: -70px;
+  width: 270px;
   --rot: -80deg; --pf: -30;
-  opacity: .08;
+  opacity: .11;
 }
 
 /* --- center stack --- */
@@ -378,11 +380,11 @@
      vw/% — so a leaf occupies the same screen real estate on a 360px
      phone as on a 414px phone. */
   .l1 { top: -55px;    left: -70px;   width: 220px; opacity: .11; }
-  .l2 { top: -75px;    right: -80px;  width: 240px; opacity: .11; }
+  .l2 { top: -101px;   right: -80px;  width: 240px; opacity: .11; }
   .l3 { bottom: -50px; left: -45px;   width: 195px; opacity: .09; }
   .l4 { bottom: -100px; right: -61px;  width: 230px; opacity: .09; }
   .l5 { top: 170px;    left: -30px;   width: 105px; opacity: .07; }
-  .l6 { bottom: 120px; right: -20px;  width: 65px;  opacity: .06; }
+  .l6 { top: 280px; bottom: auto; right: -30px; width: 130px; opacity: .10; }
 
   .row  { flex-direction: column; gap: 18px; }
   .lead { text-align: center; max-width: 320px; }
