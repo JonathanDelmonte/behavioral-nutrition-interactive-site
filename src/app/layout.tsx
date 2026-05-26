@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { fontSans, fontSerif, fontScript } from "@/styles/fonts";
+import { Header } from "@/components/Header/Header";
 
 export const metadata: Metadata = {
   title: "Juliana Delmonte · Nutrição Comportamental",
@@ -22,7 +23,13 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${fontSans.variable} ${fontSerif.variable} ${fontScript.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {/* Sticky global header. Lives outside <main> so it persists across
+            all sections / routes, and its sticky positioning anchors it to
+            the viewport top while content scrolls beneath. */}
+        <Header />
+        {children}
+      </body>
     </html>
   );
 }

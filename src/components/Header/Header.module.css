@@ -1,0 +1,117 @@
+/* Persistent top navigation. Lives at the very top of every page and
+   sticks there while the user scrolls. The solid background occludes the
+   tops of the Hero's decorative leaves — they extend up into this space
+   but get visually covered, exactly like the user's reference design.
+   Height is the global --header-h token so sections below can subtract
+   it from their min-height. */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--header-h);
+  background: var(--color-offwhite);
+  border-bottom: 1px solid rgba(10, 76, 33, 0.07);
+  /* Faint downward shadow gives the header a sense of physical layer above
+     the page content without a heavy bar. */
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+.inner {
+  height: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 56px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* --- middle navigation --- */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(22px, 2.4vw, 44px);
+}
+
+.link {
+  position: relative;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  text-decoration: none;
+  padding: 8px 0;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.link:hover {
+  color: var(--color-green-deep);
+}
+
+/* Active link — underlined with a small gap. Pseudo-element so the line
+   doesn't shift the text baseline like text-decoration would. */
+.link.active {
+  color: var(--color-green-deep);
+}
+.link.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--color-green-deep);
+}
+
+/* --- right CTA (outlined pill) --- */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 24px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-green-deep);
+  text-decoration: none;
+  border: 1.5px solid var(--color-green-deep);
+  border-radius: 999px;
+  white-space: nowrap;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s cubic-bezier(.2, .7, .2, 1);
+}
+
+.cta:hover {
+  background: var(--color-green-deep);
+  color: var(--color-offwhite);
+  transform: translateY(-1px);
+}
+
+.arrow {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 0.25s cubic-bezier(.2, .7, .2, 1);
+}
+.cta:hover .arrow { transform: translateX(3px); }
+
+/* --- mobile fallback: collapse the middle nav, keep brandmark + CTA --- */
+@media (max-width: 860px) {
+  .nav { display: none; }
+  .inner { gap: 12px; }
+  .cta {
+    padding: 9px 16px;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+  }
+}

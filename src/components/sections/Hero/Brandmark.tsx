@@ -2,11 +2,18 @@ import styles from "./Hero.module.css";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
-/** Logo + scripted name + role lockup. Anchored top-left of the hero. */
-export function Brandmark() {
+type Props = {
+  /** Smaller variant used inside the persistent <Header />. Defaults to the
+   *  full-size lockup that used to live at the top-left of the hero. */
+  compact?: boolean;
+};
+
+/** Logo + scripted name + role lockup. Used in the global Header (compact)
+ *  and reusable as a standalone decorative mark wherever needed. */
+export function Brandmark({ compact = false }: Props) {
   return (
     <a
-      className={styles.brandmark}
+      className={`${styles.brandmark} ${compact ? styles.brandmarkCompact : ""}`.trim()}
       href="#"
       aria-label="Juliana Delmonte · Nutrição Comportamental"
     >

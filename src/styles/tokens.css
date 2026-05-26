@@ -12,6 +12,12 @@
   --color-gold-soft:  #C9A35F;
   --color-ink:        #2a2a26;
 
+  /* Persistent top navigation height. Sections below the header read this
+     to subtract from their min-height (e.g. the Hero uses calc(100svh - x)
+     so the first fold fits exactly inside the viewport with the header on
+     top). Update once here and every section adjusts. */
+  --header-h: 100px;
+
   /* Type stacks live in src/styles/fonts.ts via next/font/local, which writes
      --font-sans / --font-serif / --font-script onto the <html> element. We
      intentionally don't redeclare them here — that would override next/font's

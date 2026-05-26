@@ -13,9 +13,13 @@
      when the URL bar collapses, creating the "site is too tall" feel.
      svh sidesteps that. Box-sizing is border-box (set by Tailwind
      preflight) so the padding below sits INSIDE this min-height instead
-     of adding to it. */
-  min-height: 100svh;
-  padding: 38px clamp(28px, 5vw, 72px) 0;
+     of adding to it.
+     We subtract --header-h because the global <Header /> sits above this
+     section and takes that many pixels at the top of the viewport. With
+     plain 100svh the first fold would overflow and the AGENDAR CTA at
+     the bottom would slip below the visible area. */
+  min-height: calc(100svh - var(--header-h));
+  padding: 0 clamp(28px, 5vw, 72px);
   display: flex;
   flex-direction: column;
   background:
@@ -50,6 +54,23 @@
   transition: transform .5s ease;
 }
 .brandmark:hover img { transform: rotate(-4deg); }
+
+/* Compact variant — used inside the persistent global <Header />. Same DOM,
+   smaller visual weight: the logo and name shrink, the role tag holds its
+   uppercase tracking but drops a pixel. Composed via class chaining so the
+   full-size lockup (if ever re-used elsewhere) stays untouched. */
+.brandmarkCompact img {
+  width: 56px;
+  height: 56px;
+}
+.brandmarkCompact .name {
+  font-size: clamp(20px, 1.5vw, 25px);
+}
+.brandmarkCompact .role {
+  font-size: 6.5px;
+  letter-spacing: 0.30em;
+  margin-top: 3px;
+}
 
 .lockup { display: flex; flex-direction: column; line-height: 1; }
 .name {
