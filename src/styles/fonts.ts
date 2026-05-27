@@ -19,15 +19,21 @@ import localFont from "next/font/local";
  * `layout.tsx` — so all of our component CSS can keep using `var(--font-*)`.
  */
 
+// Montserrat (Julieta Ulanovsky, OFL) — geometric sans serif. After a
+// detour through DM Sans, we returned to Montserrat for its more
+// elegant, editorial silhouette. To dodge the "AI-default" feel that
+// stock Montserrat at weight 300/400 carries, the CSS below uses 500
+// (medium) as the new "regular" anywhere small text appears (lead,
+// role, rail, scroll hint, CTAs). Headlines stay on Playfair Display.
+//
+// Shipping the VARIABLE font (single .woff2 covers weights 100-900)
+// keeps the download to one ~38 KB file regardless of how many weights
+// we touch.
 export const fontSans = localFont({
   variable: "--font-sans",
   display: "swap",
-  src: [
-    { path: "../../public/fonts/montserrat-300-latin.woff2", weight: "300", style: "normal" },
-    { path: "../../public/fonts/montserrat-400-latin.woff2", weight: "400", style: "normal" },
-    { path: "../../public/fonts/montserrat-500-latin.woff2", weight: "500", style: "normal" },
-    { path: "../../public/fonts/montserrat-600-latin.woff2", weight: "600", style: "normal" },
-  ],
+  src: "../../public/fonts/montserrat-variable-latin.woff2",
+  weight: "100 900",
 });
 
 export const fontSerif = localFont({
