@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { fontSans, fontSerif, fontScript } from "@/styles/fonts";
-import { Header } from "@/components/Header/Header";
+import { Header } from "@/components/layout/Header/Header";
 
 export const metadata: Metadata = {
   title: "Juliana Delmonte · Nutrição Comportamental",
