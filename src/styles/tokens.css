@@ -30,3 +30,14 @@
      'Playfair Display' silently fall back to system fonts when the .woff2s
      are 404). */
 }
+
+/* Mobile: trim the header so it doesn't eat too much of the compact
+   viewport. The 48 px compact logo + name/role stack only needs ~76 px to
+   breathe; the desktop 100 px felt physically thick on phones. Anything
+   that consumes var(--header-h) (Header height itself, Hero's min-height
+   calc, IndexOverlay positioning) adapts automatically. */
+@media (max-width: 760px) {
+  :root {
+    --header-h: 76px;
+  }
+}

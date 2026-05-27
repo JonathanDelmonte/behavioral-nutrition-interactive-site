@@ -141,6 +141,23 @@
 }
 
 @media (max-width: 760px) {
+  /* Pin the overlay to the LARGE viewport (lvh) instead of letting it
+     follow the dynamic viewport via `inset: 0`. Why: mobile browsers
+     show / hide a bottom toolbar as the user scrolls; with `inset: 0`
+     the overlay's height bounced between two values, and the absolutely
+     positioned `.content` (at `top: 42%`) recalculated against the new
+     height every time — which is what caused the list to snap upward
+     toward the header the moment the toolbar appeared.
+
+     `100lvh` is always the large (no-chrome) viewport regardless of
+     toolbar state, so 42% of it is a stable pixel position. When the
+     toolbar is visible the bottom of the overlay extends under it; the
+     backdrop is solid so nothing visible breaks. `bottom: auto` cancels
+     the bottom edge that `inset: 0` set on the base rule. */
+  .overlay {
+    height: 100lvh;
+    bottom: auto;
+  }
   .content { max-width: 100%; padding: 0 24px; }
   .num { min-width: 38px; }
 }
