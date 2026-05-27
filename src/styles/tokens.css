@@ -8,6 +8,11 @@
   --color-green-sage: #A8B89A;
   --color-sand:       #F2E9D6;
   --color-offwhite:   #F7F6F2;
+  /* Green-tinted off-white — same hue family as --color-green-deep, but pushed
+     to ~95% lightness and ~12% saturation. Reads as a near-white with a soft
+     sage / pistachio whisper. Used as an alternative section background when
+     a section wants to feel "more brand" without committing to the deep green. */
+  --color-offwhite-green: #EEF3EA;
   --color-gold:       #B8924A;
   --color-gold-soft:  #C9A35F;
   --color-ink:        #2a2a26;
