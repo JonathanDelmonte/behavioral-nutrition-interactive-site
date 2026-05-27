@@ -410,6 +410,36 @@
   .name { font-size: 20px; }
   .brandmark img { width: 64px; height: 64px; }
 
+  /* Brandmark compact (used in the persistent <Header />) needs its own
+     mobile sizes: .brandmarkCompact .name has higher specificity than
+     plain .name above, so without these explicit overrides the header
+     would still render the name at the desktop clamp's minimum (22 px)
+     and the logo at 64 px — together too wide to fit "Juliana Delmonte"
+     on one line next to the hamburger on a 360 px phone. These values
+     are tuned so the lockup stays single-line at 360 px+. Below that
+     it wraps naturally, which is fine. */
+  .brandmarkCompact {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 10px;
+  }
+  .brandmarkCompact img {
+    width: 48px;
+    height: 48px;
+  }
+  .brandmarkCompact .lockup {
+    min-width: 0;
+  }
+  .brandmarkCompact .name {
+    font-size: 20px;
+    white-space: nowrap;
+  }
+  .brandmarkCompact .role {
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    margin-top: 3px;
+  }
+
   .rail { display: none; }
 
   /* Mobile leaves: same px-based "fixed visual" approach, just stepped
@@ -441,3 +471,25 @@
   .canvasFrame { top: 0; bottom: 0; }
 }
 
+@media (max-width: 340px) {
+  .brandmarkCompact {
+    gap: 8px;
+  }
+  .brandmarkCompact img {
+    width: 44px;
+    height: 44px;
+  }
+  .brandmarkCompact .name {
+    font-size: 18px;
+  }
+  .brandmarkCompact .role {
+    font-size: 7px;
+    letter-spacing: 0.16em;
+  }
+}
+
+@media (max-width: 300px) {
+  .brandmarkCompact .name {
+    white-space: normal;
+  }
+}
