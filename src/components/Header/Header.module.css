@@ -8,7 +8,11 @@
 .header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  /* z-index above the IndexOverlay (200) so the hamburger ↔ X morph stays
+     visible and clickable when the overlay opens. The overlay's backdrop
+     still covers everything below the header line; the header sits
+     on top as a persistent control strip. */
+  z-index: 250;
   height: var(--header-h);
   background: var(--color-offwhite);
   border-bottom: 1px solid rgba(10, 76, 33, 0.07);
@@ -17,101 +21,100 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
+/* Full-bleed (no max-width) so the brandmark and the hamburger sit at
+   matching distances from the viewport edges. The padding here uses the
+   SAME clamp expression as .hero so the two sections align edge-to-edge.
+   The 80-180px range is sized for ultra-wide monitors specifically —
+   at 1920px the inset is ~173px (≈9% of viewport), at 2560px+ it caps
+   at 180px so it never gets absurd. Compact viewports (1280 down) still
+   get plenty of room without crowding. */
 .inner {
   height: 100%;
-  max-width: 1480px;
-  margin: 0 auto;
-  padding: 0 clamp(20px, 4vw, 56px);
+  padding: 0 clamp(80px, 9vw, 180px);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
 }
 
-/* --- middle navigation --- */
-.nav {
+/* --- Hamburger ↔ X menu trigger ---
+   Three SVG <line>s that morph between two states driven by the
+   `.isOpen` class (which Header.tsx adds when the overlay is open):
+
+     CLOSED (hamburger)          OPEN (X)
+     ─────                       \
+     ───                          ·   (middle line faded out)
+     ─────                          \
+
+   Each line transforms around its own centre (transform-box: fill-box +
+   transform-origin: 50% 50%) so rotations pivot in place. The middle
+   line keeps its closed-state asymmetric scaleX(0.6) → scaleX(1) hover
+   rhythm; in the open state it just fades + collapses.
+   non-scaling-stroke on each <line> means the stroke width stays a
+   bit-perfect 2 px regardless of how the SVG is scaled or which
+   transforms are applied. */
+.menuButton {
   display: flex;
   align-items: center;
-  gap: clamp(22px, 2.4vw, 44px);
-}
-
-.link {
-  position: relative;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--color-ink);
-  text-decoration: none;
-  padding: 8px 0;
-  transition: color 0.2s ease;
-  white-space: nowrap;
-}
-
-.link:hover {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
   color: var(--color-green-deep);
 }
 
-/* Active link — underlined with a small gap. Pseudo-element so the line
-   doesn't shift the text baseline like text-decoration would. */
-.link.active {
-  color: var(--color-green-deep);
-}
-.link.active::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--color-green-deep);
+.menuIcon {
+  display: block;
+  /* Allow the rotated X to spill slightly outside the viewBox without
+     getting clipped — the rotated line's bbox is sqrt(2)× longer than
+     the un-rotated one. */
+  overflow: visible;
 }
 
-/* --- right CTA (outlined pill) --- */
-.cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 24px;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--color-green-deep);
-  text-decoration: none;
-  border: 1.5px solid var(--color-green-deep);
-  border-radius: 999px;
-  white-space: nowrap;
+.line1,
+.line3 {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 0.4s cubic-bezier(.2, .7, .2, 1);
+}
+
+.middle {
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  transform: scaleX(0.6);
   transition:
-    background 0.25s ease,
-    color 0.25s ease,
-    transform 0.25s cubic-bezier(.2, .7, .2, 1);
+    transform 0.4s cubic-bezier(.2, .7, .2, 1),
+    opacity 0.25s ease;
+}
+.menuButton:hover .middle {
+  transform: scaleX(1);
 }
 
-.cta:hover {
-  background: var(--color-green-deep);
-  color: var(--color-offwhite);
-  transform: translateY(-1px);
+/* OPEN state — the three lines collapse into an X.
+   Top line moves down 9 SVG units (from y=1 to y=10) and rotates +45°.
+   Bottom line moves up 9 SVG units (from y=19 to y=10) and rotates -45°.
+   Middle line fades out + scales to zero. Order matters: these rules
+   come AFTER the :hover rules so they override at equal specificity. */
+.menuButton.isOpen .line1 {
+  transform: translateY(9px) rotate(45deg);
+}
+.menuButton.isOpen .line3 {
+  transform: translateY(-9px) rotate(-45deg);
+}
+.menuButton.isOpen .middle {
+  opacity: 0;
+  transform: scaleX(0);
 }
 
-.arrow {
-  display: inline-block;
-  font-size: 14px;
-  line-height: 1;
-  transition: transform 0.25s cubic-bezier(.2, .7, .2, 1);
-}
-.cta:hover .arrow { transform: translateX(3px); }
-
-/* --- mobile fallback: collapse the middle nav, keep brandmark + CTA --- */
-@media (max-width: 860px) {
-  .nav { display: none; }
-  .inner { gap: 12px; }
-  .cta {
-    padding: 9px 16px;
-    gap: 8px;
-    font-size: 10px;
-    letter-spacing: 0.22em;
-  }
+/* --- mobile fallback --- */
+@media (max-width: 760px) {
+  .inner { padding: 0 22px; gap: 10px; }
+  .menuButton { width: 34px; height: 34px; }
+  /* SVG icon stays a constant 24×24 across breakpoints — the morph
+     transforms are calibrated to those exact viewBox coordinates, so
+     resizing the SVG would throw the X centring off. Only the click
+     target shrinks on mobile. */
 }
