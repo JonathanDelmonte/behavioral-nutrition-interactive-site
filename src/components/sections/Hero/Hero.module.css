@@ -19,13 +19,15 @@
      plain 100svh the first fold would overflow and the AGENDAR CTA at
      the bottom would slip below the visible area. */
   min-height: calc(100svh - var(--header-h));
-  padding: 0 clamp(28px, 5vw, 72px);
+  /* Matches .inner in Header.module.css so the brandmark / hamburger sit
+     at the same viewport-inset distance as everything in the hero. */
+  padding: 0 clamp(80px, 9vw, 180px);
   display: flex;
   flex-direction: column;
   background:
     radial-gradient(120% 80% at 50% 110%, rgba(10, 76, 33, 0.05), transparent 60%),
     radial-gradient(80%  50% at 50% -10%, rgba(184, 146, 74, 0.04), transparent 60%),
-    var(--color-offwhite);
+    var(--color-offwhite-green);
   /* Hero copy is presentational — no need for text selection or the I-beam
      cursor. Pointer-events on individual text elements (below) handle the
      more important job of not blocking the brain canvas behind. */
@@ -55,21 +57,44 @@
 }
 .brandmark:hover img { transform: rotate(-4deg); }
 
-/* Compact variant — used inside the persistent global <Header />. Same DOM,
-   smaller visual weight: the logo and name shrink, the role tag holds its
-   uppercase tracking but drops a pixel. Composed via class chaining so the
+/* Compact variant — used inside the persistent global <Header />. Sized so
+   the lockup reads clearly at desktop without dominating the header. The
+   role line carries the brand "polished gold" effect via a 5-stop linear
+   gradient clipped to the text glyphs: deep antique → rich gold → cream
+   highlight → rich gold → deep antique. Composed via class chaining so the
    full-size lockup (if ever re-used elsewhere) stays untouched. */
 .brandmarkCompact img {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
 }
 .brandmarkCompact .name {
-  font-size: clamp(20px, 1.5vw, 25px);
+  font-size: clamp(22px, 1.7vw, 28px);
 }
 .brandmarkCompact .role {
-  font-size: 6.5px;
-  letter-spacing: 0.30em;
-  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  margin-top: 4px;
+  /* Metallic gold simulation. The diagonal angle (100deg) makes the
+     "highlight" stripe fall slightly above center — mimics light hitting
+     metal from above. background-clip: text + transparent color punches
+     the gradient through each glyph (the webkit prefix keeps Safari
+     happy). The original solid green --color-green-moss is overridden by
+     this rule because background-clip lives outside the cascade for
+     `color`. */
+  background: linear-gradient(
+    100deg,
+    #8A6E37 0%,
+    #B8924A 22%,
+    #E8C97A 50%,
+    #B8924A 78%,
+    #8A6E37 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  opacity: 1;
 }
 
 .lockup { display: flex; flex-direction: column; line-height: 1; }
@@ -83,6 +108,7 @@
 .role {
   font-family: var(--font-sans);
   font-size: clamp(7px, 0.55vw, 8px);
+  font-weight: 600;
   color: var(--color-green-moss);
   letter-spacing: .34em;
   margin-top: 4px;
@@ -96,9 +122,10 @@
   top: 50%;
   font-family: var(--font-sans);
   font-size: 10px;
+  font-weight: 700;
   letter-spacing: .55em;
   color: var(--color-green-deep);
-  opacity: .55;
+  opacity: .62;
   white-space: nowrap;
   text-transform: uppercase;
 }
@@ -174,7 +201,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: clamp(40px, 6vw, 80px);
+  /* Tightened from clamp(40, 6vw, 80) — that minimum of 40 was hard-coded
+     into mobile (since 6vw is small there) and pushed the eyebrow uncomfortably
+     far below the header. New min of 20 saves ~20 px on phones; desktop still
+     reads spacious but no longer wastefully tall. */
+  padding-top: clamp(20px, 4vw, 64px);
   text-align: center;
   z-index: 3;
 }
@@ -238,11 +269,12 @@
 .lead {
   font-family: var(--font-sans);
   font-size: clamp(11px, 0.85vw, 13px);
+  font-weight: 600;
   line-height: 1.55;
   color: var(--color-ink);
   max-width: 260px;
   text-align: left;
-  opacity: .82;
+  opacity: .9;
 }
 
 /* --- 3D brain mount ---
@@ -308,9 +340,10 @@
   transform: translateX(-50%);
   font-family: var(--font-sans);
   font-size: 9px;
+  font-weight: 700;
   letter-spacing: .4em;
   color: var(--color-green-deep);
-  opacity: .5;
+  opacity: .58;
   text-transform: uppercase;
   pointer-events: none;
   z-index: 10;
@@ -370,7 +403,9 @@
      .stage would stretch and leave a big empty band below the brain. Let
      the hero be content-height. ScrollHint is position:fixed so it still
      sits at the bottom of the viewport regardless. */
-  .hero { padding: 22px 22px 0; min-height: auto; }
+  /* 8 px top (was 22) closes the gap between the header bottom border and
+     the first content line — phones had a noticeable empty band there. */
+  .hero { padding: 8px 22px 0; min-height: auto; }
 
   .name { font-size: 20px; }
   .brandmark img { width: 64px; height: 64px; }
@@ -405,3 +440,4 @@
      doesn't reach the top/bottom of the wrap at this smaller render size. */
   .canvasFrame { top: 0; bottom: 0; }
 }
+
