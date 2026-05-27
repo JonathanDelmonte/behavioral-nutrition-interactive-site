@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import styles from "./Header.module.css";
-import { Brandmark } from "@/components/sections/Hero/Brandmark";
+import { Brandmark } from "@/components/brand/Brandmark";
 import { IndexOverlay } from "./IndexOverlay";
 
 /**

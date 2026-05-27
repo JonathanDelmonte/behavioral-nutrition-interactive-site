@@ -1,4 +1,4 @@
-import styles from "./Hero.module.css";
+import styles from "./Brandmark.module.css";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 

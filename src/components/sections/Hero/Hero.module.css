@@ -42,80 +42,6 @@
   z-index: 5;
 }
 
-.brandmark {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  text-decoration: none;
-}
-.brandmark img {
-  width: 88px;
-  height: 88px;
-  object-fit: contain;
-  filter: drop-shadow(0 1px 0 rgba(10, 76, 33, .05));
-  transition: transform .5s ease;
-}
-.brandmark:hover img { transform: rotate(-4deg); }
-
-/* Compact variant — used inside the persistent global <Header />. Sized so
-   the lockup reads clearly at desktop without dominating the header. The
-   role line carries the brand "polished gold" effect via a 5-stop linear
-   gradient clipped to the text glyphs: deep antique → rich gold → cream
-   highlight → rich gold → deep antique. Composed via class chaining so the
-   full-size lockup (if ever re-used elsewhere) stays untouched. */
-.brandmarkCompact img {
-  width: 64px;
-  height: 64px;
-}
-.brandmarkCompact .name {
-  font-size: clamp(22px, 1.7vw, 28px);
-}
-.brandmarkCompact .role {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  margin-top: 4px;
-  /* Metallic gold simulation. The diagonal angle (100deg) makes the
-     "highlight" stripe fall slightly above center — mimics light hitting
-     metal from above. background-clip: text + transparent color punches
-     the gradient through each glyph (the webkit prefix keeps Safari
-     happy). The original solid green --color-green-moss is overridden by
-     this rule because background-clip lives outside the cascade for
-     `color`. */
-  background: linear-gradient(
-    100deg,
-    #8A6E37 0%,
-    #B8924A 22%,
-    #E8C97A 50%,
-    #B8924A 78%,
-    #8A6E37 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  opacity: 1;
-}
-
-.lockup { display: flex; flex-direction: column; line-height: 1; }
-.name {
-  font-family: var(--font-script);
-  font-size: clamp(24px, 2.1vw, 30px);
-  color: var(--color-green-deep);
-  letter-spacing: .5px;
-  line-height: 1;
-}
-.role {
-  font-family: var(--font-sans);
-  font-size: clamp(7px, 0.55vw, 8px);
-  font-weight: 600;
-  color: var(--color-green-moss);
-  letter-spacing: .34em;
-  margin-top: 4px;
-  text-transform: uppercase;
-  opacity: .85;
-}
-
 /* --- vertical side text --- */
 .rail {
   position: absolute;
@@ -360,13 +286,11 @@
 }
 
 /* --- pointer-events policy ---
-   Only the brandmark link (top-left) and the CTA button are meant to be
-   interactive. Every other piece of chrome — the eyebrow/headline/display
-   typography, the lead paragraph, the side rails — gets pointer-events: none
-   so the cursor "falls through" to the brain canvas underneath. Without this,
-   the .row (z-index 4, sitting above the canvas where the canvas bleeds
-   upward) would intercept the cursor as soon as it crossed the lead text and
-   the brain's hover field would stutter. */
+   Every piece of chrome — eyebrow/headline/display typography, lead paragraph,
+   side rails — gets pointer-events: none so the cursor "falls through" to the
+   brain canvas underneath. Without this, the .row (z-index 4, sitting above
+   the canvas where it bleeds upward) would intercept the cursor and the brain's
+   hover field would stutter. */
 .top,
 .eyebrow,
 .headline,
@@ -375,9 +299,6 @@
 .lead,
 .rail {
   pointer-events: none;
-}
-.brandmark {
-  pointer-events: auto;
 }
 
 /* --- keyframes (scoped to this module) --- */
@@ -406,39 +327,6 @@
   /* 8 px top (was 22) closes the gap between the header bottom border and
      the first content line — phones had a noticeable empty band there. */
   .hero { padding: 8px 22px 0; min-height: auto; }
-
-  .name { font-size: 20px; }
-  .brandmark img { width: 64px; height: 64px; }
-
-  /* Brandmark compact (used in the persistent <Header />) needs its own
-     mobile sizes: .brandmarkCompact .name has higher specificity than
-     plain .name above, so without these explicit overrides the header
-     would still render the name at the desktop clamp's minimum (22 px)
-     and the logo at 64 px — together too wide to fit "Juliana Delmonte"
-     on one line next to the hamburger on a 360 px phone. These values
-     are tuned so the lockup stays single-line at 360 px+. Below that
-     it wraps naturally, which is fine. */
-  .brandmarkCompact {
-    flex: 1 1 auto;
-    min-width: 0;
-    gap: 10px;
-  }
-  .brandmarkCompact img {
-    width: 48px;
-    height: 48px;
-  }
-  .brandmarkCompact .lockup {
-    min-width: 0;
-  }
-  .brandmarkCompact .name {
-    font-size: 20px;
-    white-space: nowrap;
-  }
-  .brandmarkCompact .role {
-    font-size: 8px;
-    letter-spacing: 0.2em;
-    margin-top: 3px;
-  }
 
   .rail { display: none; }
 
@@ -471,25 +359,3 @@
   .canvasFrame { top: 0; bottom: 0; }
 }
 
-@media (max-width: 340px) {
-  .brandmarkCompact {
-    gap: 8px;
-  }
-  .brandmarkCompact img {
-    width: 44px;
-    height: 44px;
-  }
-  .brandmarkCompact .name {
-    font-size: 18px;
-  }
-  .brandmarkCompact .role {
-    font-size: 7px;
-    letter-spacing: 0.16em;
-  }
-}
-
-@media (max-width: 300px) {
-  .brandmarkCompact .name {
-    white-space: normal;
-  }
-}
