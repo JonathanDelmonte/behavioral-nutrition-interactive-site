@@ -1,13 +1,14 @@
 "use client";
 
 import { Environment } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useRef, type ReactNode } from "react";
-import { Group } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef, type MutableRefObject, type ReactNode } from "react";
+import { Group, Vector2 } from "three";
 import { Lighting } from "./Lighting";
 import { BrainGroup } from "./BrainGroup";
 import { CameraTarget } from "./Debug";
-import { HDRI_PATH, type BrainPlacement } from "./constants";
+import { useBrainState } from "./BrainContext";
+import { ANIMATION, HDRI_PATH, type BrainPlacement } from "./constants";
 
 interface SceneProps {
   scale: number | [number, number, number];
@@ -26,6 +27,9 @@ interface SceneProps {
  * 3D object floating against a clean white page, not "viewed inside a 3D editor".
  */
 export function Scene({ scale, position, progressRef, placementRef }: SceneProps) {
+  // Shared with MobileTap so a phone tap raycasts against the brain composition
+  // ONLY (not lights / camera target).
+  const brainGroupRef = useRef<Group>(null!);
   return (
     <>
       <Lighting />
@@ -44,11 +48,67 @@ export function Scene({ scale, position, progressRef, placementRef }: SceneProps
         environmentIntensity={0.35}
       />
       <CameraTarget tx={0} ty={0} tz={0} />
-      <PlacementGroup scale={scale} position={position} placementRef={placementRef}>
+      <PlacementGroup
+        groupRef={brainGroupRef}
+        scale={scale}
+        position={position}
+        placementRef={placementRef}
+      >
         <BrainGroup progressRef={progressRef} />
       </PlacementGroup>
+      <MobileTap targetRef={brainGroupRef} />
     </>
   );
+}
+
+/**
+ * Phone tap → click pulse.
+ *
+ * On phones the page-global canvas is forced pointer-events:none (see
+ * BrainStage.module.css) so a finger-drag scrolls the page instead of being
+ * captured by the brain — which also means R3F's own pointer events never fire
+ * there. To keep the tap interaction, we listen for the DOM `click` (a tap, NOT
+ * a drag — a drag scrolls and never emits `click`) on the window, raycast at the
+ * tap point against the brain group, and on a hit push the SAME pulse the
+ * desktop mouse-click does. Gated to phone widths so desktop — where the canvas
+ * keeps pointer-events and R3F's onClick already fires — never double-pulses.
+ */
+function MobileTap({ targetRef }: { targetRef: MutableRefObject<Group> }) {
+  const { camera, raycaster, gl } = useThree();
+  const { pulses } = useBrainState();
+
+  useEffect(() => {
+    const canvasEl = gl.domElement;
+    const ndc = new Vector2();
+
+    const onClick = (e: MouseEvent) => {
+      if (!window.matchMedia("(max-width: 760px)").matches) return;
+      const target = targetRef.current;
+      if (!target) return;
+      const rect = canvasEl.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      ndc.set(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
+      const hit = raycaster.intersectObject(target, true)[0];
+      if (!hit) return; // tap missed the brain → leave it for the page (scroll/CTA)
+
+      const now = performance.now() / 1000;
+      const active = pulses.current.filter(
+        (p) => now - p.startTime < ANIMATION.pulse.lifetime,
+      );
+      active.push({ origin: hit.point.clone(), startTime: now });
+      pulses.current = active;
+    };
+
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [camera, raycaster, gl, pulses, targetRef]);
+
+  return null;
 }
 
 /**
@@ -61,20 +121,20 @@ export function Scene({ scale, position, progressRef, placementRef }: SceneProps
  * it just applies the static scale/position props (standalone, page-agnostic).
  */
 function PlacementGroup({
+  groupRef,
   scale,
   position,
   placementRef,
   children,
 }: {
+  groupRef: MutableRefObject<Group>;
   scale: number | [number, number, number];
   position: [number, number, number];
   placementRef?: { current: BrainPlacement | null };
   children: ReactNode;
 }) {
-  const ref = useRef<Group>(null!);
-
   useFrame(() => {
-    const g = ref.current;
+    const g = groupRef.current;
     if (!g || !placementRef) return;
     const p = placementRef.current;
     if (!p) return;
@@ -83,7 +143,7 @@ function PlacementGroup({
   });
 
   return (
-    <group ref={ref} scale={scale} position={position}>
+    <group ref={groupRef} scale={scale} position={position}>
       {children}
     </group>
   );

@@ -64,17 +64,17 @@
 }
 
 @media (max-width: 760px) {
-  /* On phones a vertical finger-drag must scroll the PAGE — but the brain should
-     still react to taps (click pulse) and to a finger dragged over it while it
-     rests in the Hero. touch-action: pan-y hands vertical panning to the browser,
-     so the scroll can NEVER be eaten by R3F's pointer capture, while taps and
-     horizontal moves still reach the canvas. (Once the brain starts traveling,
-     BrainStage.tsx drops the canvas to pointer-events:none, so it's fully
-     pass-through from then on.) Set on the subtree because touch-action isn't
-     inherited and the real touch target is R3F's inner <canvas>. */
+  /* On phones the full-viewport canvas must NOT capture touch, or it eats the
+     scroll gesture — R3F holds the pointer on touch-down and even
+     touch-action:pan-y didn't release it. Force the whole subtree pass-through
+     so a finger-drag ALWAYS scrolls the page (this is the version that scrolled
+     reliably). The brain's TAP is restored separately, without the canvas ever
+     capturing touch: a window-level click listener (MobileTap in Scene.tsx)
+     fires the same click pulse on a tap. R3F sets pointer-events:auto inline on
+     its own container, so !important is needed to win over that. */
   .canvas,
   .canvas * {
-    touch-action: pan-y;
+    pointer-events: none !important;
   }
   /* Mobile frame has no vertical bleed, so the shadow sits right at the
      bottom of the brain's visual footprint. */
