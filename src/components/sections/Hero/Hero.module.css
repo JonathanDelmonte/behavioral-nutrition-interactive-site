@@ -203,18 +203,17 @@
   opacity: .9;
 }
 
-/* --- 3D brain mount ---
-   The wrap is the *visual* footprint that defines layout flow (740px desktop).
-   But inside, .canvasFrame extends absolutely beyond it so the R3F canvas has
-   extra room — fruits launched outward by hover/click animations have empty
-   page space to swing into instead of clipping at the canvas raster edge.
-   The model's `scale` prop in HeroBrain.tsx is dialed down accordingly so the
-   perceived brain size still matches the wrap (not the larger canvas).
+/* --- 3D brain spacer ---
+   Since Phase 2, the actual R3F canvas no longer lives inside this wrap —
+   it's mounted page-globally by <BrainStage /> in a fixed layer so it can
+   travel into the next section as the user scrolls. This div is now just a
+   sized placeholder that defines the brain's layout flow (740 px desktop /
+   90 vw mobile); the BrainStage reads its rect and adds its own bleed to
+   compute the canvas frame.
 
-   width + height are set explicitly (rather than width + aspect-ratio) because
-   R3F's <Canvas> child claims `height: 100%`, which fights aspect-ratio's
-   width-derived height once the canvas mounts — the wrap ends up tall and
-   narrow on mobile. Explicit height sidesteps the negotiation entirely. */
+   width + height stay explicit (rather than width + aspect-ratio) so the
+   spacer's measured height matches the visual square the brain renders into
+   — keeping the headline-to-brain gap pixel-stable across viewport sizes. */
 .brainWrap {
   position: relative;
   /* Slight upward pull keeps the brain close to the headline above without
@@ -224,41 +223,25 @@
   width:  min(740px, 65vw);
   height: min(740px, 65vw);
   z-index: 2;
-  opacity: 0;
-  animation: floatIn 1.4s .8s cubic-bezier(.2, .7, .2, 1) forwards;
-}
-.canvasFrame {
-  position: absolute;
-  /* Horizontal: bleed all the way to the viewport edges so hover/pulse
-     overshoots have the real screen edge as their limit, not an arbitrary
-     box inside it. The trig: wrap is centered in the viewport, so its left
-     edge sits at (100vw − wrap_width)/2 from the page edge — subtracting
-     that distance from the wrap's left lands canvasFrame exactly at 0 / 100vw.
-     `100%` here resolves to the wrap's width, so the calc adapts as the wrap
-     resizes with viewport changes.
-     Vertical: a modest ~110px bleed is enough for the impact spring and
-     hover lift — the brain doesn't push that far up/down. */
-  left:  calc((100% - 100vw) / 2);
-  right: calc((100% - 100vw) / 2);
-  top: -110px;
-  bottom: -110px;
-  /* Sits below .row (z 4) and .top (z 5) so the brandmark + CTA still
-     receive pointer events even where the canvas overlaps them visually. */
-  z-index: 1;
-}
-.brainWrap::after {
-  content: "";
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 4%;
-  height: 24px;
-  background: radial-gradient(closest-side, rgba(10, 76, 33, .22), transparent 70%);
-  filter: blur(8px);
-  z-index: -1;
+  /* Since Phase 2 this div is an empty spacer — the actual brain canvas is
+     mounted page-globally by <BrainStage /> in a fixed layer at a lower
+     z-index. The spacer must NOT capture pointer events: it sits inside
+     .stage (z 3) which paints above the fixed canvas, so a default-pointer
+     spacer would intercept hover/click before R3F sees it. With this off,
+     events on text rows (which already have pointer-events: none) fall
+     straight through to the canvas underneath. */
+  pointer-events: none;
 }
 
-/* --- scroll hint pinned to viewport bottom --- */
+/* --- scroll hint pinned to viewport bottom ---
+   Lives only in the Hero. It's fixed at the viewport bottom, but z-index:0
+   keeps it BELOW the next section: in the root stacking context the hint paints
+   after .hero (so it shows over the Hero's light background) but before
+   .identify (z auto, later in the DOM), so as the green section scrolls up it
+   slides OVER the hint and the hint tucks away underneath — never floating in
+   hard-to-read green-on-green over the rest of the site. The brain canvas
+   (z-index:1) still paints above both sections, so the 3D brain is unaffected;
+   the hint sits low-center where the brain never overlaps it. */
 .scrollHint {
   position: fixed;
   bottom: 18px;
@@ -272,7 +255,7 @@
   opacity: .58;
   text-transform: uppercase;
   pointer-events: none;
-  z-index: 10;
+  z-index: 0;
 }
 .scrollHint::after {
   content: "";
@@ -286,17 +269,25 @@
 }
 
 /* --- pointer-events policy ---
-   Every piece of chrome — eyebrow/headline/display typography, lead paragraph,
-   side rails — gets pointer-events: none so the cursor "falls through" to the
-   brain canvas underneath. Without this, the .row (z-index 4, sitting above
-   the canvas where it bleeds upward) would intercept the cursor and the brain's
-   hover field would stutter. */
+   Since Phase 2 the brain canvas is mounted page-globally by <BrainStage /> at
+   root z-index 1, while the Hero's .stage stacking context paints at z-index 3.
+   That means .stage and every child of it would intercept the cursor BEFORE
+   R3F's hover collider underneath gets a chance — breaking fruit hover and
+   click in the center of the brain area.
+
+   Fix: turn pointer events OFF for the entire .stage subtree (the central copy
+   column is purely presentational anyway), then re-enable them on the few
+   interactive descendants. Right now that's just .cta (which sets
+   pointer-events: auto in its own module). If we add other clickable bits
+   inside .stage later, they need to opt back in the same way. */
+.stage,
 .top,
 .eyebrow,
 .headline,
 .display, .display *,
 .row,
 .lead,
+.brainWrap,
 .rail {
   pointer-events: none;
 }
@@ -305,10 +296,6 @@
 @keyframes rise {
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes floatIn {
-  from { opacity: 0; transform: translateY(40px) scale(.96); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 @keyframes dash {
   0%   { transform: scaleY(.2); transform-origin: top; }
@@ -352,10 +339,5 @@
      here gives the brain a little extra breathing room on actual devices
      without affecting desktop. */
   .brainWrap { width: 90vw; height: 90vw; margin-top: 6px; }
-  /* Horizontal viewport-edge bleed is inherited from the default
-     .canvasFrame rule (the same calc evaluates to -5vw when the wrap is
-     90vw). Mobile only needs to drop the vertical bleed — the brain
-     doesn't reach the top/bottom of the wrap at this smaller render size. */
-  .canvasFrame { top: 0; bottom: 0; }
 }
 

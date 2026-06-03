@@ -1,58 +1,51 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import styles from "./Hero.module.css";
-
-// Three.js is heavy and DOM-dependent — load on the client only.
-const BrainModel = dynamic(
-  () => import("@/components/BrainModel").then((m) => m.BrainModel),
-  { ssr: false },
-);
-
-/* `scale` has to compensate for canvas size: a smaller canvas with a larger
-   scale renders the same perceived brain as a larger canvas with a smaller
-   scale. On mobile the canvas matches the wrap (337px @ 90vw), so we keep the
-   original scale. On desktop the canvas bleeds ~110px past the wrap on every
-   side (see .canvasFrame in Hero.module.css), so the canvas is ~960px even
-   though the wrap is still 740px — we trim the scale to land on the same
-   visible brain size. */
-const SCALE_DESKTOP = 1.55;
-const SCALE_MOBILE  = 1.85;
-const DESKTOP_BREAKPOINT = 760;
+import { useBrainSlot, type BrainFrame } from "@/components/BrainStage";
 
 /**
- * Mount point for the 3D brain inside the hero composition.
- * Layout footprint = .brainWrap (740px desktop / 90vw mobile).
- * Render canvas    = .canvasFrame (bleeds past wrap on desktop so the
- *                    brain's animations have empty page space to swing
- *                    into instead of clipping at the raster edge).
+ * Hero's 3D-brain slot.
+ *
+ * Since Phase 2, the actual <BrainModel /> canvas no longer lives here — it's
+ * mounted page-globally by <BrainStage /> so it can travel into the next
+ * section as the user scrolls. This component is now just a DOM "spacer":
+ * an empty div with the SAME footprint .brainWrap had before, registered as
+ * a slot so <BrainStage /> can position its fixed canvas exactly over it.
+ *
+ * The wrap's footprint (740 px desktop / 90 vw mobile) defines layout flow;
+ * the computeFrame below adds the same horizontal-to-viewport-edge + vertical
+ * bleed the old .canvasFrame had, so off-wrap animations (hover lift, click
+ * impact) still have screen space to swing into.
  */
-export function HeroBrain() {
-  // Pick the right scale on the first paint based on the live viewport,
-  // then keep it in sync if the user resizes across the breakpoint.
-  // BrainModel is client-only (ssr: false), so `window` is always defined here.
-  const [scale, setScale] = useState<number>(() =>
-    typeof window !== "undefined" && window.innerWidth > DESKTOP_BREAKPOINT
-      ? SCALE_DESKTOP
-      : SCALE_MOBILE,
-  );
+const VERTICAL_BLEED_DESKTOP_PX = 110;
+const MOBILE_BREAKPOINT = 760;
 
-  useEffect(() => {
-    const update = () => {
-      setScale(window.innerWidth > DESKTOP_BREAKPOINT ? SCALE_DESKTOP : SCALE_MOBILE);
+export function HeroBrain() {
+  /* Map the spacer's rect to the actual canvas frame: bleed to viewport edges
+     horizontally (gives hover/pulse overshoots the real screen edge as their
+     limit) plus a fixed vertical bleed on desktop for impact-spring overshoot.
+     Mobile uses the wrap's height verbatim since the brain renders smaller and
+     the impact spring doesn't reach the wrap edges there. */
+  const computeFrame = useCallback((rect: DOMRect): BrainFrame => {
+    const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+    const verticalBleed = isMobile ? 0 : VERTICAL_BLEED_DESKTOP_PX;
+    return {
+      left: 0,
+      top: rect.top - verticalBleed,
+      width: window.innerWidth,
+      height: rect.height + verticalBleed * 2,
     };
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
   }, []);
 
-  return (
-    <div className={styles.brainWrap} aria-hidden="true">
-      <div className={styles.canvasFrame}>
-        <BrainModel scale={scale} />
-      </div>
-    </div>
-  );
+  const spacerRef = useBrainSlot<HTMLDivElement>("hero", {
+    order: 0,
+    computeFrame,
+    // The Hero sits at the very top, so the brain "rests" here at scroll 0.
+    arrivalScroll: () => 0,
+  });
+
+  return <div ref={spacerRef} className={styles.brainWrap} aria-hidden="true" />;
 }
 
 export default HeroBrain;
