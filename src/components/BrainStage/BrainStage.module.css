@@ -64,6 +64,19 @@
 }
 
 @media (max-width: 760px) {
+  /* On phones the full-viewport canvas MUST stay pass-through so touches scroll
+     the page instead of being grabbed by the brain (R3F captures the pointer on
+     touch-down over the model, which kills the scroll gesture).
+
+     R3F sets `pointer-events: auto` INLINE on its own container div, and an
+     explicit auto on a child overrides a parent's `none` — so disabling just
+     .canvas isn't enough. Force the whole subtree off with !important (the one
+     case where a stylesheet beats an inline style). The brain takes no touch
+     interaction on phones anyway; it still renders and travels on scroll. */
+  .canvas,
+  .canvas * {
+    pointer-events: none !important;
+  }
   /* Mobile frame has no vertical bleed, so the shadow sits right at the
      bottom of the brain's visual footprint. */
   .shadow {
