@@ -37,6 +37,11 @@ interface BrainStateValue {
   /** Active click ripples. Multiple clicks coexist — old ones are pruned by
    *  the click handler when they exceed their useful lifetime. */
   pulses: { current: Pulse[] };
+  /** Scroll-travel "exodus" progress, 0..1. Published by BrainGroup from the
+   *  host's progressRef. Each Fruit reads it to fly radially outward and fade
+   *  as the brain descends into Section 2, leaving the bare "clean" brain the
+   *  reference shows. 0 = all fruit in place; 1 = all fruit gone. */
+  exodus: { current: number };
 }
 
 export interface Pulse {
@@ -62,6 +67,7 @@ export function BrainStateProvider({
   const isHoveringBrain = useRef(false);
   const hoverIntensity = useRef(0);
   const pulses = useRef<Pulse[]>([]);
+  const exodus = useRef(0);
   const value = useMemo<BrainStateValue>(
     () => ({
       coreOffsetY,
@@ -72,6 +78,7 @@ export function BrainStateProvider({
       isHoveringBrain,
       hoverIntensity,
       pulses,
+      exodus,
     }),
     [intensity],
   );

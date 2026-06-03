@@ -1,8 +1,8 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import { Group, MathUtils, Vector3 } from "three";
+import { useEffect, useMemo, useRef } from "react";
+import { Group, type Material, MathUtils, Vector3 } from "three";
 import { ANIMATION } from "./constants";
 import { useBrainState } from "./BrainContext";
 import type { NodeRender } from "./BrainGroup";
@@ -12,6 +12,11 @@ interface FruitProps {
   /** Deterministic per-fruit hash (0..2π). Used as jitter seed so fruits
    *  desynchronize subtly during the hover-fall phase. */
   phase: number;
+  /** Index of this fruit among all fruits — used to stagger the exodus so
+   *  fruit leave in a wave instead of all at once. */
+  index: number;
+  /** Total fruit count — normalizes the stagger window. */
+  total: number;
 }
 
 /**
@@ -23,7 +28,7 @@ interface FruitProps {
  * Net effect: cursor acts like a soft vacuum cleaner — a cone of influence with
  * the peak directly under the cursor and a smooth skirt around it.
  */
-export function Fruit({ render }: FruitProps) {
+export function Fruit({ render, index, total }: FruitProps) {
   const groupRef = useRef<Group>(null!);
   const {
     intensity,
@@ -32,6 +37,7 @@ export function Fruit({ render }: FruitProps) {
     hoverPoint,
     hoverIntensity,
     pulses,
+    exodus,
   } = useBrainState();
 
   const [bx, by, bz] = render.worldPosition;
@@ -42,6 +48,35 @@ export function Fruit({ render }: FruitProps) {
 
   // Re-used scratch vector so we don't allocate per frame.
   const tmp = useMemo(() => new Vector3(), []);
+
+  // Flatten this fruit's materials once so the exodus fade can drive their
+  // opacity directly. Each fruit's materials are independent clones (the
+  // clearcoat override in BrainGroup clones per node), so mutating them here is
+  // safe and won't bleed into other fruits.
+  const materials = useMemo(() => {
+    const out: Material[] = [];
+    for (const m of render.meshes) {
+      if (Array.isArray(m.material)) out.push(...m.material);
+      else out.push(m.material);
+    }
+    return out;
+  }, [render]);
+
+  // Enable transparency up front (so the exodus fade doesn't trigger a shader
+  // recompile mid-scroll) and restore full opacity on unmount.
+  useEffect(() => {
+    for (const m of materials) m.transparent = true;
+    return () => {
+      for (const m of materials) {
+        m.opacity = 1;
+        m.transparent = false;
+      }
+    };
+  }, [materials]);
+
+  // This fruit's exodus window: it starts leaving at `start` (staggered by
+  // index) and is fully gone `duration` later, both expressed in travel-progress.
+  const start = total > 1 ? (index / (total - 1)) * ANIMATION.exodus.stagger : 0;
 
   useFrame((_state, dt) => {
     const g = groupRef.current;
@@ -123,7 +158,36 @@ export function Fruit({ render }: FruitProps) {
       }
     }
 
-    const lift = (hoverLift + pulseLift) * inv * intensity.hover;
+    // --- Scroll exodus: fly outward + fade as the brain descends ----------
+    // Rescale raw travel progress onto [0, completeBy] so the whole exodus
+    // finishes before the brain settles (margin for arrival rounding). Then a
+    // per-fruit staggered, eased window drives each fruit outward + fade.
+    const e = Math.min(1, exodus.current / ANIMATION.exodus.completeBy);
+    let exodusLift = 0;
+    if (e > start) {
+      const local = Math.min(1, (e - start) / ANIMATION.exodus.duration);
+      const eased = local * local;
+      const op = 1 - eased;
+      for (const m of materials) if (m.opacity !== op) m.opacity = op;
+      // Normal fly-out distance PLUS a "banish" term that accelerates the fruit
+      // FAR off-canvas as it fades past the halfway point. This guarantees the
+      // faint tail of the fade — and any fruit left stalled near the end of its
+      // exodus (e.g. if travel progress freezes just short of 1) — ends up WELL
+      // outside the viewport instead of lingering as a small dot near the brain.
+      // It is ~0 while the fruit is still clearly visible (opacity ≥ 0.5) and
+      // ramps up hard as opacity → 0, so the visible part of the fly-out reads
+      // the same as before.
+      const fade = Math.max(0, (0.5 - op) / 0.5);
+      exodusLift =
+        eased * ANIMATION.exodus.distance +
+        fade * fade * (ANIMATION.exodus.distance * 120);
+    } else {
+      for (const m of materials) if (m.opacity !== 1) m.opacity = 1;
+    }
+
+    // Hover + pulse lifts are authored in normalized units (× intensity), and
+    // so is the exodus distance; sum them, then convert to pre-normalize units.
+    const lift = ((hoverLift + pulseLift) * intensity.hover + exodusLift) * inv;
 
     g.position.set(bx + dx * lift, by + dy * lift, bz + dz * lift);
   });

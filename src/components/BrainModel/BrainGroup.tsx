@@ -2,7 +2,7 @@
 
 import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Box3,
   type BufferGeometry,
@@ -66,7 +66,17 @@ export interface NodeRender {
  *   - Fruits render outside the core group so they can apply their own per-fruit lag,
  *     micro-wobble, and hover lift while still tilting with the outer group.
  */
-export function BrainGroup() {
+interface BrainGroupProps {
+  /** Live scroll-travel progress ref (see BrainModelProps.progressRef). When
+   *  provided, drives the 540° descent spin. */
+  progressRef?: { current: number };
+}
+
+export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
+  /** Outermost group — receives the scroll-driven descent spin (540° around Y).
+   *  Lives ABOVE the magnetism group so the mouse tilt rides along with the
+   *  spin instead of fighting it. */
+  const travelRef = useRef<Group>(null!);
   const outerRef = useRef<Group>(null!);
   const coreRef = useRef<Group>(null!);
   /** Group between outerRef and the normalize chain — receives the click
@@ -92,10 +102,56 @@ export function BrainGroup() {
     isHoveringBrain,
     hoverIntensity,
     pulses,
+    exodus,
   } = useBrainState();
 
   /** Scratch vector reused each frame by the world-scale probe; avoids GC. */
   const worldScaleScratch = useMemo(() => new Vector3(), []);
+  /** Brain's live WORLD-space center, refreshed every frame. The hover/click ray
+   *  math needs it because the brain is placed away from the world origin (the
+   *  page positions it to land on each section's slot), so the cursor→brain
+   *  projection must be solved around this center, not (0,0,0). */
+  const brainWorldPos = useMemo(() => new Vector3(), []);
+
+  // Fruit "exodus latch" (belt-and-suspenders alongside <ScrollRestoration/>).
+  // Once the fruit have fully flown off during a descent, we remember it for the
+  // session (sessionStorage). If a reload restores the scroll a touch short of
+  // the parked spot, this holds the fruit fully GONE (flung off-canvas) instead
+  // of letting them reappear frozen mid-flight scattered around the brain. It is
+  // disarmed on the first real scroll input, so live scrolling (incl. the fruit
+  // flying back in when you scroll up) is never affected.
+  //
+  // CRUCIAL: it is armed SYNCHRONOUSLY on the first render (BrainModel is
+  // client-only, so reading sessionStorage here is safe). If we armed it a few
+  // frames late (in an effect), a reload would briefly show the fruit, begin
+  // fading them as the scroll restores, then SNAP them gone the instant the
+  // latch armed mid-fade — the "brutal disappear, no fade" the user saw. Arming
+  // on frame 0 means the fruit are simply already gone, with no flash or snap.
+  const exodusArmed = useRef(false);
+  const exodusFlag = useRef<boolean | null>(null);
+  if (exodusFlag.current === null) {
+    let done = false;
+    try {
+      done = sessionStorage.getItem("brainExodusDone") === "1";
+    } catch {
+      /* sessionStorage unavailable — latch simply stays disarmed */
+    }
+    exodusArmed.current = done;
+    exodusFlag.current = done;
+  }
+  useEffect(() => {
+    const disarm = () => {
+      exodusArmed.current = false;
+    };
+    window.addEventListener("wheel", disarm, { passive: true, once: true });
+    window.addEventListener("touchmove", disarm, { passive: true, once: true });
+    window.addEventListener("keydown", disarm, { once: true });
+    return () => {
+      window.removeEventListener("wheel", disarm);
+      window.removeEventListener("touchmove", disarm);
+      window.removeEventListener("keydown", disarm);
+    };
+  }, []);
 
   const gltf = useGLTF(MODEL_PATH, DRACO_DECODER_PATH) as unknown as {
     nodes: GLTFNodes;
@@ -129,7 +185,10 @@ export function BrainGroup() {
       .filter((n): n is Object3D => Boolean(n))
       .map((n) => nodeToRender(n, { colorTint: brainTint }, center));
 
-    // Seed (green stem) keeps its authored color.
+    // Seed (green pod at the brain's base — a brand element, NOT a fruit) keeps
+    // its authored color and rides along with the brain. It does NOT join the
+    // fruit exodus: only the 36 fruits fly off on the descent, leaving the bare
+    // brain + its green seed on arrival.
     const seed = nodes[SEED_NAME]
       ? nodeToRender(nodes[SEED_NAME], undefined, center)
       : null;
@@ -202,7 +261,43 @@ export function BrainGroup() {
       outerRef.current.getWorldScale(worldScaleScratch);
       // Uniform scale assumed — the host shouldn't pass per-axis scales here.
       brainWorldScale.current = worldScaleScratch.x || 1;
+      // Live world center (the brain is placed off-origin); the hover/click ray
+      // projection is solved around this point.
+      outerRef.current.getWorldPosition(brainWorldPos);
     }
+  });
+
+  // Scroll-driven descent spin. travelRef is the outermost group, so this Y
+  // rotation spins the entire brain (with magnetism tilt riding inside it).
+  // Progress is clamped to [0,1] for the first travel segment (Hero → Section 2);
+  // 1.5 turns lands the brain showing its opposite "clean" face on arrival.
+  useFrame(() => {
+    const g = travelRef.current;
+    if (!g) return;
+    const p = progressRef ? Math.max(0, Math.min(1, progressRef.current)) : 0;
+    g.rotation.y = p * Math.PI * 2 * ANIMATION.travel.turns;
+
+    // Remember (for the next reload) whether the exodus has completed: set the
+    // flag once the fruit are fully gone, clear it back near the Hero. Written
+    // only on a transition, never every frame. Returning to the Hero also
+    // disarms the reload latch so the fruit reappear there as normal.
+    const wantFlag =
+      p >= ANIMATION.exodus.completeBy ? true : p < 0.1 ? false : null;
+    if (wantFlag !== null && wantFlag !== exodusFlag.current) {
+      exodusFlag.current = wantFlag;
+      try {
+        if (wantFlag) sessionStorage.setItem("brainExodusDone", "1");
+        else sessionStorage.removeItem("brainExodusDone");
+      } catch {
+        /* ignore */
+      }
+      if (!wantFlag) exodusArmed.current = false;
+    }
+
+    // While the latch is armed (a reload landed after a completed exodus), hold
+    // the fruit fully gone; otherwise track live progress. Each Fruit reads
+    // exodus.current to fly outward + fade in sync with the descent spin.
+    exodus.current = exodusArmed.current ? 1 : p;
   });
 
   // Brain impact reaction — combines three layers, all gamma-decayed:
@@ -281,23 +376,32 @@ export function BrainGroup() {
   });
 
   return (
-    <group ref={outerRef}>
-      {/* Invisible hover collider in NORMALIZED world coords. Tracks both the
-          on/off state of hover AND the precise intersection point — fruits read
-          the point and apply a Gaussian-falloff lift relative to their own
-          world position (mouse acts like a soft vacuum). */}
-      <mesh
+    <group ref={travelRef}>
+      <group ref={outerRef}>
+        {/* Invisible hover collider in NORMALIZED world coords. Tracks both the
+            on/off state of hover AND the precise intersection point — fruits read
+            the point and apply a Gaussian-falloff lift relative to their own
+            world position (mouse acts like a soft vacuum). */}
+        <mesh
         onPointerEnter={() => {
           isHoveringBrain.current = true;
         }}
         onPointerMove={(e) => {
           // Compute where the cursor's picking ray would intersect a sphere
-          // matching the brain's CURRENT world radius (= host-applied scale).
-          // This gives the exact point on the brain the cursor is aiming at,
-          // independent of the actual collider sphere's size. Falls back to
-          // the closest-point-on-ray if the ray misses the sphere (cursor
-          // aiming outside the brain but inside the aura).
-          rayUnitSphereHit(e.ray, hoverPoint.current, brainWorldScale.current);
+          // matching the brain's CURRENT world radius (= host-applied scale),
+          // centered at the brain's live WORLD position. The brain is placed
+          // off-origin (the page positions it on each section's slot), so the
+          // sphere MUST be solved around brainWorldPos — solving around (0,0,0)
+          // offsets the hover field from the brain and makes the cursor stop
+          // tracking the fruit toward the top/bottom edges. Falls back to the
+          // closest-point-on-ray if the ray misses (cursor inside the aura but
+          // off the brain).
+          rayUnitSphereHit(
+            e.ray,
+            hoverPoint.current,
+            brainWorldScale.current,
+            brainWorldPos,
+          );
         }}
         onPointerLeave={() => {
           isHoveringBrain.current = false;
@@ -360,13 +464,20 @@ export function BrainGroup() {
                 <StaticPart key={part.name} part={part} />
               ))}
               {seedPart && <StaticPart part={seedPart} />}
-              {fruits.map(({ name, phase, render }) => (
-                <Fruit key={name} render={render} phase={phase} />
+              {fruits.map(({ name, phase, render }, i) => (
+                <Fruit
+                  key={name}
+                  render={render}
+                  phase={phase}
+                  index={i}
+                  total={fruits.length}
+                />
               ))}
             </group>
           </group>
         </group>
       </group>
+    </group>
     </group>
   );
 }
@@ -595,47 +706,55 @@ function phaseFor(i: number) {
   return (((i * 9301 + 49297) % 233280) / 233280) * Math.PI * 2;
 }
 
-/** Solves where a picking ray hits a sphere of given `radius` centered at the
- *  brain origin and writes the result into `out`. If the ray misses the sphere,
+/** Solves where a picking ray hits a sphere of given `radius` centered at
+ *  `center` (world space) and writes the result into `out`. If the ray misses,
  *  falls back to the closest-point-on-ray projected to the surface (so off-brain
  *  cursor positions still produce a consistent surface point near the brain).
  *
- *  `radius` defaults to 1 — i.e. unit sphere — which is correct when the brain
- *  is rendered at scale 1. When the host scales the model via the `scale` prop,
- *  the caller passes the live world scale so the projected point lands on the
- *  ACTUAL brain surface instead of inside it. */
+ *  `radius` defaults to 1 — correct when the brain is rendered at scale 1. The
+ *  caller passes the live world scale so the projected point lands on the ACTUAL
+ *  brain surface. `center` defaults to the origin, but MUST be the brain's live
+ *  world position whenever the brain is placed off-origin (the page positions it
+ *  on each section's slot) — otherwise the hover field is offset from the brain
+ *  and the cursor stops tracking the fruit correctly toward the edges. */
 function rayUnitSphereHit(
   ray: { origin: Vector3; direction: Vector3 },
   out: Vector3,
   radius: number = 1,
+  center?: Vector3,
 ): Vector3 {
-  // |O + t·D|² = r²  (sphere of radius r at origin, D is normalized)
-  // t² + 2t(O·D) + (|O|² − r²) = 0
+  const cx = center ? center.x : 0;
+  const cy = center ? center.y : 0;
+  const cz = center ? center.z : 0;
+  // Solve in sphere-local space: O = rayOrigin − center, sphere at local origin.
+  // |O + t·D|² = r²  →  t² + 2t(O·D) + (|O|² − r²) = 0  (D is normalized)
   const r2 = radius * radius;
-  const O = ray.origin;
   const D = ray.direction;
-  const ODdot = O.x * D.x + O.y * D.y + O.z * D.z;
-  const OOlenSq = O.x * O.x + O.y * O.y + O.z * O.z;
+  const Ox = ray.origin.x - cx;
+  const Oy = ray.origin.y - cy;
+  const Oz = ray.origin.z - cz;
+  const ODdot = Ox * D.x + Oy * D.y + Oz * D.z;
+  const OOlenSq = Ox * Ox + Oy * Oy + Oz * Oz;
   const disc = ODdot * ODdot - OOlenSq + r2;
   if (disc >= 0) {
-    // Front hit (smaller t — closer to ray origin).
+    // Front hit (smaller t — closer to ray origin). The hit point shares the
+    // ray, so it's the world ray origin + t·D (no need to re-add center).
     const t = -ODdot - Math.sqrt(disc);
-    out.x = O.x + t * D.x;
-    out.y = O.y + t * D.y;
-    out.z = O.z + t * D.z;
+    out.x = ray.origin.x + t * D.x;
+    out.y = ray.origin.y + t * D.y;
+    out.z = ray.origin.z + t * D.z;
     return out;
   }
-  // Ray misses — use closest approach to origin, projected to the sphere.
-  // closestPoint = O - (O·D) D
-  out.x = O.x - ODdot * D.x;
-  out.y = O.y - ODdot * D.y;
-  out.z = O.z - ODdot * D.z;
-  // Project onto the sphere of the given radius.
-  const len = Math.hypot(out.x, out.y, out.z) || 1;
+  // Ray misses — closest approach to the center, projected onto the sphere,
+  // then translated back into world space (+ center).
+  const lx = Ox - ODdot * D.x;
+  const ly = Oy - ODdot * D.y;
+  const lz = Oz - ODdot * D.z;
+  const len = Math.hypot(lx, ly, lz) || 1;
   const k = radius / len;
-  out.x *= k;
-  out.y *= k;
-  out.z *= k;
+  out.x = cx + lx * k;
+  out.y = cy + ly * k;
+  out.z = cz + lz * k;
   return out;
 }
 
