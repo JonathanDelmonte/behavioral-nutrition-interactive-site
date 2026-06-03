@@ -81,11 +81,6 @@ export function BrainStage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const lastInteractive = useRef(true);
-  // Phone-width viewport? The brain takes NO pointer interaction on phones — a
-  // full-viewport canvas with pointer-events:auto swallows touch, so a drag
-  // would grab the brain instead of scrolling the page. Kept in a ref so the
-  // scroll loop reads it without re-subscribing on resize.
-  const isMobileRef = useRef(false);
 
   // Mutable mirrors of state for the scroll loop, whose effect closes over
   // [sortedSlots] only (so it isn't torn down/rebuilt on every resize tick).
@@ -234,10 +229,9 @@ export function BrainStage() {
       if (lastInteractive.current !== interactive) {
         lastInteractive.current = interactive;
         if (canvasWrapRef.current) {
-          // Never interactive on phones (isMobileRef) so a touch scrolls the
-          // page instead of being grabbed by the full-viewport canvas.
-          canvasWrapRef.current.style.pointerEvents =
-            interactive && !isMobileRef.current ? "auto" : "none";
+          canvasWrapRef.current.style.pointerEvents = interactive
+            ? "auto"
+            : "none";
         }
         if (stageRef.current) {
           stageRef.current.style.zIndex = interactive ? "" : String(TRAVEL_Z);
@@ -289,10 +283,7 @@ export function BrainStage() {
     const update = () => {
       setScale(pickScale());
       setOversize(pickOversize());
-      // 760px matches the CSS phone breakpoint used across the sections.
-      isMobileRef.current = window.innerWidth <= 760;
     };
-    update(); // sync on mount so the first pointer-events toggle is correct
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
