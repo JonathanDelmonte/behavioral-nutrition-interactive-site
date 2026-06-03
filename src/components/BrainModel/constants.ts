@@ -3,6 +3,11 @@
 // GLB URL valid in every hosting scenario.
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 export const MODEL_PATH = `${BASE_PATH}/models/v7_sweetspot.glb`;
+// Studio HDRI environment map, served from /public. MUST get the same BASE_PATH
+// treatment as the GLB above: a raw "/hdri/..." resolves to the domain root and
+// 404s on GitHub Pages (which serves under "/<repo>/"), and a failed Environment
+// load throws and takes the whole 3D scene down with it (brain disappears).
+export const HDRI_PATH = `${BASE_PATH}/hdri/studio_small_03_1k.hdr`;
 export const DRACO_DECODER_PATH =
   "https://www.gstatic.com/draco/versioned/decoders/1.5.6/";
 

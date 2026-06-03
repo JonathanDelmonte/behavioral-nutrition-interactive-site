@@ -7,7 +7,7 @@ import { Group } from "three";
 import { Lighting } from "./Lighting";
 import { BrainGroup } from "./BrainGroup";
 import { CameraTarget } from "./Debug";
-import type { BrainPlacement } from "./constants";
+import { HDRI_PATH, type BrainPlacement } from "./constants";
 
 interface SceneProps {
   scale: number | [number, number, number];
@@ -32,15 +32,14 @@ export function Scene({ scale, position, progressRef, placementRef }: SceneProps
       {/* HDRI environment — gives subtle, photo-realistic reflections on the
           fruit and brain surfaces. `background={false}` keeps the page white.
 
-          Served from /public (NOT drei's `preset="studio"`): the preset fetches
-          this same HDR from an external CDN (raw.githack.com/pmndrs/drei-assets)
-          at runtime, and a single network/CDN hiccup throws "Could not load …hdr:
-          Failed to fetch", which crashes the entire 3D tree and the brain
-          vanishes. The byte-identical file lives in public/hdri/, so it's served
-          by Next.js with the rest of the app — no third-party dependency, works
-          offline, and can't fail to fetch. */}
+          Served from /public via HDRI_PATH (NOT drei's `preset="studio"`): the
+          preset fetches this same HDR from an external CDN at runtime, and a
+          single network/CDN hiccup throws "Failed to fetch", which crashes the
+          entire 3D tree and the brain vanishes. HDRI_PATH carries the GitHub
+          Pages BASE_PATH prefix (see constants.ts) so it resolves both on local
+          dev (served from root) and on Pages (served under /<repo>/). */}
       <Environment
-        files="/hdri/studio_small_03_1k.hdr"
+        files={HDRI_PATH}
         background={false}
         environmentIntensity={0.35}
       />
