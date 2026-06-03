@@ -6,6 +6,33 @@ export const MODEL_PATH = `${BASE_PATH}/models/v7_sweetspot.glb`;
 export const DRACO_DECODER_PATH =
   "https://www.gstatic.com/draco/versioned/decoders/1.5.6/";
 
+/**
+ * Camera for the brain Canvas. Exported as a single source of truth so a
+ * page-side mount (BrainStage) can build an OFF-canvas mirror of the exact same
+ * projection — that lets it map a viewport-pixel target rect into a world-space
+ * position+scale without <BrainModel/> ever learning anything about the page.
+ * If you change these, the mirror updates automatically (it reads from here).
+ */
+export const CAMERA = {
+  position: [8.0, 0.8, 1.2] as [number, number, number],
+  /** lookAt target (CameraTarget points the live camera here). */
+  target: [0, 0, 0] as [number, number, number],
+  fov: 32,
+  near: 0.1,
+  far: 100,
+};
+
+/**
+ * Abstract world-space placement for the brain. The page-global BrainStage
+ * computes this from a screen-space target and hands it to <BrainModel/> via a
+ * ref — keeping the model decoupled from any page-layout concepts (it only ever
+ * sees a world position + uniform scale, never pixels/rects/scroll).
+ */
+export interface BrainPlacement {
+  position: [number, number, number];
+  scale: number;
+}
+
 export const BRAIN_PART_NAMES = [
   "Brain_Part_02",
   "Brain_Part_04",
@@ -33,6 +60,45 @@ export const ANIMATION = {
   idle: {
     amplitude: 0.025,
     frequency: 0.25,
+  },
+  /** Scroll-driven descent from the Hero into Section 2. As travel progress
+   *  goes 0→1 the brain spins this many full turns around its vertical axis.
+   *  1.5 turns = 540°, landing showing the OPPOSITE side (the "clean" face the
+   *  reference PNG shows) after one-and-a-half rotations. */
+  travel: {
+    turns: 1.5,
+  },
+  /** Fruit "exodus" during the descent: as travel progress rises, each fruit
+   *  flies radially outward and fades, leaving the bare brain on arrival. */
+  exodus: {
+    /** Outward travel distance at full exodus, in normalized units (brain
+     *  radius ≈ 1). ~2.6 pushes fruit well past the canvas edge on arrival. */
+    distance: 2.6,
+    /** Travel-progress point by which ALL fruit have fully left. Mapping the
+     *  exodus onto [0, completeBy] (instead of [0, 1]) means every fruit is gone
+     *  by the time travel progress reaches this value.
+     *
+     *  0.95 keeps the fruit on screen for almost the ENTIRE descent: they ride
+     *  along and the last one fades out only when the brain is ~99% of the way
+     *  down (BrainStage eases POSITION with easeInOut, so progress 0.95 → eased
+     *  ≈ 0.993), i.e. right as it settles into place. Higher = fruit linger even
+     *  later; lower = they clear earlier in the descent. (At 0.7 they were gone
+     *  by ~78% down, which read as leaving "too early".)
+     *
+     *  This only behaves predictably because the slot's arrivalScroll is now
+     *  computed LIVE (IdentifyBrainSlot.tsx), so progress actually reaches 1.0 at
+     *  the brain's visual rest. A previous stale-arrival bug froze the arrival
+     *  ~1.7× too large, capping progress at ~0.58 there — which is what left
+     *  fruit scattered around the already-parked brain. That's fixed at the
+     *  source, NOT by holding completeBy low, so this is free to sit near 1.0. */
+    completeBy: 0.95,
+    /** Fraction of the (rescaled) exodus over which fruit START times are
+     *  spread, by index — 0 = all leave together, 0.5 = a wave across the
+     *  first half. */
+    stagger: 0.5,
+    /** Fraction of the (rescaled) exodus each individual fruit takes to fully
+     *  leave once its start time is reached. */
+    duration: 0.5,
   },
   microWobble: {
     amplitude: 0.006,

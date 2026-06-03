@@ -12,6 +12,7 @@ import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { BrainStateProvider, type BrainIntensity } from "./BrainContext";
 import { Scene } from "./Scene";
 import { ErrorBoundary, LoaderCube } from "./Debug";
+import { CAMERA, type BrainPlacement } from "./constants";
 
 export interface BrainModelProps {
   /** Uniform scale (number) or per-axis scale ([x,y,z]). Default: 1. */
@@ -26,6 +27,22 @@ export interface BrainModelProps {
    * All default to 1.
    */
   intensity?: Partial<BrainIntensity>;
+  /**
+   * Live scroll-travel progress (0 = resting at the first stage slot, rising as
+   * the brain travels between sections). Passed as a ref so per-scroll-frame
+   * updates don't re-render the R3F tree — BrainGroup reads `.current` inside
+   * useFrame to drive the descent spin (and, later, fruit exodus). Optional:
+   * when absent the brain just does its idle/hover/click animations.
+   */
+  progressRef?: { current: number };
+  /**
+   * Live world-space placement (position + uniform scale) for the model. When
+   * provided, it OVERRIDES the static `scale`/`position` props each frame —
+   * letting a host render the brain anywhere inside a larger canvas (e.g. a
+   * full-viewport stage) while keeping the model itself page-agnostic. Passed
+   * as a ref so per-scroll-frame updates don't re-render the R3F tree.
+   */
+  placementRef?: { current: BrainPlacement | null };
   /** Optional CSS class for the wrapping <div>. Defaults to filling its parent. */
   className?: string;
 }
@@ -40,6 +57,8 @@ export function BrainModel({
   scale = 1,
   position = [0, 0, 0],
   intensity,
+  progressRef,
+  placementRef,
   className,
 }: BrainModelProps) {
   const merged: BrainIntensity = { ...DEFAULT_INTENSITY, ...intensity };
@@ -49,7 +68,12 @@ export function BrainModel({
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [8.0, 0.8, 1.2], fov: 32, near: 0.1, far: 100 }}
+        camera={{
+          position: CAMERA.position,
+          fov: CAMERA.fov,
+          near: CAMERA.near,
+          far: CAMERA.far,
+        }}
         gl={{
           antialias: true,
           alpha: true,
@@ -74,7 +98,12 @@ export function BrainModel({
         <BrainStateProvider intensity={merged}>
           <ErrorBoundary>
             <Suspense fallback={<LoaderCube />}>
-              <Scene scale={scale} position={position} />
+              <Scene
+                scale={scale}
+                position={position}
+                progressRef={progressRef}
+                placementRef={placementRef}
+              />
               <EffectComposer>
                 <HueSaturation hue={0} saturation={0.4} />
                 <BrightnessContrast brightness={0.04} contrast={0.2} />

@@ -1,0 +1,79 @@
+/* BrainStage — CSS Module. Holds the fixed-positioned wrapper that drives the
+   page-global brain canvas, plus the entrance animation and ground-shadow
+   decoration that used to live in Hero's .brainWrap.
+
+   Stacking: both fixed boxes REST at z-index 1 — above the Hero's botanical
+   leaves (z auto / 0) but below the Hero/Identify copy (z 2–10), so at rest
+   headline / lead / CTA / thoughts all paint over the brain. While the brain
+   travels between sections, BrainStage.tsx imperatively lifts the .stage box
+   to TRAVEL_Z (20) so the descending brain + flying fruit pass OVER the
+   section copy; it drops back to 1 once the brain settles back in the Hero.
+
+   Sizing: on desktop the stage (canvas) is full-viewport (positioned inline) so
+   the fruit fly-out has the whole screen to cross without clipping at the raster
+   edge; the brain is placed in world space to land on its target. The shadow
+   lives in its own frame-sized box so it stays glued to the brain footprint. */
+
+.stage {
+  position: fixed;
+  /* Resting z-index (behind section copy). Lifted to TRAVEL_Z imperatively in
+     BrainStage.tsx while the brain travels — see the header comment. */
+  z-index: 1;
+  /* Outer wrapper is pass-through; the inner canvas wrap re-enables pointer
+     events for R3F's hover/click collider (toggled off once the brain travels
+     so the full-viewport canvas can't swallow clicks below it). */
+  pointer-events: none;
+  /* Entrance animation matches the old .brainWrap floatIn so first paint is
+     visually identical to the pre-refactor Hero. */
+  opacity: 0;
+  animation: floatIn 1.4s .8s cubic-bezier(.2, .7, .2, 1) forwards;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+/* Frame-sized box for the ground glow — positioned (inline) to the brain
+   footprint, so the halo follows the brain even though the canvas above is
+   full-viewport. */
+.shadowBox {
+  position: fixed;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  animation: floatIn 1.4s .8s cubic-bezier(.2, .7, .2, 1) forwards;
+}
+
+/* Ground glow under the brain — the brain "casts" a subtle green halo onto the
+   page. Positioned relative to .shadowBox (the brain footprint), which on
+   desktop includes a fixed vertical bleed, so the glow sits at the visual
+   footprint rather than the box edge. */
+.shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: calc(15% - 4px);
+  height: 24px;
+  background: radial-gradient(closest-side, rgba(10, 76, 33, .22), transparent 70%);
+  filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (max-width: 760px) {
+  /* Mobile frame has no vertical bleed, so the shadow sits right at the
+     bottom of the brain's visual footprint. */
+  .shadow {
+    left: 10%;
+    right: 10%;
+    bottom: 6%;
+  }
+}
+
+@keyframes floatIn {
+  from { opacity: 0; transform: translateY(40px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
