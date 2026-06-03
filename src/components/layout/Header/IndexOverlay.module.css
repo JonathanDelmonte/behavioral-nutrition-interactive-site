@@ -158,6 +158,15 @@
     height: 100lvh;
     bottom: auto;
   }
-  .content { max-width: 100%; padding: 0 24px; }
+  .content {
+    /* Push the column lower on mobile so the "— Índice —" eyebrow has
+       breathing room below the header instead of sitting right against
+       its bottom border. The 42% optical centering looked balanced on
+       desktop but on the compact mobile viewport the eyebrow ended up
+       only ~20 px from the header — this bump adds ~50 px of air. */
+    top: 48%;
+    max-width: 100%;
+    padding: 0 24px;
+  }
   .num { min-width: 38px; }
 }
