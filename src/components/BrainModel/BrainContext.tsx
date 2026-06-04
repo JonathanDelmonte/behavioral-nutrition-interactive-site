@@ -25,6 +25,12 @@ interface BrainStateValue {
    *  by the same factor so the cone-around-the-cursor preserves its angular
    *  reach. Defaults to 1 so behavior at scale=1 is unchanged. */
   brainWorldScale: { current: number };
+  /** Brain's live world-space center — the page places it off the world origin
+   *  on each section's slot, so the hover/click ray→surface projection must be
+   *  solved around THIS point (not 0,0,0). Written by BrainGroup each frame; the
+   *  mobile-tap handler reads it so a tap pulse's origin lands ON the brain
+   *  surface (next to the fruit), otherwise the fruit ripple never fires. */
+  brainWorldPos: { current: Vector3 };
   /** Last known cursor intersection on the brain (world coords). Updated
    *  continuously by the hover collider while the cursor is over it. */
   hoverPoint: { current: Vector3 };
@@ -63,6 +69,7 @@ export function BrainStateProvider({
   const coreOffsetY = useRef(0);
   const normScale = useRef(1);
   const brainWorldScale = useRef(1);
+  const brainWorldPos = useRef(new Vector3());
   const hoverPoint = useRef(new Vector3(0, 9999, 0));
   const isHoveringBrain = useRef(false);
   const hoverIntensity = useRef(0);
@@ -74,6 +81,7 @@ export function BrainStateProvider({
       intensity,
       normScale,
       brainWorldScale,
+      brainWorldPos,
       hoverPoint,
       isHoveringBrain,
       hoverIntensity,

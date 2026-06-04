@@ -3,9 +3,9 @@
 import { Environment } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, type MutableRefObject, type ReactNode } from "react";
-import { Group, Vector2 } from "three";
+import { Group, Vector2, Vector3 } from "three";
 import { Lighting } from "./Lighting";
-import { BrainGroup } from "./BrainGroup";
+import { BrainGroup, rayUnitSphereHit } from "./BrainGroup";
 import { CameraTarget } from "./Debug";
 import { useBrainState } from "./BrainContext";
 import { ANIMATION, HDRI_PATH, type BrainPlacement } from "./constants";
@@ -75,11 +75,12 @@ export function Scene({ scale, position, progressRef, placementRef }: SceneProps
  */
 function MobileTap({ targetRef }: { targetRef: MutableRefObject<Group> }) {
   const { camera, raycaster, gl } = useThree();
-  const { pulses } = useBrainState();
+  const { pulses, brainWorldScale, brainWorldPos } = useBrainState();
 
   useEffect(() => {
     const canvasEl = gl.domElement;
     const ndc = new Vector2();
+    const origin = new Vector3();
 
     const onClick = (e: MouseEvent) => {
       if (!window.matchMedia("(max-width: 760px)").matches) return;
@@ -93,20 +94,33 @@ function MobileTap({ targetRef }: { targetRef: MutableRefObject<Group> }) {
         -((e.clientY - rect.top) / rect.height) * 2 + 1,
       );
       raycaster.setFromCamera(ndc, camera);
-      const hit = raycaster.intersectObject(target, true)[0];
-      if (!hit) return; // tap missed the brain → leave it for the page (scroll/CTA)
+      // Must land on the brain composition (not empty page / CTA).
+      if (raycaster.intersectObject(target, true).length === 0) return;
+
+      // Origin = the tap ray projected onto the brain's world surface sphere,
+      // centered on the brain's LIVE world position (brainWorldPos) — the exact
+      // same projection the hover uses, so the fruit ripple fires too. (The brain
+      // is placed off the world origin on phones; a raw mesh hit point or an
+      // origin-centered sphere lands too far from the fruit and only the brain
+      // reacts.)
+      rayUnitSphereHit(
+        raycaster.ray,
+        origin,
+        brainWorldScale.current,
+        brainWorldPos.current,
+      );
 
       const now = performance.now() / 1000;
       const active = pulses.current.filter(
         (p) => now - p.startTime < ANIMATION.pulse.lifetime,
       );
-      active.push({ origin: hit.point.clone(), startTime: now });
+      active.push({ origin: origin.clone(), startTime: now });
       pulses.current = active;
     };
 
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
-  }, [camera, raycaster, gl, pulses, targetRef]);
+  }, [camera, raycaster, gl, pulses, brainWorldScale, brainWorldPos, targetRef]);
 
   return null;
 }

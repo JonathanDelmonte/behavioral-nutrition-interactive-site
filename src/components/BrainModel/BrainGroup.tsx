@@ -98,6 +98,7 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
     intensity,
     normScale: normScaleRef,
     brainWorldScale,
+    brainWorldPos,
     hoverPoint,
     isHoveringBrain,
     hoverIntensity,
@@ -107,11 +108,8 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
 
   /** Scratch vector reused each frame by the world-scale probe; avoids GC. */
   const worldScaleScratch = useMemo(() => new Vector3(), []);
-  /** Brain's live WORLD-space center, refreshed every frame. The hover/click ray
-   *  math needs it because the brain is placed away from the world origin (the
-   *  page positions it to land on each section's slot), so the cursor→brain
-   *  projection must be solved around this center, not (0,0,0). */
-  const brainWorldPos = useMemo(() => new Vector3(), []);
+  // brainWorldPos (the brain's live world center) now comes from BrainContext so
+  // the mobile-tap handler can read the same point — refreshed below each frame.
 
   // Fruit "exodus latch" (belt-and-suspenders alongside <ScrollRestoration/>).
   // Once the fruit have fully flown off during a descent, we remember it for the
@@ -263,7 +261,7 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
       brainWorldScale.current = worldScaleScratch.x || 1;
       // Live world center (the brain is placed off-origin); the hover/click ray
       // projection is solved around this point.
-      outerRef.current.getWorldPosition(brainWorldPos);
+      outerRef.current.getWorldPosition(brainWorldPos.current);
     }
   });
 
@@ -400,7 +398,7 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
             e.ray,
             hoverPoint.current,
             brainWorldScale.current,
-            brainWorldPos,
+            brainWorldPos.current,
           );
         }}
         onPointerLeave={() => {
@@ -717,7 +715,7 @@ function phaseFor(i: number) {
  *  world position whenever the brain is placed off-origin (the page positions it
  *  on each section's slot) — otherwise the hover field is offset from the brain
  *  and the cursor stops tracking the fruit correctly toward the edges. */
-function rayUnitSphereHit(
+export function rayUnitSphereHit(
   ray: { origin: Vector3; direction: Vector3 },
   out: Vector3,
   radius: number = 1,
