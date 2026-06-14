@@ -17,7 +17,7 @@ export function Brandmark({ compact = false }: Props) {
       href="#"
       aria-label="Juliana Delmonte · Nutrição Comportamental"
     >
-      <img src={`${BASE_PATH}/images/hero/logo.png`} alt="" />
+      <img src={`${BASE_PATH}/images/hero/logo.webp`} alt="" />
       <span className={styles.lockup}>
         <span className={styles.name}>Juliana Delmonte</span>
         <span className={styles.role}>Nutrição Comportamental</span>

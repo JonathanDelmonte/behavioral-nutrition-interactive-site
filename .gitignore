@@ -35,5 +35,8 @@ next-env.d.ts
 
 # editor / tooling
 /.claude/
+# AI-agent "skills" dropped into .github by the impeccable installer — keep them
+# local-only (the rest of /.github, e.g. workflows/deploy.yml, MUST stay tracked).
+/.github/skills/
 *.tmp
 .tmp_*
