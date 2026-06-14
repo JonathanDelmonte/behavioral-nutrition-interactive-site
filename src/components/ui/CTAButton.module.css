@@ -36,11 +36,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .12);
-  transition: transform .4s cubic-bezier(.2, .7, .2, 1), background .3s;
+  flex: 0 0 auto;
+  transition: transform .4s cubic-bezier(.2, .7, .2, 1);
 }
-.cta:hover .arrow { transform: translateX(4px); background: rgba(255, 255, 255, .22); }
-.arrow svg { width: 11px; height: 11px; }
+/* The icon gives hover feedback with a gentle swell — never by translating (a
+   sliding logo reads as a glitch, and a moving inner target isn't needed once
+   the pill itself no longer lifts in 3D contexts). */
+.cta:hover .arrow { transform: scale(1.08); }
+/* Bare WhatsApp mark — no disc behind it. Sized in em (matching the Contact
+   pill's glyph) so it scales with whatever font-size the consuming pill sets. */
+.arrow svg { width: 1.7em; height: 1.7em; }

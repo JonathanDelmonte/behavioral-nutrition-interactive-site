@@ -8,7 +8,7 @@ import { CTAButton } from "@/components/ui/CTAButton";
 export function HeroContent() {
   return (
     <>
-      <div className={styles.eyebrow}>um manifesto</div>
+      <div className={styles.eyebrow}>início</div>
 
       <h1 className={styles.headline}>O problema nunca foi</h1>
 
@@ -21,10 +21,10 @@ export function HeroContent() {
 
       <div className={styles.row}>
         <p className={styles.lead}>
-          Nutrição comportamental para quem está cansado de começar de novo toda
+          Nutrição comportamental para sair do ciclo de recomeçar toda
           segunda-feira.
         </p>
-        <CTAButton href="#agendar">Agendar consulta</CTAButton>
+        <CTAButton>Agendar consulta</CTAButton>
       </div>
     </>
   );
