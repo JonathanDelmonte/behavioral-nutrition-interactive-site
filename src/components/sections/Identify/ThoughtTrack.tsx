@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CTAButton } from "@/components/ui/CTAButton";
 import { IdentifyBrainSlot } from "./IdentifyBrainSlot";
+import { IdentifyQuestions } from "./IdentifyQuestions";
 import styles from "./Identify.module.css";
 
 /** The five validated thoughts (see memory: reference_identify_section). */
@@ -24,7 +25,7 @@ const THOUGHTS = [
   },
   {
     roman: "iv",
-    text: "Eu sou fraca. Não tenho força de vontade nenhuma.",
+    text: "Eu falhei de novo. Não tenho força de vontade nenhuma.",
     echo: "e se o problema nunca tivesse sido esse?",
   },
   {
@@ -34,25 +35,40 @@ const THOUGHTS = [
   },
 ] as const;
 
-/**
- * The 600vh scroll track whose sticky stage holds the (page-global) brain on
- * the left and the cycling thoughts on the right. As the user scrolls through
- * the track, the active thought advances through the five buckets — same
- * mapping as the client's mockup: a small dead zone at the very start, then the
- * remaining range split evenly across the thoughts.
- *
- * On mobile the stage isn't sticky and all bubbles are shown stacked (CSS),
- * so the active index is harmless there.
- */
+/* Progress mapping inside the (untouchable) 400vh track.
+
+   The brain's travel/exodus is timed against the page height ABOVE the track
+   and lands exactly when the stage pins (p = 0) — so the track height must
+   NOT change. What changed is only WHEN each thought happens inside it:
+
+   - 0 → SETTLE: the brain rests alone, no bubble (the landing gets a beat);
+   - SETTLE → 1: five EQUAL buckets, one per thought — no more first/last
+     thoughts hogging extra dwell;
+   - ≥ FINAL (phones only): the closing line + CTA form in place of the
+     bubble — the same dramaturgy as desktop's post-track footer. */
+const SETTLE = 0.08;
+const FINAL_ON = 0.94;
+const FINAL_OFF = 0.91; // hysteresis so the swap never flickers
+
 export function ThoughtTrack() {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
+  const stageRef = useRef<HTMLDivElement>(null);
+  // active: -1 = landing beat (no bubble); prev drives the leaving animation.
+  const [pair, setPair] = useState({ active: 0, prev: -2 });
+  // Arms the enhanced styles (flora growth, etc.) once JS is live; stays
+  // false under prefers-reduced-motion so the CSS defaults (everything
+  // visible, fully grown) hold.
+  const [armed, setArmed] = useState(false);
 
   useEffect(() => {
     const track = trackRef.current;
-    if (!track) return;
+    const stage = stageRef.current;
+    if (!track || !stage) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduce) setArmed(true);
 
     let raf: number | null = null;
+    let lastIdx = -2; // sentinel: no think-pulse on the very first sync
 
     const update = () => {
       raf = null;
@@ -60,11 +76,36 @@ export function ThoughtTrack() {
       const dist = track.offsetHeight - window.innerHeight;
       const scrolled = -rect.top;
       const p = dist > 0 ? Math.max(0, Math.min(1, scrolled / dist)) : 0;
-      // 5% dead zone so the first thought lingers as the stage settles, then
-      // split the rest evenly across the thoughts.
-      const adj = Math.max(0, (p - 0.05) / 0.95);
-      const idx = Math.min(THOUGHTS.length - 1, Math.floor(adj * THOUGHTS.length));
-      setActive((prev) => (prev === idx ? prev : idx));
+      track.style.setProperty("--tp", p.toFixed(4));
+
+      // Landing beat, then five equal buckets.
+      const idx =
+        p < SETTLE
+          ? -1
+          : Math.min(
+              THOUGHTS.length - 1,
+              Math.floor(((p - SETTLE) / (1 - SETTLE)) * THOUGHTS.length),
+            );
+
+      if (idx !== lastIdx) {
+        const prev = lastIdx;
+        lastIdx = idx;
+        setPair({ active: idx, prev });
+        // The brain "thinks" each arriving bubble — a soft pulse through the
+        // same channel the click uses (see ThinkPulse in BrainModel/Scene).
+        if (idx >= 0 && prev !== -2 && !reduce) {
+          window.dispatchEvent(
+            new CustomEvent("brain:think", { detail: { strength: 0.5 } }),
+          );
+        }
+      }
+
+      // Phones: the closing line + CTA replace the bubble at the end.
+      if (p >= FINAL_ON) {
+        if (!stage.dataset.final) stage.dataset.final = "1";
+      } else if (p < FINAL_OFF && stage.dataset.final) {
+        delete stage.dataset.final;
+      }
     };
 
     const onScroll = () => {
@@ -81,38 +122,49 @@ export function ThoughtTrack() {
     };
   }, []);
 
+  const { active, prev } = pair;
+  const labelIdx = Math.max(0, active);
+
   return (
     <div className={styles.track} ref={trackRef} data-brain-track="">
-      <div className={styles.stage}>
-        {/* PHONE-ONLY (toggled in CSS): the section headline pulled INTO the
-            pinned view, above the brain+bubble. On desktop this is display:none
-            and the real .intro (in ./index.tsx) shows in normal flow; on phone
-            the real .intro/.footer are hidden and these in-stage copies fill the
-            otherwise-empty top/bottom so headline → brain+bubble → CTA stack
-            evenly within one screen. Keep this copy in sync with ./index.tsx. */}
+      <div className={styles.stage} ref={stageRef}>
+        {/* Handwritten question marks murmuring across the whole stage —
+            sprout, rise, dissolve, re-roll (self-contained component). */}
+        <IdentifyQuestions />
+
+        {/* PHONE-ONLY (toggled in CSS): act 1 — the section headline overlays
+            the pinned view and dissolves (via --tp) as the brain settles. On
+            desktop this is display:none and the real .intro shows in flow. */}
         <div className={styles.stageIntro}>
           <div className={styles.eyebrow}>você se identifica?</div>
           <h2 className={styles.title}>
             Você reconhece <em>esses pensamentos?</em>
           </h2>
           <p className={styles.sub}>
-            Cada um deles já passou pela mente de milhares de mulheres. Talvez
+            Cada um deles já passou pela mente de muita gente. Talvez
             agora esteja passando pela sua.
           </p>
         </div>
 
-        {/* Brain (left) + cycling thought bubble (right) — the two-column row
-            that's the only visible stage child on desktop (centered vertically),
-            and the middle band of the stacked phone layout. */}
+        {/* Brain + cycling thought bubble — side by side on desktop, stacked
+            (brain above, bubble below) on phones. */}
         <div className={styles.stageMid}>
-          {/* Slot for the 3D brain — registers with the BrainStage so the
-              page-global canvas travels here from the Hero on scroll. */}
-          <IdentifyBrainSlot />
+          {/* Slot for the 3D brain; thinkKey re-fires the halo ring whenever a
+              new thought arrives. */}
+          <IdentifyBrainSlot thinkKey={armed ? active : -1} />
 
-          <div className={styles.bubbles}>
-            {/* Thought "tail": three small glassy blobs trailing up from the
-                bubble toward the brain, same material + float as the main bubble. */}
-            <div className={styles.thoughtTail} aria-hidden="true">
+          <div
+            className={styles.bubbles}
+            data-bubbles=""
+            data-none={active < 0 ? "" : undefined}
+          >
+            {/* Thought "tail" — remounted per thought (key) so the three blobs
+                pop brain→bubble before each new bubble inflates. */}
+            <div
+              className={styles.thoughtTail}
+              key={active}
+              aria-hidden="true"
+            >
               <span className={styles.tailDot} />
               <span className={styles.tailDot} />
               <span className={styles.tailDot} />
@@ -121,10 +173,20 @@ export function ThoughtTrack() {
             {THOUGHTS.map((t, i) => (
               <article
                 key={t.roman}
-                className={`${styles.bubble} ${i === active ? styles.active : ""}`.trim()}
+                className={[
+                  styles.bubble,
+                  i === active ? styles.active : "",
+                  i === prev && prev >= 0 ? styles.leaving : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 data-i={i}
               >
-                <div className={styles.bubbleShape}>
+                <div
+                  className={styles.bubbleShape}
+                  data-bubbleshape=""
+                  data-active={i === active ? "" : undefined}
+                >
                   <span className={styles.idx}>{t.roman} de v</span>
                   <blockquote className={styles.quote}>{t.text}</blockquote>
                   <span className={styles.echo}>{t.echo}</span>
@@ -134,21 +196,23 @@ export function ThoughtTrack() {
           </div>
         </div>
 
-        {/* PHONE-ONLY (toggled in CSS): the closing line + CTA pulled into the
-            pinned view, below the brain+bubble. Desktop shows the real .footer. */}
+        {/* PHONE-ONLY (toggled in CSS): the finale — forms in place of the
+            bubble once the five thoughts are done (.stage[data-final]). */}
         <div className={styles.stageFooter}>
           <p className={styles.pull}>
-            Você <em>não está sozinha</em>.
+            Você <em>não precisa passar por isso só</em>.
             <br />
             Vamos conversar.
           </p>
-          <CTAButton href="#contato" className={styles.lightCta}>
+          <CTAButton className={styles.lightCta}>
             Quero conversar com a Ju
           </CTAButton>
         </div>
 
         <div className={styles.progress} aria-hidden="true">
-          <span className={styles.progressLabel}>{THOUGHTS[active].roman} / v</span>
+          <span className={styles.progressLabel}>
+            {THOUGHTS[labelIdx].roman} / v
+          </span>
           <span className={styles.progressBar}>
             {THOUGHTS.map((t, i) => (
               <span

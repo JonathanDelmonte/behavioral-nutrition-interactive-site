@@ -330,7 +330,7 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
         const gamma = r * Math.exp(1 - r);
         const rampR = Math.min(1, r / 0.3);
         const ramp = rampR * rampR * (3 - 2 * rampR);
-        const temporal = gamma * ramp;
+        const temporal = gamma * ramp * (pulse.strength ?? 1);
 
         // Click direction in world (unit vector from origin to click point).
         const len = Math.hypot(pulse.origin.x, pulse.origin.y, pulse.origin.z) || 1;

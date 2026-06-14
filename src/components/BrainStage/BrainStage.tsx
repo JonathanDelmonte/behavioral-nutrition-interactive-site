@@ -227,14 +227,23 @@ export function BrainStage() {
       //      reset at rest so the Hero headline/CTA keep painting over it.
       const interactive = progressRef.current < 0.04;
       if (lastInteractive.current !== interactive) {
-        lastInteractive.current = interactive;
-        if (canvasWrapRef.current) {
+        // Only latch once the refs exist and the state was actually APPLIED.
+        // Latching with null refs (a reload that restores scroll mid-page runs
+        // update() before the stage mounts) left the canvas stuck in the wrong
+        // mode — wrap pointer-events auto at z 1 — until a lucky reload, which
+        // showed up as "sometimes nothing below the Hero is clickable".
+        if (canvasWrapRef.current && stageRef.current) {
+          lastInteractive.current = interactive;
           canvasWrapRef.current.style.pointerEvents = interactive
             ? "auto"
             : "none";
-        }
-        if (stageRef.current) {
           stageRef.current.style.zIndex = interactive ? "" : String(TRAVEL_Z);
+          // Belt and braces: R3F re-applies pointer-events:auto inline on its
+          // inner container, which re-enables hit-testing even under the
+          // wrap's `none`. The class kills the whole subtree via !important
+          // (see BrainStage.module.css) whenever the brain isn't at its
+          // interactive Hero rest.
+          stageRef.current.classList.toggle(styles.muted, !interactive);
         }
       }
 

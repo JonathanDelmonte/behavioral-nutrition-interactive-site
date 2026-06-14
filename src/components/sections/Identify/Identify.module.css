@@ -12,12 +12,14 @@
    bubbles. */
 
 .identify {
+  --identify-handoff-green: #0a4d22;
   position: relative;
   padding: 0 0 clamp(100px, 12vw, 160px);
   background:
     radial-gradient(70% 50% at 50% 0%, rgba(46, 107, 71, .55), transparent 70%),
-    radial-gradient(80% 60% at 50% 100%, rgba(46, 107, 71, .35), transparent 70%),
-    linear-gradient(180deg, var(--color-green-deep), #073a18 50%, var(--color-green-deep));
+    /* Final color is tuned to the Method sky's first visible green. */
+    radial-gradient(80% 30% at 50% 70%, rgba(46, 107, 71, .28), transparent 62%),
+    linear-gradient(180deg, var(--color-green-deep) 0%, #073a18 50%, var(--color-green-deep) 82%, var(--identify-handoff-green) 100%);
   color: var(--color-offwhite);
   overflow: clip;
 }
@@ -165,6 +167,8 @@
    .stageMid is the only in-flow stage child, so .stage's justify-content:center
    keeps it vertically centered exactly as the bare grid used to be. */
 .stageMid {
+  position: relative;
+  z-index: 2; /* above the .flora relief layer */
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
@@ -208,6 +212,59 @@
   animation: rotateSlow 80s linear infinite;
 }
 
+/* Halo ring that pulses outward once per arriving thought — the brain
+   "emitting" it. Remounted via key in IdentifyBrainSlot, so it replays. */
+.thinkRing {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 163, 95, .55);
+  opacity: 0;
+  scale: .62;
+  animation: thinkRing 1.4s cubic-bezier(.2, .7, .2, 1) forwards;
+  pointer-events: none;
+}
+
+/* ---- QUESTIONS — handwritten "?" murmuring across the stage -------------- */
+
+.qfield {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* An artistic, high-contrast calligraphic "?" set in Italianno (the brand's
+   doubt-mark face) in tone-on-tone relief: most marks a soft pale sage that
+   catches light off the deep green, some a warm gold accent, a few a deeper
+   sage for depth. Position / size / tilt / duration / peak opacity come
+   per-cycle from IdentifyQuestions.tsx via inline custom props; the span
+   fades+rises via the qLife keyframe, drifting at a calm constant (linear)
+   pace — subtle. */
+.qmark {
+  position: absolute;
+  font-family: var(--font-question);
+  font-weight: 400;
+  line-height: 1;
+  color: #b9cdab; /* pale sage — visible relief on the deep green */
+  opacity: 0;
+  animation: qLife var(--qd, 9s) linear var(--qdelay, 0s) 1 both;
+  will-change: transform, opacity;
+}
+.qmark:nth-child(3n + 1) {
+  color: var(--color-gold-soft); /* warm accent */
+}
+.qmark:nth-child(4n + 3) {
+  color: #8fa97f; /* deeper sage */
+}
+/* Armed by JS only — no-JS / reduced-motion shows no marks (pure ambience). */
+.qfield:not(.qOn) .qmark {
+  display: none;
+}
+.qPaused .qmark {
+  animation-play-state: paused;
+}
+
 /* Right column — bubbles. Each bubble is absolutely positioned in the same
    spot so they crossfade in place when toggled active. */
 .bubbles {
@@ -221,22 +278,33 @@
   justify-content: flex-start;
 }
 
+/* Each bubble FORMS when its thought arrives (inflating from the tail side,
+   after the tail dots pop brain→bubble) and DISSOLVES upward when it leaves —
+   thoughts evaporate. Keyframes instead of transitions so enter and exit have
+   different trajectories. */
 .bubble {
   position: absolute;
   left: 6%;
   top: 50%;
-  transform: translate(0, -50%) translateY(28px) scale(.96);
+  transform: translate(0, -50%);
+  transform-origin: left center;
   width: 90%;
   opacity: 0;
-  transition:
-    opacity .55s cubic-bezier(.2, .7, .2, 1),
-    transform .7s cubic-bezier(.2, .7, .2, 1);
   pointer-events: none;
+  /* scale from the center so the forming blob never shifts sideways — keeps its
+     painted center on the container center, which the "?" exclusion relies on */
+  transform-origin: center;
 }
 .bubble.active {
-  opacity: 1;
-  transform: translate(0, -50%) translateY(0) scale(1);
   pointer-events: auto;
+  animation: bubbleForm .75s cubic-bezier(.2, .7, .2, 1) .3s both;
+}
+.bubble.leaving {
+  animation: bubbleLeave .45s cubic-bezier(.2, .7, .2, 1) forwards;
+}
+/* While the brain is still landing (no thought yet) the tail hides too. */
+.bubbles[data-none] .thoughtTail {
+  display: none;
 }
 
 .bubbleShape {
@@ -279,10 +347,13 @@
     inset 0 0 22px rgba(184, 146, 74, .08),
     0 14px 28px -18px rgba(0, 0, 0, .4);
   opacity: 0;
+  /* tailPop uses the independent `scale` property, so it never fights the
+     transform-based tailFloat. The whole tail remounts per thought (key), so
+     the three dots POP brain→bubble before each bubble inflates. */
   animation:
     blob 16s ease-in-out infinite,
     tailFloat 7s ease-in-out infinite,
-    tailIn .9s ease-out forwards;
+    tailPop .45s cubic-bezier(.2, .7, .2, 1) forwards;
 }
 /* The three dots sit on a gentle upward-bowing ARC that bridges the gap from the
    brain (left) to the bubble (right): both ends drop toward the brain/bubble
@@ -294,21 +365,21 @@
   height: 30px;
   left: 5%;
   top: 16%;
-  animation-delay: 0s, -1s, .2s;
+  animation-delay: 0s, -1s, .26s;
 }
 .tailDot:nth-child(2) {
   width: 20px;
   height: 20px;
   left: -3%;
   top: 15%;
-  animation-delay: -6s, -3.5s, .35s;
+  animation-delay: -6s, -3.5s, .13s;
 }
 .tailDot:nth-child(3) {
   width: 12px;
   height: 12px;
   left: -9%;
   top: 18%;
-  animation-delay: -10s, -5.5s, .5s;
+  animation-delay: -10s, -5.5s, 0s;
 }
 
 .idx {
@@ -399,7 +470,10 @@
 .footer {
   position: relative;
   z-index: 2;
-  margin: clamp(60px, 10vw, 140px) auto 0;
+  /* Tightened (BELOW the track only — the track height itself is untouchable:
+     the brain's travel is timed against the page above it): the closing line
+     now lands right after the fifth thought instead of across a long void. */
+  margin: clamp(36px, 5vw, 72px) auto 0;
   max-width: 780px;
   text-align: center;
   padding: 0 clamp(28px, 5vw, 72px);
@@ -450,7 +524,7 @@
     0 10px 24px -12px rgba(0, 0, 0, .5),
     0 1px 0 rgba(255, 255, 255, .08) inset;
   /* Desktop size — a touch larger than the base .cta's 11px. padding, gap and
-     the arrow circle are all in em, so the whole pill scales from this single
+     the WhatsApp glyph are all in em, so the whole pill scales from this single
      font-size. The phone breakpoint below swaps in a fluid clamp that eases it
      back down on narrow screens. */
   font-size: 12px;
@@ -463,47 +537,50 @@
   box-shadow: 0 18px 30px -14px rgba(0, 0, 0, .55);
 }
 .lightCta.lightCta :global(span) {
-  /* The .cta's arrow circle keeps its layout but inverts contrast for the
-     light background. Scoped via :global so it hits the inner span regardless
-     of CTAButton's hashed class names. Sized in em so it shrinks together with
-     the clamped font above. */
-  background: rgba(10, 76, 33, .12);
-  width: 2em;
-  height: 2em;
-}
-.lightCta.lightCta:hover :global(span) {
-  background: rgba(10, 76, 33, .2);
+  /* CTAButton's inner span just wraps the bare WhatsApp glyph here — no disc on
+     this light pill anymore, so it only needs to stay a non-shrinking flex box.
+     The green color comes from .lightCta's `color` via the glyph's currentColor.
+     Scoped via :global so it hits the inner span regardless of CTAButton's
+     hashed class names. */
+  flex: 0 0 auto;
 }
 
 /* ---- MOBILE ------------------------------------------------------------ */
 
 @media (max-width: 760px) {
-  /* PHONE LAYOUT — the pinned stage becomes ONE full-height screen with three
-     evenly-spaced bands: the section headline (top), the brain+bubble row
-     (middle), and the closing line + CTA (bottom). The real .intro/.footer that
-     sit in normal flow on desktop are hidden here and replaced by in-stage
-     copies, so the (small) brain+bubble no longer float in a big empty void —
-     the headline and CTA fill the top/bottom. The .track stays 600vh and the
-     .stage stays sticky; only the in-screen distribution changes. */
+  /* PHONE LAYOUT — two ACTS inside the pinned stage (the track height is
+     untouchable; only the in-screen staging changes):
+       act 1 — the section headline alone, dissolving (via --tp) as the brain
+               lands;
+       act 2 — brain on top, thought bubble below it (vertical), tail dots
+               bridging them;
+       finale — once the five thoughts are done (.stage[data-final]) the
+               bubble gives its place to the closing line + CTA. */
   .intro,
   .footer {
     display: none;
   }
 
   .stage {
-    /* Three bands, equal gaps top→bottom (overrides desktop's centering). */
-    justify-content: space-evenly;
-    padding: clamp(10px, 2vh, 18px) 14px;
+    justify-content: center;
+    padding: clamp(10px, 2vh, 18px) 16px;
   }
 
-  /* ---- headline band (top) ---- */
+  /* ---- act 1: headline overlay ---- */
   .stageIntro {
     display: block;
-    flex: 0 0 auto;
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 11vh;
+    z-index: 3;
     text-align: center;
+    pointer-events: none;
+    opacity: calc(1 - clamp(0, (var(--tp, 0) - 0.015) / 0.05, 1));
+    translate: 0 calc(clamp(0, (var(--tp, 0) - 0.015) / 0.05, 1) * -16px);
   }
   /* Inside the pinned stage the entrance animation is pointless and risks
-     leaving text stuck at opacity 0 — just show the headline outright. */
+     leaving text stuck at opacity 0 — show it outright (the --tp fade rules). */
   .stageIntro .eyebrow,
   .stageIntro .title,
   .stageIntro .sub {
@@ -511,8 +588,8 @@
     animation: none;
   }
   .stageIntro .eyebrow {
-    font-size: 11.5px;
-    margin-bottom: 9px;
+    font-size: 12px;
+    margin-bottom: 10px;
     gap: 10px;
   }
   .stageIntro .eyebrow::before,
@@ -520,35 +597,45 @@
     width: 22px;
   }
   .stageIntro .title {
-    font-size: 21px;
+    font-size: 26px;
     line-height: 1.14;
   }
   .stageIntro .sub {
-    font-size: 12px;
-    line-height: 1.5;
-    margin-top: 11px;
-    max-width: 330px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin-top: 12px;
+    max-width: 340px;
   }
 
-  /* ---- brain + bubble band (middle) ---- */
+  /* ---- act 2: brain above, bubble below ---- */
   .stageMid {
-    flex: 0 0 auto;
-    /* Give the bubble much more room than the (small) brain so the text can be
-       larger and never crowd the blob's curved edges. */
-    grid-template-columns: 0.68fr 1.32fr;
-    gap: clamp(6px, 2.5vw, 16px);
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: clamp(10px, 2.5vh, 22px);
   }
   .brainSlot {
-    max-width: 140px;
+    /* Responsive: scales with the viewport — comfortably larger on normal
+       phones, easing down only on very small screens. The aura rings
+       (::before/::after, inset in %) scale with it automatically. */
+    max-width: clamp(196px, 58vw, 280px);
+    justify-self: center;
   }
-  /* Taller bubble + larger text. The generous vertical padding keeps the whole
-     text block in the WIDE middle of the blob, so the index label up top and the
-     echo line at the bottom never poke out past the curved edges. */
+  .bubbles {
+    justify-self: center;
+    width: min(100%, 372px);
+    max-width: none;
+    aspect-ratio: 1 / 1;
+    transition: opacity .5s ease, translate .5s ease;
+  }
+  .bubble {
+    left: 0;
+    width: 100%;
+  }
   .bubbleShape {
-    padding: 46px 26px;
+    padding: 48px 28px;
   }
   .quote {
-    font-size: 17px;
+    font-size: 18px;
     line-height: 1.42;
   }
   .quote::before {
@@ -567,23 +654,42 @@
     margin-top: 14px;
     letter-spacing: .16em;
   }
-  /* Keep the thought-tail on phone too (it was wanted here) — just smaller dots
-     for the narrower brain↔bubble gap. Positions inherit from the arc above. */
-  .tailDot:nth-child(1) { width: 18px; height: 18px; }
-  .tailDot:nth-child(2) { width: 12px; height: 12px; }
-  .tailDot:nth-child(3) { width: 8px; height: 8px; }
+  /* Tail dots bridge VERTICALLY from the brain (above) down to the bubble:
+     smallest at the top nearest the brain. */
+  .tailDot:nth-child(1) { width: 18px; height: 18px; left: 40%; top: -3%; }
+  .tailDot:nth-child(2) { width: 12px; height: 12px; left: 46%; top: -9%; }
+  .tailDot:nth-child(3) { width: 8px;  height: 8px;  left: 51%; top: -14%; }
 
-  /* ---- closing line + CTA band (bottom) ---- */
+  /* ---- finale: the closing line + CTA form in the bubble's place ---- */
   .stageFooter {
     display: flex;
-    flex: 0 0 auto;
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: 9vh;
+    z-index: 3;
     flex-direction: column;
     align-items: center;
     gap: 16px;
     text-align: center;
+    opacity: 0;
+    translate: 0 16px;
+    pointer-events: none;
+    transition: opacity .6s cubic-bezier(.2, .7, .2, 1), translate .6s cubic-bezier(.2, .7, .2, 1);
+  }
+  .stage[data-final] .stageFooter {
+    opacity: 1;
+    translate: 0 0;
+    pointer-events: auto;
+    transition-delay: .25s;
+  }
+  .stage[data-final] .bubbles {
+    opacity: 0;
+    translate: 0 -12px;
+    pointer-events: none;
   }
   .stageFooter .pull {
-    font-size: 19px;
+    font-size: 21px;
     line-height: 1.26;
     margin-bottom: 0;
   }
@@ -597,6 +703,8 @@
   .progress {
     display: none;
   }
+
+  /* Mark count is grid-driven (a narrower grid on phones), so no hiding. */
 }
 
 /* ---- keyframes --------------------------------------------------------- */
@@ -633,7 +741,85 @@
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-5px); }
 }
-@keyframes tailIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+@keyframes tailPop {
+  from { scale: .25; opacity: 0; }
+  to   { scale: 1;   opacity: 1; }
+}
+@keyframes bubbleForm {
+  from {
+    opacity: 0;
+    transform: translate(0, -50%) scale(.86);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, -50%) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes bubbleLeave {
+  from {
+    opacity: 1;
+    transform: translate(0, -50%);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(0, -50%) translateY(-26px) scale(.96);
+    filter: blur(5px);
+  }
+}
+@keyframes thinkRing {
+  0%   { opacity: .5; scale: .62; }
+  100% { opacity: 0;  scale: 1.5; }
+}
+/* Lifecycle of a floating "?": sprout from below, drift upward through its
+   whole life (translate interpolates 0%→100%; the stops only shape opacity),
+   dissolve. --qo / --qrise / --qd come per-cycle from the component. */
+@keyframes qLife {
+  0% {
+    opacity: 0;
+    translate: 0 18px;
+    scale: 0.8;
+  }
+  16% {
+    opacity: var(--qo, 0.2);
+  }
+  72% {
+    opacity: var(--qo, 0.2);
+  }
+  100% {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--qrise, 48px));
+    scale: 1.05;
+  }
+}
+
+/* ---- reduced motion ----------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble.active {
+    animation: none;
+    opacity: 1;
+  }
+  .bubble.leaving {
+    animation: none;
+    opacity: 0;
+  }
+  .tailDot {
+    animation: none;
+    opacity: 1;
+    scale: none;
+  }
+  .qmark {
+    animation: none;
+    display: none;
+  }
+  .thinkRing {
+    display: none;
+  }
+  .stageIntro {
+    opacity: 1 !important;
+    translate: none !important;
+  }
 }

@@ -63,6 +63,19 @@
   z-index: 0;
 }
 
+/* Whenever the brain is NOT resting interactively in the Hero (BrainStage.tsx
+   toggles .muted together with the TRAVEL_Z lift), NOTHING in the canvas
+   subtree may hit-test. The wrap gets inline pointer-events:none, but R3F
+   re-applies pointer-events:auto inline on its own inner container, and an
+   explicit auto on a DESCENDANT re-enables hit-testing under a `none` parent —
+   so the full-viewport canvas (lifted to z 20, above all section copy) was
+   randomly swallowing real clicks in sections further down the page. The
+   class + !important wins over R3F's inline style deterministically. */
+.muted .canvas,
+.muted .canvas * {
+  pointer-events: none !important;
+}
+
 @media (max-width: 760px) {
   /* On phones the full-viewport canvas must NOT capture touch, or it eats the
      scroll gesture — R3F holds the pointer on touch-down and even

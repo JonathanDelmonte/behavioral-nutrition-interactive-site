@@ -57,8 +57,47 @@ export function Scene({ scale, position, progressRef, placementRef }: SceneProps
         <BrainGroup progressRef={progressRef} />
       </PlacementGroup>
       <MobileTap targetRef={brainGroupRef} />
+      <ThinkPulse />
     </>
   );
+}
+
+/**
+ * Section-agnostic "the brain just thought" reaction.
+ *
+ * Listens for the `brain:think` window CustomEvent (fired by the Identify
+ * section whenever the active thought bubble changes) and pushes a SOFT pulse
+ * into the same pulse channel the click/tap uses — the impact spring in
+ * BrainGroup does the rest. `detail.strength` scales the amplitude (default
+ * 0.5 ≈ half a click). Purely additive: no travel / exodus / placement code
+ * is touched, and with no event fired the brain behaves exactly as before.
+ */
+function ThinkPulse() {
+  const { pulses, brainWorldScale } = useBrainState();
+
+  useEffect(() => {
+    const dir = new Vector3();
+    const onThink = (e: Event) => {
+      const strength =
+        (e as CustomEvent<{ strength?: number }>).detail?.strength ?? 0.5;
+      const now = performance.now() / 1000;
+      const active = pulses.current.filter(
+        (p) => now - p.startTime < ANIMATION.pulse.lifetime,
+      );
+      // Origin on the up-right of the brain's surface — where the thought
+      // tail leaves toward the bubble — so the recoil reads as "emitting".
+      dir
+        .set(0.55, 0.8, 0.25)
+        .normalize()
+        .multiplyScalar(brainWorldScale.current);
+      active.push({ origin: dir.clone(), startTime: now, strength });
+      pulses.current = active;
+    };
+    window.addEventListener("brain:think", onThink);
+    return () => window.removeEventListener("brain:think", onThink);
+  }, [pulses, brainWorldScale]);
+
+  return null;
 }
 
 /**

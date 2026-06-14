@@ -55,6 +55,10 @@ export interface Pulse {
   /** performance.now() / 1000 when the click happened. The per-fruit math
    *  derives all internal ripple timings from this single timestamp. */
   startTime: number;
+  /** Optional amplitude multiplier (default 1 = the full click pulse).
+   *  The Identify section fires soft "think" pulses (~0.5) at each thought
+   *  change through the `brain:think` window event — same math, gentler. */
+  strength?: number;
 }
 
 const BrainContext = createContext<BrainStateValue | null>(null);

@@ -39,7 +39,7 @@ function layoutDocTop(el: HTMLElement): number {
   return y;
 }
 
-export function IdentifyBrainSlot() {
+export function IdentifyBrainSlot({ thinkKey = -1 }: { thinkKey?: number }) {
   // The travel runs on phone AND desktop now (the Identify stage is sticky and
   // 2-column at every width — see Identify.module.css). The ONLY opt-out is
   // prefers-reduced-motion: with reduced motion the brain just rests in the Hero
@@ -111,7 +111,14 @@ export function IdentifyBrainSlot() {
     enabled: travelEnabled,
   });
 
-  return <div ref={ref} className={styles.brainSlot} aria-hidden="true" />;
+  return (
+    <div ref={ref} className={styles.brainSlot} aria-hidden="true">
+      {/* Halo ring that pulses once per arriving thought (remounted via key).
+          Decorative child only — BrainStage measures this div's rect, which a
+          child cannot change. */}
+      {thinkKey >= 0 && <span key={thinkKey} className={styles.thinkRing} />}
+    </div>
+  );
 }
 
 export default IdentifyBrainSlot;

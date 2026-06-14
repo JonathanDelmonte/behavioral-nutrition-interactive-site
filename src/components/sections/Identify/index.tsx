@@ -24,7 +24,7 @@ export function IdentifySection() {
           Você reconhece <em>esses pensamentos?</em>
         </h2>
         <p className={styles.sub}>
-          Cada um deles já passou pela mente de milhares de mulheres. Talvez agora
+          Cada um deles já passou pela mente de muita gente. Talvez agora
           esteja passando pela sua.
         </p>
         <div className={styles.scrollDive}>continue rolando</div>
@@ -34,11 +34,11 @@ export function IdentifySection() {
 
       <footer className={styles.footer}>
         <p className={styles.pull}>
-          Você <em>não está sozinha</em>.
+          Você <em>não precisa passar por isso só</em>.
           <br />
           Vamos conversar.
         </p>
-        <CTAButton href="#contato" className={styles.lightCta}>
+        <CTAButton className={styles.lightCta}>
           Quero conversar com a Ju
         </CTAButton>
       </footer>
