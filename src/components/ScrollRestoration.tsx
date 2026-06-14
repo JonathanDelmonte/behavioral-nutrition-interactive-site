@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { whenAppReady } from "./Preloader/preloadSignal";
 
 /**
  * Reliable, per-URL scroll restoration for reloads.
@@ -38,27 +39,34 @@ export function ScrollRestoration() {
     let restoring = Number.isFinite(saved) && saved > 0;
 
     if (restoring) {
-      let frame = 0;
-      const reassert = () => {
-        if (!restoring) return;
-        window.scrollTo(0, saved);
-        // ~12 frames covers hydration + a late font/image reflow; a router
-        // scroll-reset to the top is overridden on the very next frame.
-        if (++frame < 12) requestAnimationFrame(reassert);
-        else restoring = false;
-      };
-      reassert();
-      // The load event can land after our rAF window — re-assert once more.
-      window.addEventListener("load", () => window.scrollTo(0, saved), {
-        once: true,
+      // Wait for the boot preloader to lift its scroll lock before re-asserting:
+      // while the loading screen is up the page is pinned at the top, so any
+      // restore now would just be clamped to 0. Once it hands off we re-assert
+      // onto the unlocked, settled page — so a reload deep in the page still
+      // returns you exactly there, after the loading screen, not at the top.
+      whenAppReady(() => {
+        let frame = 0;
+        const reassert = () => {
+          if (!restoring) return;
+          window.scrollTo(0, saved);
+          // ~12 frames covers hydration + a late font/image reflow; a router
+          // scroll-reset to the top is overridden on the very next frame.
+          if (++frame < 12) requestAnimationFrame(reassert);
+          else restoring = false;
+        };
+        reassert();
+        // The load event can land after our rAF window — re-assert once more.
+        window.addEventListener("load", () => window.scrollTo(0, saved), {
+          once: true,
+        });
+        // Real user input means "they're driving now" — stop forcing the restore.
+        const release = () => {
+          restoring = false;
+        };
+        window.addEventListener("wheel", release, { passive: true, once: true });
+        window.addEventListener("touchmove", release, { passive: true, once: true });
+        window.addEventListener("keydown", release, { once: true });
       });
-      // Real user input means "they're driving now" — stop forcing the restore.
-      const release = () => {
-        restoring = false;
-      };
-      window.addEventListener("wheel", release, { passive: true, once: true });
-      window.addEventListener("touchmove", release, { passive: true, once: true });
-      window.addEventListener("keydown", release, { once: true });
     }
 
     // Persist the live scroll offset (one write per frame at most), but not

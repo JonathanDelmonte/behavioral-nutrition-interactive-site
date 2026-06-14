@@ -1,0 +1,80 @@
+/* Boot loading screen. Covers the whole site (above the header) while the heavy
+   first-screen assets — the 3D brain GLB, its HDRI lighting, the logo and the
+   Hero→Identify vine seam — download. Background matches the Hero's base so the
+   hand-off, when it fades, is seamless. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(26px, 4vh, 40px);
+  background:
+    radial-gradient(120% 80% at 50% 110%, rgba(10, 76, 33, 0.05), transparent 60%),
+    radial-gradient(80% 50% at 50% -10%, rgba(184, 146, 74, 0.05), transparent 60%),
+    var(--color-offwhite-green);
+  /* Fades out once the brain is ready (data-leaving). */
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity;
+}
+.overlay[data-leaving="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The simple brain logo (same mark the header uses), breathing calmly. */
+.logo {
+  width: clamp(72px, 9vw, 104px);
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  animation: breathe 3.4s ease-in-out infinite;
+}
+
+/* A single, simple progress line — fills left→right with the real download. */
+.track {
+  position: relative;
+  width: clamp(150px, 32vw, 220px);
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-green-deep) 16%, transparent);
+  overflow: hidden;
+}
+.fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-gold);
+  transform-origin: left center;
+  /* width is driven by transform: scaleX(progress) set inline */
+  transition: transform 0.25s ease-out;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo {
+    animation: none;
+    opacity: 1;
+  }
+  .fill {
+    transition: none;
+  }
+  .overlay {
+    transition: opacity 0.2s linear;
+  }
+}

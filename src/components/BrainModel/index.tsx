@@ -7,7 +7,7 @@ import {
   EffectComposer,
   HueSaturation,
 } from "@react-three/postprocessing";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { BrainStateProvider, type BrainIntensity } from "./BrainContext";
 import { Scene } from "./Scene";
@@ -48,6 +48,24 @@ export interface BrainModelProps {
 }
 
 const DEFAULT_INTENSITY: BrainIntensity = { idle: 1, magnetism: 1, hover: 1 };
+
+/**
+ * Fires `brain:ready` once — and sets a window flag for late listeners. Because
+ * it lives INSIDE the <Suspense> below (next to <Scene/>, which suspends on both
+ * the GLB and the HDRI), it only mounts after the brain is fully loaded and
+ * about to paint. The boot preloader waits for this so it never reveals the Hero
+ * with an empty hole where the brain should be.
+ */
+function ReadySignal() {
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      (window as unknown as { __brainReady?: boolean }).__brainReady = true;
+      window.dispatchEvent(new Event("brain:ready"));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return null;
+}
 
 /**
  * Fully self-contained 3D brain. Pass scale/position/intensity from the caller —
@@ -98,6 +116,7 @@ export function BrainModel({
         <BrainStateProvider intensity={merged}>
           <ErrorBoundary>
             <Suspense fallback={<LoaderCube />}>
+              <ReadySignal />
               <Scene
                 scale={scale}
                 position={position}

@@ -62,3 +62,15 @@ export const fontScript = localFont({
   display: "swap",
   src: "../../public/fonts/allura-400-latin.woff2",
 });
+
+// Italianno (Astigmatic, OFL) — a flowing high-contrast formal calligraphy.
+// Used ONLY for the floating "?" doubt marks in the Identify section: the
+// client wanted an artistic, premium, hand-written mark with thick/thin
+// contrast (Montserrat read as a uniform "stick", Allura/Playfair as plain).
+// Single weight; latin subset covers "?" (U+003F).
+export const fontQuestion = localFont({
+  variable: "--font-question",
+  display: "swap",
+  src: "../../public/fonts/italianno-400-latin.woff2",
+  weight: "400",
+});

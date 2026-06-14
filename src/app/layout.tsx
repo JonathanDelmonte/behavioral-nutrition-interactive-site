@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { fontSans, fontSerif, fontScript } from "@/styles/fonts";
+import { fontSans, fontSerif, fontScript, fontQuestion } from "@/styles/fonts";
 import { Header } from "@/components/layout/Header/Header";
+import { SitePreloader } from "@/components/Preloader/SitePreloader";
 
 export const metadata: Metadata = {
   title: "Juliana Delmonte · Nutrição Comportamental",
   description:
-    "Nutrição comportamental para quem está cansado de começar de novo toda segunda-feira.",
+    "Nutrição comportamental para sair do ciclo de recomeçar toda segunda-feira.",
 };
 
 export default function RootLayout({
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${fontSans.variable} ${fontSerif.variable} ${fontScript.variable}`}
+      className={`${fontSans.variable} ${fontSerif.variable} ${fontScript.variable} ${fontQuestion.variable}`}
     >
       <body>
         {/* Sticky global header. Lives outside <main> so it persists across
@@ -29,6 +30,9 @@ export default function RootLayout({
             the viewport top while content scrolls beneath. */}
         <Header />
         {children}
+        {/* Boot loading screen — covers everything (incl. the header) until the
+            heavy first-screen assets are down and the brain has painted. */}
+        <SitePreloader />
       </body>
     </html>
   );

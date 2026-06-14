@@ -1,0 +1,234 @@
+/* Site footer — the quiet last word after the fruit-field finale.
+   Continues the deep green so section 8 and the footer read as one closing
+   movement, separated only by the site's gold hairline grammar. Effects are
+   deliberately soft: the columns arrive with the site's rise+unblur reveal,
+   links grow a gold underline on hover, and the Zirtuno credit sits tone-on-tone among the legal line,
+   a watermark for whoever goes looking (per client request: visible, but
+   well hidden; same family as the background). */
+
+.footer {
+  position: relative;
+  /* Above the resting BrainStage canvas (site convention: z 2+ or the fixed
+     full-viewport R3F canvas swallows real clicks). */
+  z-index: 2;
+  background: linear-gradient(180deg, #052f13, #03220d);
+  color: var(--color-offwhite);
+  overflow: clip;
+}
+
+/* Gold hairline marking the transition (site grammar). */
+.footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 1px;
+  background: var(--color-gold);
+  opacity: 0.7;
+}
+
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(56px, 7vw, 88px) 24px 28px;
+}
+
+/* ---- COLUMNS ---------------------------------------------------------------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: clamp(36px, 6vw, 90px);
+  align-items: start;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+}
+.script {
+  font-family: var(--font-script);
+  font-size: clamp(1.9rem, 2.6vw, 2.4rem);
+  line-height: 1.1;
+  color: var(--color-offwhite);
+}
+.role {
+  margin-top: 6px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-gold-soft);
+}
+.crn {
+  margin-top: 14px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: rgba(247, 246, 242, 0.55);
+}
+
+.colTitle {
+  margin: 0 0 16px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(247, 246, 242, 0.45);
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A row = thin-line icon + text (link or address). */
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.85rem, 1vw, 0.92rem);
+  line-height: 1.6;
+  color: rgba(247, 246, 242, 0.78);
+}
+.row svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  color: var(--color-gold-soft);
+  opacity: 0.85;
+}
+
+a.row {
+  text-decoration: none;
+  width: fit-content;
+  transition: color 0.3s ease;
+}
+a.row:hover {
+  color: var(--color-offwhite);
+}
+a.row:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+/* Gold underline grows from the left under the link's text. */
+a.row .rowText {
+  position: relative;
+}
+a.row .rowText::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 100%;
+  height: 1px;
+  background: var(--color-gold-soft);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+a.row:hover .rowText::after,
+a.row:focus-visible .rowText::after {
+  transform: scaleX(1);
+}
+
+.note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78em;
+  color: rgba(247, 246, 242, 0.5);
+}
+
+/* ---- BOTTOM BAR --------------------------------------------------------------- */
+
+.bottom {
+  margin-top: clamp(44px, 6vw, 64px);
+  padding-top: 20px;
+  border-top: 1px solid rgba(247, 246, 242, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 28px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(247, 246, 242, 0.45);
+}
+
+/* The watermark: tone-on-tone with the background — present for whoever
+   looks, invisible to whoever doesn't. Hover wakes it just a notch (still
+   inside the green family, a quiet chrome glint). */
+.devmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 10px;
+  color: #0e4220;
+  cursor: default;
+  transition: color 0.7s ease;
+}
+.devmark svg {
+  height: 13px;
+  width: auto;
+  display: block;
+  fill: currentColor;
+  transition: fill 0.7s ease;
+}
+.devmark:hover {
+  color: #1c5e33;
+}
+
+/* ---- REVEALS (site grammar) ----------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced [data-reveal] {
+    transition:
+      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enhanced [data-reveal]:nth-child(2) { transition-delay: 0.1s; }
+  .enhanced [data-reveal]:nth-child(3) { transition-delay: 0.2s; }
+  .enhanced [data-reveal]:not(.in) {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(5px);
+  }
+  .enhanced .bottom {
+    transition: opacity 1s ease 0.35s;
+  }
+  .enhanced .bottom:not(.in) {
+    opacity: 0;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* ---- MOBILE ----------------------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .bottom {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+  }
+}
