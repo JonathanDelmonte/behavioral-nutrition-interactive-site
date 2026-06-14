@@ -1,6 +1,13 @@
 import { Hero } from "@/components/sections/Hero";
 import { IdentifySection } from "@/components/sections/Identify";
+import { MethodSection } from "@/components/sections/Method";
+import { AboutSection } from "@/components/sections/About";
+import { TestimonialsSection } from "@/components/sections/Testimonials";
+import { JourneySection } from "@/components/sections/Journey";
+import { FaqSection } from "@/components/sections/Faq";
+import { ContactSection } from "@/components/sections/Contact";
 import { BrainStage, BrainStageProvider } from "@/components/BrainStage";
+import { SiteFooter } from "@/components/layout/Footer";
 import { ScrollRestoration } from "@/components/ScrollRestoration";
 
 /**
@@ -21,8 +28,14 @@ export default function Page() {
       <main>
         <Hero />
         <IdentifySection />
-        {/* Future sections go here. */}
+        <MethodSection />
+        <AboutSection />
+        <TestimonialsSection />
+        <JourneySection />
+        <FaqSection />
+        <ContactSection />
       </main>
+      <SiteFooter />
       <BrainStage />
     </BrainStageProvider>
   );
