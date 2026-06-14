@@ -1,0 +1,308 @@
+/* Section 4 — "Conheça a Ju" as an editorial garden spread.
+
+   Layers (bottom → top):
+   - .bg     z0 — the ink-wash pond illustration (client art), opacity-lowered
+              so the offwhite page tone shows through. The url comes inline
+              from the component (BASE_PATH-aware; raw url() in static CSS
+              does not respect basePath).
+   - .dust   z1 — gold motes + falling leaves canvas (enhanced only).
+   - .inner  z2 — kicker, heading, prose, figure.
+
+   The figure = vine ARCH (img) with the portrait standing inside it. It
+   floats right and the bio text wraps a conservative CSS silhouette around
+   the arch's leafy contour. The display heading sits in
+   a LOWER layer (z1 vs figure z2) so the staggered "a Ju." tucks its gold
+   tail into the foliage.
+
+   Vertical rhythm: top and bottom paddings are the SAME clamp, and .prose is
+   a flow-root so the floated figure's bottom is contained — first ink from
+   the top edge equals last ink to the bottom edge.
+
+   Default CSS (no .enhanced) = no-JS / reduced-motion: the complete static
+   spread, zero hidden content. */
+
+.about {
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  position: relative;
+  /* BrainStage convention: interactive content above the fixed canvas (z1). */
+  z-index: 2;
+  overflow: clip;
+  background: var(--color-offwhite);
+  color: var(--color-ink);
+  padding: clamp(80px, 11vh, 150px) clamp(28px, 5vw, 80px);
+}
+
+.bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: right bottom;
+  background-repeat: no-repeat;
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.dust {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+/* ---- Kicker + display heading ------------------------------------------ */
+
+.kicker {
+  /* flex (not inline-flex): kills the parent line-box leading above, so the
+     section's first ink starts exactly at padding-top */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--color-gold-soft);
+  font-size: clamp(14px, 1.2vw, 17px);
+  letter-spacing: 0.04em;
+}
+.kicker::before {
+  content: "";
+  width: 30px;
+  height: 1px;
+  background: var(--color-gold);
+  opacity: 0.75;
+}
+
+.heading {
+  position: relative;
+  z-index: 1;
+  margin: 14px 0 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(44px, 8vw, 96px);
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--color-green-deep);
+  text-wrap: balance;
+}
+.heading em {
+  font-style: italic;
+  color: var(--color-gold);
+}
+/* Second line staggered toward the arch so the gold "Ju." tucks into the
+   leaves (foliage may cover type; her face never does). */
+.headingTail {
+  display: block;
+  margin-left: 40%;
+}
+
+/* ---- Prose with arch runaround ------------------------------------------ */
+
+.prose {
+  position: relative;
+  display: flow-root; /* contain the float so bottom padding is honest */
+  margin-top: clamp(28px, 4vw, 52px);
+}
+.prose p {
+  margin: 0 0 18px;
+  max-width: min(56ch, 54%);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(15px, 1.5vw, 17px);
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--color-ink) 88%, transparent);
+  text-wrap: pretty;
+}
+.prose p em {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--color-green-deep);
+}
+
+.prose p.creds {
+  margin: 26px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--color-gold) 35%, transparent);
+  font-weight: 500;
+  font-size: clamp(11px, 1.05vw, 13px);
+  letter-spacing: 0.03em;
+  color: var(--color-gold);
+  max-width: min(42ch, 40%);
+}
+
+/* ---- The figure: vine arch + portrait ------------------------------------ */
+
+/* Floated inside .prose; text wraps a conservative silhouette so copy never
+   slips beneath the leafy edge. The negative top margin lifts the arch into
+   the heading band. */
+.figure {
+  position: relative;
+  z-index: 2;
+  float: right;
+  width: clamp(340px, 40vw, 520px);
+  aspect-ratio: 1024 / 1700;
+  margin: calc(-1 * clamp(94px, 12.6vw, 178px)) 0 0 clamp(34px, 4.2vw, 70px);
+  shape-outside: ellipse(64% 52% at 58% 51%);
+  shape-margin: clamp(46px, 5vw, 86px);
+}
+
+/* The arch breathes — barely. Transform-origin at the top so it sways like
+   hanging growth, not like a rocking card. */
+.vines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: 50% 0%;
+  transform: translate3d(
+    var(--about-vines-x, 0px),
+    var(--about-vines-y, 0px),
+    0
+  );
+  transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.enhanced .vines {
+  animation: vineSway 9s ease-in-out infinite alternate;
+}
+@keyframes vineSway {
+  from {
+    rotate: -0.35deg;
+  }
+  to {
+    rotate: 0.35deg;
+  }
+}
+
+/* Juliana stands inside the arch; her crop dissolves into the leaves. */
+.portrait {
+  position: absolute;
+  left: 50%;
+  bottom: 10.2%;
+  width: 81%;
+  aspect-ratio: 1023 / 1538;
+  translate: -50% 0;
+  transform: translate3d(
+    var(--about-portrait-x, 0px),
+    var(--about-portrait-y, 0px),
+    0
+  );
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  mask-image: linear-gradient(180deg, #000 82%, transparent 98%);
+  will-change: transform;
+}
+.portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ---- Entrance (enhanced only; default shows everything at once) --------- */
+
+.enhanced .kicker,
+.enhanced .heading,
+.enhanced .prose p {
+  opacity: 0;
+  translate: 0 18px;
+  transition:
+    opacity 0.8s var(--ease),
+    translate 0.8s var(--ease);
+}
+.enhanced .figure {
+  opacity: 0;
+  translate: 0 26px;
+  transition:
+    opacity 1s 0.1s var(--ease),
+    translate 1s 0.1s var(--ease);
+}
+.enhanced .heading {
+  transition-delay: 0.06s;
+}
+.enhanced .prose p:nth-of-type(1) {
+  transition-delay: 0.14s;
+}
+.enhanced .prose p:nth-of-type(2) {
+  transition-delay: 0.22s;
+}
+.enhanced .prose p:nth-of-type(3) {
+  transition-delay: 0.3s;
+}
+.enhanced .creds {
+  transition-delay: 0.38s;
+}
+.about.in .kicker,
+.about.in .heading,
+.about.in .prose p,
+.about.in .figure {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* ---- Mobile -------------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .heading {
+    font-size: clamp(40px, 11vw, 64px);
+  }
+  .headingTail {
+    margin-left: clamp(20px, 8vw, 56px);
+  }
+  /* Tall narrow section + cover = the art blows up behind the body text.
+     Confine the pond to a bottom band that melts into the page instead. */
+  .bg {
+    top: auto;
+    height: min(46vh, 420px);
+    mask-image: linear-gradient(180deg, transparent 0, #000 38%);
+  }
+  /* No runaround at narrow widths (the remaining column gets too thin):
+     the arch centers between heading and bio. */
+  .figure {
+    float: none;
+    display: block;
+    width: clamp(260px, 72vw, 380px);
+    margin: 18px auto 26px;
+  }
+  .prose {
+    margin-top: 20px;
+  }
+  .prose p {
+    max-width: none;
+  }
+  .prose p.creds {
+    max-width: none;
+  }
+}
+
+/* ---- Reduced motion ------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .kicker,
+  .heading,
+  .prose p,
+  .figure {
+    transition: none !important;
+  }
+  .vines {
+    animation: none !important;
+    transform: none !important;
+  }
+  .portrait {
+    transform: none !important;
+  }
+}

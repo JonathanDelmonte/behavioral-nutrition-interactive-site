@@ -1,0 +1,539 @@
+/* Section 3 — "A Virada", staged as "a madrugada que germina".
+
+   Architecture (unchanged skeleton, reworked choreography):
+   - .sky is a STICKY background the content scrolls over. MethodAtmosphere
+     writes --dawn (0 → 1.45) each frame: 1.0 = the S2/S3 boundary reaches the
+     viewport top; the light only FLOODS the sky top past ~1.05, so the seam
+     with Section 2 never shows a green-vs-light band. The boundary itself is
+     FLAT deep green on both sides (Identify's bottom glow was pulled up; our
+     .dark keeps its glow away from y=0).
+   - .fireflies: gold fireflies wander the night band (canvas), shy from the
+     cursor, and go out one by one as dawn rises; the last one lands where the
+     path begins and becomes the seed.
+   - The principles' thread draws with scroll (--draw); the SEED tip travels
+     it, and every reveal (node, dot ring, sprig) is keyed to the tip passing
+     — one clock, no independent IntersectionObservers.
+   - Sprigs sprout along the drawn path and LEAN away from the cursor (wind).
+
+   JS gates: .enh on the SECTION (atmosphere: strike/shimmer/dawn states) and
+   .enhanced on .path (principles: hidden initial states). Default CSS without
+   them = no-JS / reduced-motion: full morning, path drawn, all grown. */
+
+.method {
+  /* no-JS / pre-hydration default: full morning */
+  --dawn: 1.45;
+  position: relative;
+  background: var(--color-offwhite);
+  color: var(--color-ink);
+}
+
+/* ---- The animated dawn sky (sticky background) ------------------------- */
+
+.sky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 0;
+  overflow: clip;
+  isolation: isolate;
+}
+
+.dark,
+.light,
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Deep-green base. The TOP ~12% is flat green-deep (the moss glow starts
+   lower) so the pixel row at the S2 boundary is identical on both sides. */
+.dark {
+  background:
+    radial-gradient(85% 36% at 50% 34%, rgba(46, 107, 71, 0.3), transparent 62%),
+    linear-gradient(180deg, var(--color-green-deep) 0%, var(--color-green-deep) 26%, #18582f 100%);
+}
+
+/* The warm light, revealed by a rising curved mask. Coefficients chosen so:
+   light first shows at the viewport bottom around --dawn ≈ 0.6, and the mask
+   only covers the sky TOP once --dawn ≥ ~1.05 (boundary already off-screen);
+   fully lit by ~1.35. */
+.light {
+  opacity: 1;
+  /* The day's FLOOR follows About's base paper color so the S3→S4 hand-off
+     stays visually continuous even as About's illustration treatment changes.
+     The warm sunrise core sits mid-sky, away from the bottom edge. */
+  background:
+    radial-gradient(110% 62% at 50% 50%, #fffdf6, transparent 68%),
+    var(--day-floor, var(--color-offwhite));
+  -webkit-mask-image: radial-gradient(
+    220% 160% at 50% 135%,
+    #000 calc(var(--dawn) * 162% - 132%),
+    transparent calc(var(--dawn) * 162% - 77%)
+  );
+  mask-image: radial-gradient(
+    220% 160% at 50% 135%,
+    #000 calc(var(--dawn) * 162% - 132%),
+    transparent calc(var(--dawn) * 162% - 77%)
+  );
+}
+
+/* Fine film grain so the dissolve never bands. */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+}
+
+.fireflies {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Content (flows OVER the sky, continuous) -------------------------- */
+
+.content {
+  position: relative;
+  z-index: 1;
+  margin-top: -100vh; /* overlap the sticky sky */
+  padding: clamp(56px, 12vh, 150px) clamp(28px, 5vw, 80px) clamp(80px, 10vw, 140px);
+}
+
+.headline {
+  max-width: 900px;
+  margin: 0 auto clamp(40px, 7vh, 96px);
+  text-align: center;
+}
+.title {
+  margin: 0 auto;
+  max-width: 21ch;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(28px, 5.2vw, 62px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  /* cream on the night sky → ink as the warm wash arrives (late window, when
+     the background behind the headline is actually lit) */
+  color: color-mix(
+    in srgb,
+    #f4ecd9,
+    var(--color-ink) calc(clamp(0, calc((var(--dawn) - 1.02) / 0.3), 1) * 100%)
+  );
+}
+
+/* "mais uma dieta" — the strike draws itself (no static line-through).
+   Default = drawn (no-JS); .enh resets it until .struck (dawn-driven). */
+.muted {
+  position: relative;
+  /* inline-block: the phrase never wraps mid-strike, so the drawn ::after bar
+     always covers exactly one line fragment */
+  display: inline-block;
+  color: color-mix(in srgb, currentColor 52%, transparent);
+}
+.muted::after {
+  content: "";
+  position: absolute;
+  left: -1%;
+  right: -1%;
+  top: 53%;
+  height: 1.5px;
+  background: color-mix(in srgb, var(--color-gold-soft) 75%, transparent);
+  transform: scaleX(1);
+  transform-origin: 0 50%;
+}
+.enh .muted::after {
+  transform: scaleX(0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.15s;
+}
+.enh.struck .muted::after {
+  transform: scaleX(1);
+}
+
+.turn {
+  font-style: italic;
+  color: var(--color-gold);
+}
+/* One pass of first sun when the day completes — a glow that swells and
+   settles, once. */
+.enh.daylit .turn {
+  animation: catchLight 1.6s cubic-bezier(0.2, 0.7, 0.2, 1) 1;
+}
+@keyframes catchLight {
+  0% {
+    text-shadow: 0 0 0 rgba(232, 200, 138, 0);
+  }
+  35% {
+    text-shadow: 0 0 26px rgba(232, 200, 138, 0.55);
+  }
+  100% {
+    text-shadow: 0 0 0 rgba(232, 200, 138, 0);
+  }
+}
+
+.sub {
+  margin: clamp(16px, 2.5vw, 26px) auto 0;
+  max-width: 46ch;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(14px, 1.5vw, 18px);
+  line-height: 1.6;
+  color: color-mix(
+    in srgb,
+    #e9dcc0,
+    var(--color-ink) calc(clamp(0, calc((var(--dawn) - 1.02) / 0.3), 1) * 100%)
+  );
+}
+
+/* ---- Principles — the germinating path ---------------------------------- */
+
+.path {
+  /* no-JS default: fully drawn */
+  --draw: 1;
+  position: relative;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.threadD {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* the seed halo lives past the path's end — never clip it */
+  overflow: visible;
+}
+.threadM {
+  display: none;
+  position: absolute;
+  left: 17px;
+  top: 0;
+  width: 16px;
+  height: 100%;
+}
+
+.thread {
+  fill: none;
+  stroke: var(--color-gold);
+  stroke-width: 2;
+  stroke-linecap: round;
+  /* NO vector-effect: non-scaling-stroke here — with pathLength it makes
+     Chromium compute the dash in screen units, desyncing the drawn line from
+     the seed tip (which uses getPointAtLength in user units). */
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--draw));
+}
+
+.dot {
+  fill: var(--color-gold);
+  opacity: clamp(0, calc((var(--draw) - var(--at) + 0.01) / 0.03), 1);
+}
+
+/* The planting ring: pulses once when the seed reaches the dot. */
+.ring {
+  fill: none;
+  stroke: var(--color-gold);
+  stroke-width: 1.4;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ring[data-lit] {
+  animation: plant 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) 1;
+}
+@keyframes plant {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+/* The seed — the path tip's travelling glow (desktop SVG). */
+.tip {
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.tipHalo2 {
+  fill: rgba(201, 163, 95, 0.12);
+}
+.tipHalo {
+  fill: rgba(201, 163, 95, 0.3);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seedPulse 2.8s ease-in-out infinite;
+}
+.tipCore {
+  fill: #f3e3c2;
+}
+@keyframes seedPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.35);
+  }
+}
+
+/* Mobile seed: a DOM dot riding the straight spine via --draw. */
+.tipM {
+  display: none;
+  position: absolute;
+  left: 25px;
+  top: calc(var(--draw, 1) * 100%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: #f3e3c2;
+  box-shadow:
+    0 0 10px 3px rgba(201, 163, 95, 0.45),
+    0 0 26px 10px rgba(201, 163, 95, 0.16);
+  pointer-events: none;
+}
+
+/* ---- Sprigs — growth left behind by the seed ----------------------------- */
+
+.sprigs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sprig {
+  position: absolute;
+  translate: -50% -100%;
+  transform: rotate(var(--lean, 0deg));
+  transform-origin: 50% 100%;
+  pointer-events: none;
+}
+.sprig svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: none;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sgrow {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transform: scale(1);
+}
+.enhanced .sprig .sgrow {
+  transform: scale(0);
+  /* retract with the un-drawing line on the way back up */
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.enhanced .sprig[data-grown] .sgrow {
+  transform: scale(1);
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0s);
+}
+
+/* ---- Nodes — born when the seed arrives ---------------------------------- */
+
+.node {
+  position: absolute;
+  width: 33%;
+  display: flex;
+  flex-direction: column;
+}
+.right {
+  left: 64%;
+  align-items: flex-start;
+  text-align: left;
+  transform: translateY(-50%);
+}
+.left {
+  right: 64%;
+  align-items: flex-end;
+  text-align: right;
+  transform: translateY(-50%);
+}
+
+.pnum {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(34px, 5vw, 60px);
+  line-height: 0.8;
+  color: color-mix(in srgb, var(--color-green-sage) 85%, transparent);
+}
+.picon {
+  display: inline-flex;
+  margin-top: 12px;
+  color: var(--color-gold);
+}
+.picon svg {
+  width: clamp(26px, 3vw, 32px);
+  height: clamp(26px, 3vw, 32px);
+}
+.ptitle {
+  margin: 10px 0 8px;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(20px, 2.6vw, 29px);
+  line-height: 1.18;
+  color: var(--color-green-deep);
+}
+.ptitle em {
+  font-style: italic;
+  color: var(--color-gold);
+}
+.pbody {
+  margin: 0;
+  max-width: 34ch;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(14px, 1.5vw, 16px);
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--color-ink) 70%, transparent);
+}
+
+/* Choreography (enhanced only; default = everything readable).
+   The whole node is born only when the seed passes its dot: it fades in
+   sliding AWAY from the path (right nodes move rightward, left leftward),
+   then inside it: number writes itself → glyph draws → text surfaces. */
+.enhanced .node {
+  opacity: 0;
+  /* the hide path (seed climbing back past the dot): same language as the
+     appear, a touch quicker and with no stagger */
+  transition:
+    opacity 0.55s cubic-bezier(0.2, 0.7, 0.2, 1),
+    translate 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.enhanced .right {
+  translate: -36px 0;
+}
+.enhanced .left {
+  translate: 36px 0;
+}
+.enhanced .node[data-in] {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 0.85s cubic-bezier(0.2, 0.7, 0.2, 1),
+    translate 0.85s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.enhanced .node .pnum {
+  clip-path: inset(-10% 105% -10% -5%);
+  transition: clip-path 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.enhanced .node[data-in] .pnum {
+  clip-path: inset(-10% -5% -10% -5%);
+  transition: clip-path 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.05s;
+}
+
+.enhanced .node .picon :is(path, circle, line, polyline) {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.enhanced .node[data-in] .picon :is(path, circle, line, polyline) {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.22s;
+}
+.enhanced .node[data-in] .picon :is(path, circle, line, polyline):nth-child(2) {
+  transition-delay: 0.38s;
+}
+.enhanced .node[data-in] .picon :is(path, circle, line, polyline):nth-child(3) {
+  transition-delay: 0.54s;
+}
+
+.enhanced .node .ptitle,
+.enhanced .node .pbody {
+  opacity: 0;
+  translate: 0 14px;
+  filter: blur(5px);
+  transition:
+    opacity 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+    translate 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.enhanced .node[data-in] .ptitle,
+.enhanced .node[data-in] .pbody {
+  opacity: 1;
+  translate: 0 0;
+  filter: blur(0);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s,
+    translate 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s,
+    filter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s;
+}
+.enhanced .node[data-in] .pbody {
+  transition-delay: 0.42s;
+}
+
+/* About's top is PURE offwhite below 860px (the pond becomes a bottom band
+   there), so the day floor follows suit at the same breakpoint. */
+@media (max-width: 860px) {
+  .light {
+    --day-floor: var(--color-offwhite);
+  }
+}
+
+/* ---- Mobile ------------------------------------------------------------ */
+@media (max-width: 760px) {
+  .content {
+    padding-top: 30vh;
+  }
+  .title {
+    max-width: 16ch;
+    font-size: clamp(26px, 8vw, 40px);
+  }
+  .threadD {
+    display: none;
+  }
+  .threadM {
+    display: block;
+  }
+  .tipM {
+    display: block;
+  }
+  .path {
+    padding-left: 46px;
+  }
+  .node {
+    position: static;
+    width: auto;
+    align-items: flex-start;
+    text-align: left;
+    transform: none;
+    margin-bottom: clamp(40px, 9vw, 64px);
+  }
+  .node:last-child {
+    margin-bottom: 0;
+  }
+  .pbody {
+    max-width: none;
+  }
+}
+
+/* ---- Reduced motion ---------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .muted::after,
+  .sgrow,
+  .pnum,
+  .picon :is(path, circle, line, polyline),
+  .ptitle,
+  .pbody {
+    transition: none !important;
+    animation: none !important;
+  }
+  .turn,
+  .tipHalo,
+  .ring {
+    animation: none !important;
+  }
+  .tip,
+  .tipM {
+    display: none;
+  }
+}

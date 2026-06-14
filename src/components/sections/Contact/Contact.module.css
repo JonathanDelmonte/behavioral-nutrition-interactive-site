@@ -1,0 +1,231 @@
+/* Section 8 — "Vamos conversar" (the final CTA + embedded footer).
+   "Luz de fim de tarde": the deep-green stage hides a large thin-line
+   botanical pattern (branches, sprigs, a ripe fruit, a faint brain contour,
+   Ju's signature) that is only revealed inside a warm gold halo following the
+   cursor — examining the consultório wall by candlelight. Before interaction
+   (and on touch) the light drifts on its own; a tap calls it over.
+
+   Flashlight technique (index.tsx): the pattern sits inside a masked .lens
+   window; per frame the lens moves by (x,y) and .lensInner by (−x,−y), so the
+   drawing stays pinned to the stage while the window of light slides over it.
+   Compositor-only — two transforms per frame, no repaints. A static copy
+   (.hint) underneath at ~5% opacity whispers that the wall has something on
+   it. The halo (.glow) is a separate translucent disc with a candle flicker.
+
+   Fallbacks: no-JS = faint pattern only; prefers-reduced-motion = the light
+   parked still above the headline. Reveals use the site's rise+unblur
+   grammar. NO Framer/GSAP. */
+
+.contact {
+  position: relative;
+  /* Above the resting BrainStage canvas (site convention: section copy z 2+,
+     or the fixed full-viewport R3F canvas can swallow real clicks). */
+  z-index: 2;
+  /* Sweeping the cursor through the fruit field shouldn't highlight the copy —
+     selection is disabled for this section only (per client request). */
+  user-select: none;
+  -webkit-user-select: none;
+  background:
+    radial-gradient(55% 42% at 50% 58%, rgba(184, 146, 74, 0.12), transparent 70%),
+    radial-gradient(80% 60% at 50% 0%, rgba(46, 107, 71, 0.5), transparent 75%),
+    linear-gradient(180deg, var(--color-green-deep), #073a18 55%, #052f13);
+  color: var(--color-offwhite);
+  overflow: clip;
+}
+
+/* Gold hairline marking the final transition (site grammar). */
+.contact::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 1px;
+  background: var(--color-gold);
+  opacity: 0.7;
+  z-index: 3;
+}
+
+.stage {
+  position: relative;
+  min-height: max(92svh, 640px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* The site footer (its own component) follows this section — the bottom
+     padding hands the finale off to it. */
+  padding: clamp(90px, 12vw, 150px) 24px clamp(80px, 10vw, 130px);
+  overflow: hidden;
+}
+
+/* ---- THE ZERO-GRAVITY FRUIT FIELD ------------------------------------------- */
+
+/* Full-stage canvas behind the copy. pointer-events: none here AND inline on
+   the <Canvas> — the field is fed by the section's own pointer listener via a
+   ref, so the WebGL layer can never swallow a click (the lesson this site
+   keeps re-learning). */
+.field {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.field canvas {
+  display: block;
+}
+
+/* Soft dark pool behind the headline so the copy stays sovereign over the
+   drifting fruit. */
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    52% 46% at 50% 47%,
+    rgba(5, 46, 20, 0.78),
+    rgba(5, 46, 20, 0.32) 56%,
+    transparent 78%
+  );
+}
+
+/* ---- CENTER COPY ----------------------------------------------------------- */
+
+.center {
+  position: relative;
+  z-index: 2;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 880px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 3.8vw, 3.1rem);
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+  text-shadow:
+    0 2px 30px rgba(0, 0, 0, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.title em {
+  font-style: italic;
+  color: var(--color-gold-soft);
+}
+
+.ask {
+  margin: clamp(14px, 2.4vw, 26px) 0 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 600;
+  font-size: clamp(2.7rem, 7vw, 4.9rem);
+  line-height: 1.05;
+  color: var(--color-gold-soft);
+  text-wrap: balance;
+  text-shadow:
+    0 2px 34px rgba(0, 0, 0, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- THE BIG WHATSAPP BUTTON ----------------------------------------------- */
+
+.ctaWrap {
+  margin-top: clamp(34px, 5vw, 54px);
+}
+
+.waBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--color-offwhite);
+  color: var(--color-green-deep);
+  border-radius: 999px;
+  padding: 1.45em 2.7em;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: clamp(12px, 1.4vw, 14px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow:
+    0 22px 48px -20px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  /* The lone effect on this button: a magnetic 3D lean toward the cursor.
+     JS writes the `transform` (perspective + rotateX/rotateY) and eases it
+     frame by frame, so there is deliberately NO CSS transition on transform —
+     the easing lives in the rAF loop, in and out. */
+  transform-origin: center;
+  will-change: transform;
+  transition: box-shadow 0.4s ease;
+}
+.waBtn:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 4px;
+}
+
+.waIcon {
+  /* Slightly larger than the visible mark: WhatsAppGlyph's viewBox is padded,
+     so the box carries some transparent margin around the icon. */
+  width: 1.7em;
+  height: 1.7em;
+  flex: 0 0 auto;
+}
+
+.micro {
+  margin: 20px 0 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.78rem, 1vw, 0.85rem);
+  letter-spacing: 0.02em;
+  color: rgba(247, 246, 242, 0.78);
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- REVEALS (site grammar: things arrive by coming into focus) ------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced .title,
+  .enhanced .ask,
+  .enhanced .ctaWrap,
+  .enhanced .micro {
+    transition:
+      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enhanced .ask { transition-delay: 0.14s; }
+  .enhanced .ctaWrap { transition-delay: 0.28s; }
+  .enhanced .micro { transition-delay: 0.42s; }
+  .enhanced .title:not(.in),
+  .enhanced .ask:not(.in),
+  .enhanced .ctaWrap:not(.in),
+  .enhanced .micro:not(.in) {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(6px);
+  }
+}
+/* The magnetic tilt is JS-driven and the pointer listeners are never attached
+   under reduced motion, so the pill simply stays flat — no CSS override needed. */
+
+/* ---- MOBILE ------------------------------------------------------------------ */
+
+@media (max-width: 760px) {
+  .stage {
+    min-height: max(88svh, 580px);
+  }
+  .footer {
+    gap: 6px 18px;
+    font-size: 10px;
+  }
+}
+
+

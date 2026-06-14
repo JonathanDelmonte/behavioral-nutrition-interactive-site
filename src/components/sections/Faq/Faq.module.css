@@ -1,0 +1,589 @@
+/* Section 7 — Dúvidas ("A conversa").
+   The FAQ staged as an intimate conversation with Ju instead of the default
+   accordion: the visitor "sends" a doubt (a paper chip from the tray), a
+   typing indicator pulses, and the answer surfaces with the same rise +
+   unblur "coming into focus" motif the dive (Section 6) established. Answered
+   questions collapse into a compact stack with a hand-drawn gold check and can
+   be reopened instantly.
+
+   Composition: an editorial left column (title, reassurance line, Ju's script
+   signature) stays sticky beside the conversation, which lives on a tall paper
+   sheet — messages grow from the top, the chip tray sits pinned to the bottom
+   like a chat's input row, so the section has real presence from first paint.
+
+   Progressive enhancement, same convention as Journey:
+   - DEFAULT CSS (no `.enhanced`) renders the whole conversation expanded as a
+     static chat log — readable and indexable with no JS.
+   - `.enhanced` (added on mount) hides un-asked exchanges and turns on the
+     chat behavior. Entrance/typing motion lives under
+     prefers-reduced-motion: no-preference; reduced motion gets instant swaps.
+   Warm paper temperature (the brand --color-sand finally gets its section),
+   between the dark testimonials and the dive's deep-green finale. */
+
+.faq {
+  position: relative;
+  /* Above the resting BrainStage canvas (fixed, z-index 1, full viewport on
+     desktop) — site convention: section copy at z 2+, otherwise the R3F
+     canvas swallows real clicks (the chips were dead without this). */
+  z-index: 2;
+  background:
+    radial-gradient(75% 55% at 85% 0%, rgba(242, 233, 214, 0.55), transparent 70%),
+    radial-gradient(60% 45% at 8% 85%, rgba(242, 233, 214, 0.4), transparent 70%),
+    linear-gradient(180deg, var(--color-offwhite), #f6f3ea 55%, var(--color-offwhite));
+  color: var(--color-ink);
+  overflow: clip;
+}
+
+/* Gold hairline marking the section transition (site grammar). */
+.faq::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 1px;
+  background: var(--color-gold);
+  opacity: 0.7;
+  z-index: 3;
+}
+
+.inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(96px, 12vw, 160px) 24px clamp(110px, 13vw, 170px);
+}
+
+/* ---- INTRO (header row above the conversation) --------------------------- */
+
+/* Title + sub on the left; the reassurance note and Ju's signature close the
+   row on the right, baseline-anchored — an editorial masthead for the sheet
+   below, which then takes the full width. */
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title aside"
+    "sub   aside";
+  column-gap: clamp(40px, 7vw, 110px);
+  align-items: end;
+  margin-bottom: clamp(38px, 5vw, 62px);
+}
+.title {
+  grid-area: title;
+}
+.sub {
+  grid-area: sub;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 4.6vw, 3.7rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.title em {
+  font-style: italic;
+  color: var(--color-green-moss);
+}
+
+.sub {
+  margin: 20px 0 0;
+  max-width: 36ch;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.98rem, 1.3vw, 1.08rem);
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--color-ink) 80%, transparent);
+}
+
+/* Right edge of the masthead: gold rule → reassurance in italic serif → Ju's
+   signature. */
+.aside {
+  grid-area: aside;
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+.rule {
+  display: block;
+  width: 52px;
+  height: 1.5px;
+  background: var(--color-gold);
+  opacity: 0.85;
+}
+.note {
+  margin: 22px 0 0;
+  max-width: 20ch;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--color-ink) 86%, transparent);
+  text-wrap: balance;
+}
+.sig {
+  display: block;
+  margin-top: 18px;
+  max-width: 19ch;
+  font-family: var(--font-script);
+  font-size: clamp(1.9rem, 2.7vw, 2.6rem);
+  line-height: 1.05;
+  color: var(--color-gold);
+  text-wrap: balance;
+  user-select: none;
+}
+
+/* ---- CONVERSATION SHEET -------------------------------------------------- */
+
+/* A tall paper sheet: the log grows from the top, the tray is pinned to the
+   bottom like a chat's input row — the section has body even before the first
+   question is sent. */
+.stage {
+  min-width: 0;
+  min-height: min(76vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(172deg, #fdfbf5, #f8f2e3);
+  border: 1px solid rgba(184, 146, 74, 0.2);
+  border-radius: 24px;
+  padding: clamp(22px, 3vw, 42px);
+  box-shadow:
+    0 36px 70px -50px rgba(120, 94, 46, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* The Q&A blocks keep DOM order 1..7 (SEO/SR); the chat shows them in the
+   order they were asked via flex `order` set inline from state. */
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.answer:focus {
+  outline: none;
+}
+
+/* Ju's avatar — the brandmark's script "J" on deep green. */
+.avatar {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-green-deep);
+  color: var(--color-offwhite);
+  font-family: var(--font-script);
+  font-size: 20px;
+  line-height: 1;
+  padding-bottom: 3px; /* optical centering for the script glyph's descender */
+  user-select: none;
+}
+
+/* Received bubble (Ju). */
+.received {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: min(82%, 640px);
+}
+.rBubble {
+  background: #fffdf8;
+  border: 1px solid rgba(42, 42, 38, 0.08);
+  border-radius: 18px 18px 18px 5px;
+  padding: 16px 20px;
+  box-shadow: 0 12px 28px -20px rgba(42, 42, 38, 0.4);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 1.15vw, 1.02rem);
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--color-ink) 88%, transparent);
+}
+.rBubble p {
+  margin: 0;
+}
+.rBubble em {
+  font-style: italic;
+  color: var(--color-green-moss);
+}
+
+/* Sent bubble (the visitor's question). */
+.qSent {
+  align-self: flex-end;
+  max-width: min(74%, 540px);
+  margin: 0;
+  background: linear-gradient(165deg, #f4ecda, var(--color-sand));
+  border: 1px solid rgba(184, 146, 74, 0.24);
+  border-radius: 18px 18px 5px 18px;
+  padding: 13px 19px;
+  box-shadow: 0 10px 24px -18px rgba(120, 94, 46, 0.5);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(0.92rem, 1.08vw, 0.98rem);
+  line-height: 1.55;
+  color: var(--color-ink);
+}
+
+/* Typing indicator — three gold dots inside a small received shell. */
+.typing {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.tBubble {
+  background: #fffdf8;
+  border: 1px solid rgba(42, 42, 38, 0.08);
+  border-radius: 18px 18px 18px 5px;
+  padding: 16px 19px;
+  display: flex;
+  gap: 6px;
+}
+.tDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-gold);
+  opacity: 0.4;
+}
+
+/* The CTA inside the price answer / closing. */
+.bubbleCta {
+  margin-top: 16px;
+}
+
+/* ---- A Q&A EXCHANGE ------------------------------------------------------ */
+
+.qa {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Compact "already answered" row — hidden until the exchange is collapsed. */
+.miniRow {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(184, 146, 74, 0.2);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--color-ink) 72%, transparent);
+  transition: color 0.3s ease, background 0.3s ease;
+}
+.miniRow:hover {
+  color: var(--color-ink);
+  background: rgba(242, 233, 214, 0.5);
+}
+.miniRow:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.miniQ {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.check {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: var(--color-gold);
+}
+
+/* The collapsible bubble pair (sent + answer). */
+.qaBody {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.qaBodyInner {
+  overflow: hidden;
+  /* Grid items default to min-height:auto, which refuses to shrink below the
+     content — without this the 0fr collapse left the bubbles at full height,
+     peeking out past the answered row until visibility finally kicked in. */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.answer {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  max-width: min(84%, 680px);
+}
+
+/* ---- TRAY (the paper chips, pinned at the sheet's bottom) ----------------- */
+
+.tray {
+  margin-top: auto;
+  padding-top: 34px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 13px 11px;
+}
+
+.chip {
+  border: 1px solid rgba(184, 146, 74, 0.4);
+  background: #fdfaf2;
+  border-radius: 999px;
+  padding: 13px 21px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(0.86rem, 1vw, 0.92rem);
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--color-ink) 86%, transparent);
+  box-shadow: 0 8px 18px -12px rgba(120, 94, 46, 0.55);
+  transform: rotate(var(--tilt, 0deg));
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s ease,
+    background 0.3s ease,
+    color 0.3s ease;
+}
+.chip:hover {
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow: 0 16px 26px -14px rgba(120, 94, 46, 0.6);
+  background: #fffdf7;
+  color: var(--color-ink);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+/* ---- CLOSING (all answered) ---------------------------------------------- */
+
+.closing {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---- ENHANCED (JS) — the chat behavior ----------------------------------- */
+
+/* Without JS the static log already shows every question — the tray would
+   just duplicate them with dead buttons. */
+.faq:not(.enhanced) .tray {
+  display: none;
+}
+
+/* Un-asked exchanges disappear; their question lives on a tray chip. */
+.enhanced .qa {
+  display: none;
+}
+.enhanced .qa.cur,
+.enhanced .qa.ans {
+  display: flex;
+}
+
+/* Answered: bubbles collapse, the compact row appears. */
+.enhanced .qa.ans .miniRow {
+  display: flex;
+}
+.enhanced .qa.ans .qaBody {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+}
+
+/* Current exchange: while "typing", the answer is parked invisible (visibility,
+   not display — so aria-live announces it the moment it surfaces, and the
+   unblur entrance can transition). */
+.enhanced .qa.cur .answer {
+  visibility: hidden;
+  opacity: 0;
+}
+.enhanced .qa.cur.open .answer {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* The check draws itself when the row lands in the answered stack. */
+.enhanced .check :first-child {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.enhanced .qa.ans .check :first-child {
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced .qaBody {
+    transition: grid-template-rows 0.55s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.55s;
+  }
+  .enhanced .miniRow {
+    animation: rowIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+  }
+  .enhanced .check :first-child {
+    transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
+  }
+
+  .enhanced .qa.cur .qSent {
+    animation: sentIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .enhanced .typing {
+    animation: rowIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .enhanced .tDot {
+    animation: tPulse 1.05s ease-in-out infinite;
+  }
+  .enhanced .tDot:nth-child(2) { animation-delay: 0.16s; }
+  .enhanced .tDot:nth-child(3) { animation-delay: 0.32s; }
+
+  /* The answer comes into focus — the section 6 motif continued. */
+  .enhanced .qa.cur .answer {
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  .enhanced .qa.cur.open .answer {
+    transform: translateY(0);
+    filter: blur(0);
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0.7s;
+  }
+
+  .enhanced .closing {
+    animation: rowIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards;
+  }
+
+  /* Intro + sheet arrive by coming into focus (same reveal grammar as
+     Journey). The chips deal themselves onto the tray with a stagger. */
+  .enhanced .title,
+  .enhanced .sub,
+  .enhanced .aside {
+    transition:
+      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enhanced .sub { transition-delay: 0.12s; }
+  .enhanced .aside { transition-delay: 0.24s; }
+  .enhanced .title:not(.in),
+  .enhanced .sub:not(.in),
+  .enhanced .aside:not(.in) {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(6px);
+  }
+
+  .enhanced .stage.in .welcome {
+    animation: rowIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+  }
+  .enhanced .stage.in .chip {
+    animation: chipIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: calc(var(--d, 0) * 75ms + 0.35s);
+  }
+  .enhanced .stage:not(.in) .welcome,
+  .enhanced .stage:not(.in) .chip {
+    opacity: 0;
+  }
+}
+
+/* ---- MOBILE --------------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  /* The masthead stacks: title, sub, then the note + signature, left-aligned. */
+  .intro {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "sub"
+      "aside";
+    margin-bottom: 30px;
+  }
+  .aside {
+    margin-top: 24px;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .note {
+    max-width: 20ch;
+    text-align: left;
+  }
+  .sig {
+    margin-top: 12px;
+    max-width: 18ch;
+  }
+  .stage {
+    min-height: min(68vh, 620px);
+    border-radius: 20px;
+  }
+  .qSent {
+    max-width: 88%;
+  }
+  .received,
+  .answer {
+    max-width: 96%;
+  }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+  }
+}
+
+/* ---- keyframes ------------------------------------------------------------ */
+
+@keyframes sentIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) rotate(1.6deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chipIn {
+  from {
+    opacity: 0;
+    transform: rotate(var(--tilt, 0deg)) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--tilt, 0deg)) translateY(0);
+  }
+}
+
+@keyframes tPulse {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  35%      { opacity: 1;    transform: translateY(-3px); }
+}

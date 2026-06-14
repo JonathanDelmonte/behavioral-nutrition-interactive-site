@@ -1,0 +1,565 @@
+/* Section 5 — Depoimentos ("profundidade no trilho").
+   Deep-green horizontal scrolljack (the .track is made tall in JS so vertical
+   scroll pans the .row sideways inside the pinned .stage). The pieces on the
+   rail are choreographed per-frame by index.tsx: center focus (--f), depth
+   parallax, velocity lean and the video's cinematic growth all arrive as a
+   single inline transform per piece — so this CSS must NEVER transition or
+   transform the .piece wrappers themselves. Hover states live on INNER
+   elements (prints, notes), which the JS doesn't touch.
+
+   Mobile / reduced-motion drop the pin → native horizontal scroll-snap with
+   the choreography off (--f defaults to 1: everything fully "in focus"). */
+
+.testimonials {
+  position: relative;
+  /* Above the resting BrainStage canvas (site convention: section copy z 2+,
+     or the fixed full-viewport R3F canvas swallows real hovers/clicks). */
+  z-index: 2;
+  background:
+    radial-gradient(70% 50% at 18% 8%, rgba(46, 107, 71, 0.5), transparent 70%),
+    radial-gradient(70% 60% at 92% 92%, rgba(46, 107, 71, 0.35), transparent 70%),
+    linear-gradient(180deg, var(--color-green-deep), #073a18 50%, var(--color-green-deep));
+  color: var(--color-offwhite);
+}
+
+/* Botanical seam between About and Testimonials. The tile repeats normal /
+   mirrored with a soft overlap so the wide strip reads as continuous growth. */
+.vineDivider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: clamp(104px, 13.5vw, 178px);
+  transform: translateY(-43%);
+  z-index: 4;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.vineTrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+}
+
+.vineTile {
+  display: block;
+  flex: 0 0 auto;
+  height: 100%;
+  width: auto;
+  margin-left: clamp(-64px, -4vw, -30px);
+  object-fit: contain;
+  object-position: center;
+  filter: saturate(0.96) contrast(0.98);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.vineTile:first-child {
+  margin-left: 0;
+}
+
+.vineTileFlip {
+  transform: scaleX(-1);
+}
+
+.track {
+  position: relative; /* height set in JS on desktop; auto otherwise */
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.row {
+  position: relative; /* offsetParent anchor for the piece-geometry cache */
+  display: flex;
+  align-items: center;
+  gap: clamp(72px, 7.5vw, 150px);
+  height: clamp(480px, 78vh, 660px);
+  padding: 0 clamp(28px, 8vw, 140px);
+  will-change: transform;
+}
+
+/* Choreographed wrapper — transform + --f are owned by the JS loop. */
+.piece {
+  flex: 0 0 auto;
+  will-change: transform;
+}
+
+/* Dim veil: lifts as a piece comes into focus (compositor-only opacity). */
+.dim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: #06351a;
+  opacity: calc((1 - var(--f, 1)) * 0.35);
+  pointer-events: none;
+}
+
+/* ---- Photo stacks (two prints like physical photos) --------------------- */
+
+.photoStack {
+  position: relative;
+  width: clamp(560px, 56vw, 860px);
+  height: 100%;
+}
+
+.photoCard {
+  position: absolute;
+  z-index: 1;
+  width: 57%; /* wide ("fat") prints */
+  height: 78%;
+  padding: 12px 12px 42px; /* paper frame, deeper at the bottom */
+  background: #fbfaf5;
+  border-radius: 5px;
+  box-shadow: 0 26px 52px -22px rgba(3, 30, 14, 0.7);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.back {
+  left: 0;
+  top: 8%;
+  transform: rotate(-8deg);
+  z-index: 1;
+}
+.front {
+  right: 5%;
+  bottom: 4%;
+  transform: rotate(6deg);
+  z-index: 2;
+}
+/* Hover peeks behind the prints — they slide apart like loose photos. */
+.photoStack:hover .back {
+  transform: rotate(-11.5deg) translate(-18px, -10px);
+}
+.photoStack:hover .front {
+  transform: rotate(4deg) translate(8px, 6px);
+}
+
+.slot {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background:
+    radial-gradient(120% 90% at 50% 18%, #d8e0cf, transparent 72%),
+    linear-gradient(160deg, #c4d1b8, #a3b896);
+  color: color-mix(in srgb, var(--color-green-deep) 55%, transparent);
+}
+.slotLabel {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 9px;
+  color: color-mix(in srgb, var(--color-green-deep) 50%, transparent);
+}
+
+/* Handwritten-feel caption on the front print's paper strip. */
+.printCaption {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 13px;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 55%, transparent);
+}
+
+.avatar {
+  width: clamp(40px, 5vw, 56px);
+  height: clamp(40px, 5vw, 56px);
+  opacity: 0.7;
+}
+
+/* ---- The video (the chapter's protagonist) ------------------------------ */
+
+.video {
+  position: relative;
+  width: clamp(470px, 45vw, 720px);
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 34px 70px -28px rgba(3, 30, 14, 0.75);
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background:
+    radial-gradient(120% 90% at 50% 18%, #d8e0cf, transparent 72%),
+    linear-gradient(160deg, #c4d1b8, #a3b896);
+  color: color-mix(in srgb, var(--color-green-deep) 55%, transparent);
+}
+.mediaLabel {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 9.5px;
+  color: color-mix(in srgb, var(--color-green-deep) 50%, transparent);
+}
+
+.play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-offwhite);
+  color: var(--color-green-deep);
+  box-shadow: 0 18px 40px -10px rgba(3, 30, 14, 0.65);
+}
+.play svg {
+  width: 40px;
+  height: 40px;
+}
+/* Breathing gold ring — strongest while the video holds center stage. */
+.play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: calc(0.2 + var(--f, 1) * 0.8);
+  animation: ringBreath 2.8s ease-in-out infinite;
+}
+
+.videoName {
+  position: absolute;
+  left: 22px;
+  bottom: 16px;
+  font-family: var(--font-serif);
+  font-size: clamp(18px, 1.7vw, 25px);
+  color: color-mix(in srgb, var(--color-green-deep) 82%, transparent);
+}
+.videoName em {
+  font-style: italic;
+}
+.videoLen {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green-deep) 16%, transparent);
+  color: color-mix(in srgb, var(--color-green-deep) 75%, transparent);
+}
+
+/* ---- Pull-quotes (the subtle separation between chapters) ---------------- */
+
+.quote {
+  position: relative;
+  width: clamp(300px, 26vw, 430px);
+  align-self: center;
+  margin: 0;
+  opacity: calc(0.35 + var(--f, 1) * 0.65);
+}
+.quoteMark {
+  position: absolute;
+  top: -0.55em;
+  left: -10px;
+  font-family: var(--font-serif);
+  font-size: clamp(70px, 6vw, 100px);
+  line-height: 1;
+  color: color-mix(in srgb, var(--color-gold) 50%, transparent);
+  pointer-events: none;
+}
+.quote p {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(24px, 2.3vw, 34px);
+  line-height: 1.32;
+  color: color-mix(in srgb, var(--color-offwhite) 92%, transparent);
+  text-wrap: balance;
+}
+
+/* ---- Final panel: a review WALL — tone-on-tone frosted cards in a masonry
+   that emerges from the green at the top (inspired by the Framer testimonial
+   wall the client referenced, kept green + on-brand, not copied). ----------- */
+
+.notesPanel {
+  position: relative;
+  /* size to the wall's columns (the panel is a flex:0 0 auto piece), so a
+     wider wall extends the rail rather than clipping */
+  width: max-content;
+  /* top-aligned (not centered): the "avaliações" label stays pinned safely at
+     the top on every viewport, and the taller wall grows DOWNWARD into the
+     bottom fade instead of clipping the label on short screens */
+  align-self: flex-start;
+}
+.notesEyebrow {
+  display: block;
+  margin-bottom: 18px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(14px, 1.2vw, 17px);
+  color: var(--color-gold-soft);
+}
+
+/* The wall: explicit columns (a horizontal row of vertical stacks) so it
+   reads like the reference — ~4 columns, ≤3 cards each, heights staggering
+   per column. The whole wall is wide, so it extends the horizontal rail to
+   the right (more sideways scroll — intended). A soft top fade lets the first
+   row emerge from the green (the reference's signature). */
+.notesWall {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  /* fade the top AND bottom edges into the green — the reference's immersive
+     "the wall continues past the frame" feel, and it makes any vertical
+     overflow on short viewports read as intentional rather than clipped */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 94%, transparent 100%);
+}
+.notesCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: clamp(246px, 21vw, 288px);
+}
+
+.note {
+  position: relative;
+  /* roomy padding so each card reads tall and substantial (the wall fills more
+     vertical space — "mais gordo de altura") */
+  padding: clamp(18px, 1.5vw, 26px) clamp(18px, 1.5vw, 24px);
+  border-radius: 16px;
+  /* tone-on-tone: a soft frosted veil that's just lighter than the deep green */
+  background: linear-gradient(
+    180deg,
+    rgba(247, 246, 242, 0.08),
+    rgba(247, 246, 242, 0.035)
+  );
+  border: 1px solid rgba(247, 246, 242, 0.1);
+  box-shadow: inset 0 1px 0 rgba(247, 246, 242, 0.07);
+  transition:
+    transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1),
+    background 0.4s ease,
+    border-color 0.4s ease;
+}
+/* A card lifts and warms under the cursor. */
+.note:hover {
+  transform: translateY(-4px);
+  background: linear-gradient(
+    180deg,
+    rgba(247, 246, 242, 0.13),
+    rgba(247, 246, 242, 0.06)
+  );
+  border-color: color-mix(in srgb, var(--color-gold-soft) 45%, transparent);
+  z-index: 3;
+}
+.note::after {
+  content: "”";
+  position: absolute;
+  top: 8px;
+  right: 15px;
+  font-family: var(--font-serif);
+  font-size: 34px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--color-gold-soft) 30%, transparent);
+  pointer-events: none;
+}
+
+.noteHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.noteAvatar {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(160deg, #aebfa0, #8aa07d);
+  color: color-mix(in srgb, var(--color-green-deep) 70%, transparent);
+  box-shadow: 0 0 0 1px rgba(247, 246, 242, 0.14);
+}
+.noteAvatar .avatar {
+  width: 56%;
+  height: 56%;
+}
+.noteName {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(13px, 1.2vw, 15px);
+  color: color-mix(in srgb, var(--color-offwhite) 94%, transparent);
+}
+.noteDate {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-green-sage) 80%, transparent);
+}
+.noteText {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(13.5px, 1.15vw, 15.5px);
+  line-height: 1.62;
+  color: color-mix(in srgb, var(--color-offwhite) 78%, transparent);
+}
+
+/* ---- Intro panel ---------------------------------------------------------- */
+
+.intro {
+  flex: 0 0 auto;
+  width: clamp(280px, 30vw, 440px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: clamp(20px, 3vw, 56px);
+}
+.eyebrow {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--color-gold-soft);
+  font-size: clamp(13px, 1.1vw, 16px);
+  letter-spacing: 0.04em;
+}
+.introTitle {
+  margin: 16px 0 18px;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: clamp(30px, 3.2vw, 50px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--color-offwhite);
+}
+.introTitle em {
+  font-style: italic;
+  color: var(--color-gold);
+}
+.introSub {
+  margin: 0 0 28px;
+  max-width: 34ch;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(14px, 1.3vw, 17px);
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--color-offwhite) 80%, transparent);
+}
+.scrollHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-size: 11px;
+  color: var(--color-gold-soft);
+}
+.hintArrow {
+  width: 20px;
+  animation: hintSlide 1.9s ease-in-out infinite;
+}
+
+/* ---- Mobile: the SAME scrolljack (scroll down, the rail pans sideways) ----
+   Only the sizes adapt — the pin/translate mechanics are identical to
+   desktop, per client request. */
+
+@media (max-width: 760px) {
+  .stage {
+    height: 100svh;
+  }
+  .row {
+    height: clamp(420px, 62svh, 540px);
+    padding: 0 20px;
+    gap: clamp(40px, 9vw, 64px);
+  }
+  .photoStack {
+    width: 86vw;
+  }
+  .video {
+    width: 82vw;
+  }
+  .quote {
+    width: 74vw;
+  }
+  /* The wall keeps its multi-column width on phones too — the section is a
+     horizontal scrolljack at every width, so the extra columns just become
+     more sideways travel (consistent with the rest of the rail). Cards ease
+     down a touch so each still fits the narrow viewport comfortably. */
+  .notesPanel {
+    width: auto;
+  }
+  .notesCol {
+    width: clamp(232px, 72vw, 270px);
+    gap: 16px;
+  }
+  .notesWall {
+    gap: 14px;
+  }
+  .intro {
+    width: 82vw;
+    padding-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    position: static;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 70px 0;
+  }
+  .row,
+  .piece {
+    transform: none !important;
+  }
+  .play::after,
+  .hintArrow {
+    animation: none;
+  }
+}
+
+/* ---- keyframes -------------------------------------------------------------- */
+
+@keyframes ringBreath {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184, 146, 74, 0.45); }
+  55%      { box-shadow: 0 0 0 22px rgba(184, 146, 74, 0); }
+}
+
+@keyframes hintSlide {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(7px); }
+}

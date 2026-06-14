@@ -1,0 +1,615 @@
+/* Section 6 — Atendimento ("Mergulho em profundidade").
+   The four steps of the journey live on planes at different CSS-3D depths
+   inside a pinned stage; scrolling advances a virtual camera (the .world's
+   translateZ), so each step surfaces from a pale, blurred distance, comes into
+   focus, and glides past. Atmosphere layers (fog discs, botanical sprigs, gold
+   motes) sit at intermediate depths so the dive has a world around it. At the
+   final step the stage swells into the brand's deep green (.deep + --drench)
+   and the CTA is born inside that moment.
+
+   Layering of the technique:
+   - DEFAULT CSS = stacked vertical column. Serves prefers-reduced-motion and
+     no-JS (mobile-first).
+   - The 3D dive lives inside
+       @media (prefers-reduced-motion: no-preference)
+     and only under `.enhanced` (added by the component on mount), matching the
+     JS `isJacked()` gate — it runs at every width now, touch included; a small
+     @media (max-width: 760px) block only retunes plane/numeral SIZING, not the
+     choreography.
+   - `opacity`/`filter` are grouping properties that flatten preserve-3d, so
+     they are NEVER set on .plane itself — the JS writes `--op`/`--blur` vars on
+     the plane and the children (.card / .num) consume them. That keeps the
+     numeral's own translateZ parallax alive.
+   NO Framer/GSAP — rAF + scroll progress + IntersectionObserver, as everywhere
+   else on the site. */
+
+.journey {
+  position: relative;
+  /* Above the resting BrainStage canvas (fixed, z-index 1, full viewport on
+     desktop) — the site convention is section copy at z 2+, otherwise the
+     R3F canvas swallows real clicks (rail, CTA). */
+  z-index: 2;
+  background:
+    radial-gradient(900px 280px at 50% 0%, rgba(168, 184, 154, 0.16), transparent 72%),
+    #e7eee0;
+  color: var(--color-ink);
+  overflow: clip;
+}
+
+/* Hairline gold rule marking the section transition (site grammar — same as
+   Identify's). */
+.journey::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 1px;
+  background: var(--color-gold);
+  opacity: 0.7;
+  z-index: 3;
+}
+
+/* ---- INTRO (normal flow, before the pin) ------------------------------- */
+
+.intro {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(90px, 12vw, 150px) 24px clamp(36px, 5vw, 64px);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(2.1rem, 4.4vw, 3.3rem);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.title em {
+  font-style: italic;
+  color: var(--color-green-moss);
+}
+
+.sub {
+  margin: 18px auto 0;
+  max-width: 46ch;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.95rem, 1.3vw, 1.05rem);
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--color-ink) 80%, transparent);
+}
+
+/* ---- DEFAULT LAYOUT: stacked column (mobile / reduced-motion / no-JS) --- */
+
+.diveTrack {
+  position: relative;
+}
+
+.stage {
+  position: relative;
+}
+
+.world {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 32px) 28px clamp(96px, 13vw, 150px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(72px, 13vw, 120px);
+}
+
+.plane {
+  position: relative;
+}
+
+/* Ghost numeral — outlined serif digit behind each step. */
+.num {
+  position: absolute;
+  top: -0.42em;
+  right: -8px;
+  z-index: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(110px, 26vw, 150px);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.3px rgba(46, 107, 71, 0.3);
+  pointer-events: none;
+  user-select: none;
+  transition: -webkit-text-stroke-color 0.6s ease;
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+}
+
+.glyph {
+  width: 44px;
+  height: 44px;
+  color: var(--color-green-moss);
+  transition: color 0.6s ease;
+}
+
+/* Short gold rule under the glyph — grows when the step takes focus. */
+.accent {
+  display: block;
+  width: 46px;
+  height: 2px;
+  margin: 14px 0 16px;
+  background: var(--color-gold);
+  transform-origin: left center;
+}
+
+.stepTitle {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 2.4vw, 2.15rem);
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+  transition: color 0.6s ease;
+}
+.stepTitle em {
+  font-style: italic;
+  color: var(--color-green-moss);
+  transition: color 0.6s ease;
+}
+
+.stepBody {
+  margin: 14px 0 0;
+  max-width: 38ch;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: clamp(0.92rem, 1.15vw, 1rem);
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--color-ink) 82%, transparent);
+  transition: color 0.6s ease;
+}
+
+.ctaRow {
+  margin-top: 26px;
+}
+
+.journeyCta {
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+    background 0.6s ease,
+    color 0.6s ease,
+    box-shadow 0.6s ease;
+}
+
+/* 3D-only furniture is invisible in the stacked layout. */
+.atmo,
+.drench,
+.rail,
+.hint {
+  display: none;
+}
+
+/* ---- ENTRANCE (any width, motion allowed, JS present) ------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced .title,
+  .enhanced .sub,
+  .enhanced .plane {
+    transition:
+      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enhanced .sub {
+    transition-delay: 0.12s;
+  }
+  /* Things arrive by coming into focus — the section's motif. */
+  .enhanced .title:not(.in),
+  .enhanced .sub:not(.in),
+  .enhanced .plane:not(.in) {
+    opacity: 0;
+    transform: translateY(26px);
+    filter: blur(6px);
+  }
+
+  /* Glyph strokes draw themselves (staggered) when their step arrives. */
+  .enhanced .glyph path,
+  .enhanced .glyph circle {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enhanced .glyph :nth-child(2) { transition-delay: 0.12s; }
+  .enhanced .glyph :nth-child(3) { transition-delay: 0.24s; }
+  .enhanced .glyph :nth-child(4) { transition-delay: 0.36s; }
+  .enhanced .glyph :nth-child(5) { transition-delay: 0.48s; }
+  .enhanced .plane.in .glyph path,
+  .enhanced .plane.in .glyph circle {
+    stroke-dashoffset: 0;
+  }
+
+  .enhanced .accent {
+    transform: scaleX(0.2);
+    opacity: 0.45;
+    transition:
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s,
+      opacity 0.7s ease 0.15s;
+  }
+  .enhanced .plane.in .accent {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* ---- THE DIVE (any width + motion allowed + JS) ------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .enhanced .diveTrack {
+    height: 460vh;
+  }
+
+  .enhanced .stage {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+    perspective: 1100px;
+    perspective-origin: 50% 46%;
+    background:
+      radial-gradient(70% 55% at 50% 38%, rgba(247, 246, 242, 0.85), transparent 72%),
+      linear-gradient(180deg, #e7eee0, var(--color-offwhite-green) 50%, #e2eadb);
+  }
+
+  /* The deep-green swell behind the final step. Sits UNDER the 3D world. */
+  .enhanced .drench {
+    display: block;
+    position: absolute;
+    inset: 0;
+    opacity: var(--drench, 0);
+    pointer-events: none;
+    background:
+      radial-gradient(58% 48% at 50% 64%, rgba(184, 146, 74, 0.22), transparent 70%),
+      radial-gradient(90% 70% at 50% 0%, rgba(46, 107, 71, 0.5), transparent 75%),
+      linear-gradient(180deg, var(--color-green-deep), #073a18 55%, var(--color-green-deep));
+  }
+
+  .enhanced .tilt {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+  }
+
+  .enhanced .world {
+    position: absolute;
+    inset: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    display: block;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  /* Each step: a full-stage plane parked at its own depth. The whole plane
+     never receives opacity/filter (grouping props would flatten the numeral's
+     inner translateZ) — children consume the JS-written vars instead. */
+  .enhanced .plane {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    transform: translate3d(var(--ox, 0px), var(--oy, 0px), calc(var(--z) * -1px));
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+  .enhanced .plane.focus .card {
+    pointer-events: auto;
+  }
+
+  .enhanced .card,
+  .enhanced .num {
+    opacity: var(--op, 1);
+    filter: blur(calc(var(--blur, 0) * 1px));
+    will-change: opacity, filter;
+  }
+  /* The huge outlined numeral becomes a muddy smear when its plane is still
+     far away and blurred — square its falloff so it only materializes near
+     focus (1·1 = 1 in focus, 0.4·0.4 ≈ 0.16 in the distance). */
+  .enhanced .num {
+    opacity: calc(var(--op, 1) * var(--op, 1));
+  }
+
+  .enhanced .card {
+    width: min(34rem, 46vw);
+  }
+
+  .enhanced .num {
+    position: absolute;
+    left: calc(50% + var(--nx, 12vw));
+    top: calc(50% + var(--ny, -5vh));
+    right: auto;
+    transform: translate(-50%, -50%) translateZ(-140px);
+    font-size: clamp(220px, 23vw, 330px);
+    -webkit-text-stroke: 1.5px rgba(46, 107, 71, 0.32);
+  }
+  .enhanced .plane.focus .num {
+    -webkit-text-stroke-color: rgba(184, 146, 74, 0.55);
+  }
+
+  /* In the dive, glyphs hold their strokes until the step takes focus —
+     overrides the stacked-mode `.in` trigger above (same specificity, later
+     in the file wins). */
+  .enhanced .plane .glyph path,
+  .enhanced .plane .glyph circle {
+    stroke-dashoffset: 1;
+  }
+  .enhanced .plane.focus .glyph path,
+  .enhanced .plane.focus .glyph circle {
+    stroke-dashoffset: 0;
+  }
+  .enhanced .accent {
+    transform: scaleX(0.2);
+    opacity: 0.45;
+  }
+  .enhanced .plane.focus .accent {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  /* The CTA is born only when the final step takes focus — in the distance the
+     dark pill would read as a blurry smudge through the mist. */
+  .enhanced .ctaRow {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 0.7s ease 0.2s,
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s;
+  }
+  .enhanced .plane.focus .ctaRow {
+    opacity: 1;
+    transform: none;
+  }
+  /* The dive's world eases flat the instant the final step takes focus (see
+     index.tsx), so while the CTA is actually hoverable its 3D matrix is static
+     — a whole-button hover is safe again, with no re-projection judder. We
+     SCALE the pill (it grows from its own centre, so the cursor can never slip
+     off an edge and re-trigger the old flip-flop) and let the shadow swell with
+     it; the WhatsApp mark keeps its own gentle swell from the base .cta rule. */
+  .enhanced .journeyCta:hover {
+    transform: scale(1.04);
+  }
+  .enhanced .journeyCta:active {
+    transform: scale(1.01);
+  }
+
+  /* Planes don't use the stacked entrance — the camera IS their entrance. */
+  .enhanced .plane:not(.in) {
+    opacity: 1;
+    transform: translate3d(var(--ox, 0px), var(--oy, 0px), calc(var(--z) * -1px));
+    filter: none;
+  }
+
+  /* ---- Atmosphere at intermediate depths -------------------------------- */
+
+  .enhanced .atmo {
+    display: block;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%)
+      translate3d(var(--ox, 0px), var(--oy, 0px), calc(var(--z) * -1px));
+    opacity: calc(var(--op, 1) * var(--af, 0.5));
+    filter: blur(calc(var(--blur, 0) * 1px));
+    pointer-events: none;
+    will-change: opacity, filter;
+  }
+
+  .enhanced .fog {
+    width: 38vw;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(168, 184, 154, 0.5), transparent 65%);
+    --af: 0.65;
+  }
+
+  .enhanced .sprig {
+    width: 170px;
+    color: rgba(46, 107, 71, 0.5);
+    --af: 0.8;
+  }
+  .enhanced .sprigFlip {
+    transform: translate(-50%, -50%)
+      translate3d(var(--ox, 0px), var(--oy, 0px), calc(var(--z) * -1px)) scaleX(-1);
+  }
+
+  .enhanced .motes {
+    width: 260px;
+    height: 320px;
+    --af: 0.75;
+  }
+  .enhanced .mote {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(184, 146, 74, 0.55);
+    animation: moteFloat 16s ease-in-out infinite alternate;
+  }
+  .enhanced .mote:nth-child(1) { left: 12%; top: 18%; }
+  .enhanced .mote:nth-child(2) { left: 64%; top: 36%; width: 4px; height: 4px; animation-duration: 21s; animation-delay: -6s; }
+  .enhanced .mote:nth-child(3) { left: 38%; top: 72%; width: 3px; height: 3px; animation-duration: 18s; animation-delay: -11s; }
+
+  /* ---- Progress rail (clickable) ---------------------------------------- */
+
+  .enhanced .rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    position: absolute;
+    right: clamp(22px, 3.4vw, 52px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+  }
+
+  .enhanced .railBtn {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    color: color-mix(in srgb, var(--color-ink) 50%, transparent);
+    transition: color 0.5s ease;
+  }
+  .enhanced .railBtn::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    transition: transform 0.4s ease;
+  }
+  .enhanced .railBtn::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    opacity: 0;
+    transform: scale(0.55);
+    transition:
+      opacity 0.45s ease,
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .enhanced .railBtn[aria-current="true"] {
+    color: var(--color-gold);
+  }
+  .enhanced .railBtn[aria-current="true"]::before {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .enhanced .railBtn:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 50%;
+  }
+
+  .enhanced .railLabel {
+    position: absolute;
+    right: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(6px);
+    white-space: nowrap;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-ink) 64%, transparent);
+    opacity: 0;
+    transition:
+      opacity 0.35s ease,
+      transform 0.35s ease;
+    pointer-events: none;
+  }
+  .enhanced .railBtn:hover .railLabel,
+  .enhanced .railBtn:focus-visible .railLabel {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+
+  /* ---- Scroll hint ------------------------------------------------------- */
+
+  .enhanced .hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    z-index: 5;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--color-ink) 60%, transparent);
+    opacity: var(--hintOp, 1);
+    pointer-events: none;
+    transition: color 0.5s ease;
+  }
+  .enhanced .hintArrow {
+    width: 12px;
+    height: 12px;
+    animation: hintBob 1.9s ease-in-out infinite;
+  }
+
+  /* ---- The deep-green swell (final step) --------------------------------- */
+
+  .deep .stepTitle { color: var(--color-offwhite); }
+  .deep .stepTitle em { color: var(--color-gold-soft); }
+  .deep .stepBody { color: rgba(247, 246, 242, 0.85); }
+  .deep .glyph { color: var(--color-gold-soft); }
+  .deep .num { -webkit-text-stroke-color: rgba(247, 246, 242, 0.26); }
+  .deep .plane.focus .num { -webkit-text-stroke-color: rgba(201, 163, 95, 0.5); }
+  .deep .railBtn { color: rgba(247, 246, 242, 0.55); }
+  .deep .railBtn[aria-current="true"] { color: var(--color-gold-soft); }
+  .deep .railLabel { color: rgba(247, 246, 242, 0.7); }
+  .deep .hint { color: rgba(247, 246, 242, 0.6); }
+
+  /* CTA flips to the light-on-deep-green variant (Identify's lightCta idiom). */
+  .deep .journeyCta.journeyCta {
+    background: var(--color-offwhite);
+    color: var(--color-green-deep);
+    box-shadow:
+      0 10px 24px -12px rgba(0, 0, 0, 0.5),
+      0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  }
+  .deep .journeyCta.journeyCta:hover {
+    background: #fff;
+    box-shadow:
+      0 18px 34px -12px rgba(0, 0, 0, 0.6),
+      0 1px 0 rgba(255, 255, 255, 0.1) inset;
+  }
+}
+
+/* ---- THE DIVE on narrow / touch screens --------------------------------- */
+/* The choreography is unchanged — same camera, depths, blur and focus clock.
+   These overrides only retune SIZES for the narrow viewport so the in-focus
+   card stays legible and the ghost numeral doesn't overflow the stage. They
+   come after the dive block so the equal-specificity selectors win here. */
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  .enhanced .card {
+    /* desktop's 46vw would be far too cramped on a phone */
+    width: min(34rem, 84vw);
+  }
+  .enhanced .num {
+    font-size: clamp(150px, 50vw, 240px);
+  }
+  /* keep the rail clear of the now-wider card */
+  .enhanced .rail {
+    right: 12px;
+  }
+}
+
+/* ---- keyframes ----------------------------------------------------------- */
+
+@keyframes moteFloat {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(14px, -26px, 0); }
+}
+
+@keyframes hintBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(4px); }
+}
