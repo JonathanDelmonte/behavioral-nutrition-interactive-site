@@ -148,7 +148,15 @@
   animation: rise .9s .1s ease-out forwards;
 }
 .eyebrow::before,
-.eyebrow::after { content: "—"; margin: 0 10px; color: var(--color-gold-soft); }
+.eyebrow::after {
+  content: "";
+  display: inline-block;
+  width: 24px;
+  height: 1px;
+  margin: 0 10px;
+  background: var(--color-gold-soft);
+  vertical-align: middle;
+}
 
 .headline {
   font-family: var(--font-serif);
@@ -195,7 +203,9 @@
 .lead {
   font-family: var(--font-sans);
   font-size: clamp(11px, 0.85vw, 13px);
-  font-weight: 600;
+  /* 500 = the site's "regular" for small sans text (lead/role/sub), matching
+     Journey/Method/Contact — was 600, a touch heavier than the rest. */
+  font-weight: 500;
   line-height: 1.55;
   color: var(--color-ink);
   max-width: 260px;
@@ -231,6 +241,49 @@
      events on text rows (which already have pointer-events: none) fall
      straight through to the canvas underneath. */
   pointer-events: none;
+}
+
+/* Botanical seam between Hero and the dark Identify section. The image tile is
+   repeated normal / mirrored so wide screens read as one continuous vine. */
+.vineDivider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: clamp(104px, 13.5vw, 178px);
+  transform: translateY(57%);
+  z-index: 8;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.vineTrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+}
+
+.vineTile {
+  display: block;
+  flex: 0 0 auto;
+  height: 100%;
+  width: auto;
+  margin-left: clamp(-64px, -4vw, -30px);
+  object-fit: contain;
+  object-position: center;
+  filter: saturate(0.96) contrast(0.98);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.vineTile:first-child {
+  margin-left: 0;
+}
+
+.vineTileFlip {
+  transform: scaleX(-1);
 }
 
 /* --- scroll hint pinned to viewport bottom ---

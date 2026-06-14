@@ -8,8 +8,8 @@ import styles from "./IndexOverlay.module.css";
  *  ids that the section components will declare as they're added. */
 const SECTIONS = [
   { num: "01", label: "Início",              href: "#inicio" },
-  { num: "02", label: "Você se identifica?", href: "#voce" },
-  { num: "03", label: "Como funciona",       href: "#metodo" },
+  { num: "02", label: "Você se identifica?", href: "#para-quem" },
+  { num: "03", label: "Como funciona",       href: "#como-funciona" },
   { num: "04", label: "Sobre Ju",            href: "#sobre" },
   { num: "05", label: "Depoimentos",         href: "#depoimentos" },
   { num: "06", label: "Atendimento",         href: "#atendimento" },
@@ -88,7 +88,7 @@ export function IndexOverlay({ open, onClose }: Props) {
       {/* Inner column — stops click-through so clicking around the items
           doesn't close the overlay; only the outer backdrop does. */}
       <div className={styles.content} onClick={(e) => e.stopPropagation()}>
-        <span className={styles.eyebrow}>— Índice —</span>
+        <span className={styles.eyebrow}>Índice</span>
 
         <ol className={styles.list}>
           {SECTIONS.map((s, i) => (

@@ -5,6 +5,10 @@ import { HeroContent } from "./HeroContent";
 import { HeroBrain } from "./HeroBrain";
 import { ScrollHint } from "./ScrollHint";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const VINE_DIVIDER = `${BASE_PATH}/images/hero/vine-divider.webp`;
+const VINE_DIVIDER_TILES = Array.from({ length: 6 }, (_, i) => i);
+
 /**
  * Hero — first viewport of the site (sits directly below the global Header).
  *
@@ -37,13 +41,29 @@ import { ScrollHint } from "./ScrollHint";
 export function Hero() {
   return (
     <>
-      <section className={styles.hero}>
+      <section id="inicio" className={styles.hero}>
         <Botanical />
         <Rails />
 
         <div className={styles.stage}>
           <HeroContent />
           <HeroBrain />
+        </div>
+
+        <div className={styles.vineDivider} aria-hidden="true">
+          <div className={styles.vineTrack}>
+            {VINE_DIVIDER_TILES.map((tile) => (
+              <img
+                key={tile}
+                className={`${styles.vineTile} ${
+                  tile % 2 === 1 ? styles.vineTileFlip : ""
+                }`.trim()}
+                src={VINE_DIVIDER}
+                alt=""
+                draggable={false}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
