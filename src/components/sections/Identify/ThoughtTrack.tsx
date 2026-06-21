@@ -9,27 +9,27 @@ import styles from "./Identify.module.css";
 /** The five validated thoughts (see memory: reference_identify_section). */
 const THOUGHTS = [
   {
-    roman: "i",
+    roman: "I",
     text: "Hoje eu como. Segunda-feira eu começo de novo.",
     echo: "toda véspera é a última",
   },
   {
-    roman: "ii",
+    roman: "II",
     text: "Eu mereço esse chocolate. Mas depois eu vou me odiar.",
     echo: "cada prazer cobra um preço",
   },
   {
-    roman: "iii",
+    roman: "III",
     text: "Olha o tanto que eu comi. Que vergonha de mim.",
     echo: "o pior crítico mora dentro",
   },
   {
-    roman: "iv",
+    roman: "IV",
     text: "Eu falhei de novo. Não tenho força de vontade nenhuma.",
     echo: "e se o problema nunca tivesse sido esse?",
   },
   {
-    roman: "v",
+    roman: "V",
     text: "Por que comigo tem que ser tão difícil?",
     echo: "spoiler: não tem",
   },
@@ -187,7 +187,7 @@ export function ThoughtTrack() {
                   data-bubbleshape=""
                   data-active={i === active ? "" : undefined}
                 >
-                  <span className={styles.idx}>{t.roman} de v</span>
+                  <span className={styles.idx}>{t.roman} de V</span>
                   <blockquote className={styles.quote}>{t.text}</blockquote>
                   <span className={styles.echo}>{t.echo}</span>
                 </div>
@@ -211,7 +211,7 @@ export function ThoughtTrack() {
 
         <div className={styles.progress} aria-hidden="true">
           <span className={styles.progressLabel}>
-            {THOUGHTS[labelIdx].roman} / v
+            {THOUGHTS[labelIdx].roman} / V
           </span>
           <span className={styles.progressBar}>
             {THOUGHTS.map((t, i) => (

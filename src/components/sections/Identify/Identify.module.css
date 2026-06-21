@@ -394,7 +394,9 @@
   font-style: italic;
   font-size: clamp(12px, .95vw, 14px);
   color: var(--color-gold);
-  letter-spacing: .05em;
+  /* Roman numerals (I, II … V) in caps — a touch more tracking lets the
+     uppercase strokes breathe so they read as numerals, not letters. */
+  letter-spacing: .14em;
   opacity: .85;
   margin-bottom: 12px;
 }
@@ -460,7 +462,7 @@
   color: var(--color-gold-soft);
   opacity: .85;
 }
-.progressLabel { min-width: 40px; text-align: center; }
+.progressLabel { min-width: 52px; text-align: center; }
 .progressBar   { display: flex; gap: 8px; }
 .pd {
   display: block;
