@@ -20,6 +20,10 @@ import { useBrainSlot, type BrainFrame } from "@/components/BrainStage";
  */
 const VERTICAL_BLEED_DESKTOP_PX = 110;
 const MOBILE_BREAKPOINT = 760;
+/* The brain's resting footprint at full size — mirrors min(740px, ...) on
+   .brainWrap in Hero.module.css. Used to keep the vertical bleed proportional
+   to the (possibly shrunk) spacer height. */
+const BASE_WRAP_PX = 740;
 
 export function HeroBrain() {
   /* Map the spacer's rect to the actual canvas frame: bleed to viewport edges
@@ -29,7 +33,17 @@ export function HeroBrain() {
      the impact spring doesn't reach the wrap edges there. */
   const computeFrame = useCallback((rect: DOMRect): BrainFrame => {
     const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
-    const verticalBleed = isMobile ? 0 : VERTICAL_BLEED_DESKTOP_PX;
+    /* Scale the bleed with the spacer height so the brain's apparent size stays
+       proportional to .brainWrap's CSS height. On short viewports the height
+       cap (60svh) shrinks rect.height; a FIXED bleed would dampen that (the
+       constant 220px of total bleed makes a smaller box shrink less than 1:1),
+       leaving the brain stubbornly large. Tying the bleed to rect.height makes
+       the brain shrink exactly in step with the spacer. At full height
+       (rect.height = 740) this is the original 110px, so tall screens are
+       unchanged. Center is unaffected — the bleed is symmetric. */
+    const verticalBleed = isMobile
+      ? 0
+      : VERTICAL_BLEED_DESKTOP_PX * (rect.height / BASE_WRAP_PX);
     return {
       left: 0,
       top: rect.top - verticalBleed,

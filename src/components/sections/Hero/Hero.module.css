@@ -162,7 +162,13 @@
   font-family: var(--font-serif);
   font-weight: 400;
   color: var(--color-green-deep);
-  font-size: clamp(28px, 3.2vw, 46px);
+  /* Same height-aware pattern as .display: the svh term only bites on short
+     viewports. On a 1920-wide screen the headline otherwise pins to its 46px
+     cap; 4.6svh pulls it to ~42px at 920px tall (matching the author's
+     reference headline) so the whole copy block scales down together rather
+     than just the big title. Above ~1230px tall, min() keeps 3.2vw — the
+     author's window is unchanged. */
+  font-size: clamp(28px, min(3.2vw, 4.6svh), 46px);
   letter-spacing: -0.005em;
   line-height: 1.15;
   opacity: 0;
@@ -174,7 +180,21 @@
   font-style: italic;
   font-weight: 500;
   color: var(--color-green-deep);
-  font-size: clamp(64px, 10.5vw, 170px);
+  /* Height-aware sizing. The width term (10.5vw) is exactly the original
+     formula; the svh term only ever WINS (shrinks the title) on viewports
+     shorter than ~1230px, where 11.5svh dips below 10.5vw. So:
+       • Tall windows (the design was tuned on a ~1300px-tall window): 11.5svh is
+         ~150px, never below the 10.5vw value, so min() keeps the original
+         width-driven size — this section is byte-for-byte unchanged there.
+       • 1920×1080 (~920px tall): 11.5svh ≈ 106px wins. Note this is SMALLER
+         than the ~139px the title has on the author's reference window — and
+         that's the point: a short viewport must scale the whole composition
+         DOWN (not match the reference's absolute size), otherwise the title
+         eats the vertical budget, reads as "zoomed in", and crowds the brain
+         up into the CTA. 106px restores the author's *proportions* (gap above
+         the brain, title-to-brain ratio) at the shorter height.
+     The 64/170 clamp bounds are untouched, so nothing exceeds the old range. */
+  font-size: clamp(64px, min(10.5vw, 11.5svh), 170px);
   line-height: .96;
   letter-spacing: -0.015em;
   margin-top: 8px;
@@ -202,15 +222,47 @@
 }
 .lead {
   font-family: var(--font-sans);
-  font-size: clamp(11px, 0.85vw, 13px);
+  /* Height-responsive, but the LINE-WRAP is locked. Two pieces working together
+     with the em max-width below:
+     1. font-size = the original width clamp, but capped by a height term so it
+        only eases down (to a 10px floor) as the viewport gets SHORT. On the
+        author's tall window the height term is large, so it resolves to the
+        original 0.85vw value — untouched. A short+wide screen (1920×1080) is
+        where it shrinks; a tall+narrow window is NOT affected (the inner clamp's
+        own 11px floor still holds), honoring "only shorter screens change".
+     2. The em max-width (below) keeps the box ÷ font ratio constant, so the line
+        always breaks at the SAME word at every size — the text shrinks, the
+        wrap never moves. */
+  font-size: min(clamp(11px, 0.85vw, 13px), max(10px, 1.14svh));
   /* 500 = the site's "regular" for small sans text (lead/role/sub), matching
      Journey/Method/Contact — was 600, a touch heavier than the rest. */
   font-weight: 500;
   line-height: 1.55;
   color: var(--color-ink);
-  max-width: 260px;
+  /* em, not px: box = 23.09 × font-size always, so it scales WITH the text and
+     the wrap is frozen to the author-window break ("...ciclo" / "de recomeçar…").
+     23.09em = 260px at the author's 11.26px font, so that window is unchanged. */
+  max-width: 23.09em;
   text-align: left;
   opacity: .9;
+}
+
+/* Height-responsive Hero CTA. Scoped to the Hero instance only (the base .cta
+   is shared by Faq/Journey/Identify/Contact and must stay put) via a Hero-owned
+   class; double-class wins over .cta's font-size/padding without !important,
+   matching the .lightCta pattern in Identify.module.css.
+
+   The pill eases down below ~1150px tall — from 11px to an 8.5px floor (reached
+   ~770px), hitting ~9px at 1920×1080. It never goes below 8.5px, so it can't
+   look shrivelled, and white-space:nowrap (from .cta) means it can't wrap/break.
+   Padding + gap are in em (mirroring the original 18/28/14 px at 11px), so the
+   whole pill scales as one piece and proportions stay intact. Above ~1150px tall
+   — the author's window included — the calc clamps to 11px, so this is
+   byte-for-byte the original button there. */
+.heroCta.heroCta {
+  font-size: clamp(8.5px, calc(0.87svh + 1px), 11px);
+  padding: 1.636em 2.545em;
+  gap: 1.273em;
 }
 
 /* --- 3D brain spacer ---
@@ -228,10 +280,25 @@
   position: relative;
   /* Slight upward pull keeps the brain close to the headline above without
      letting the larger scale (SCALE_DESKTOP = 1.55) crowd it. If the brain
-     ever grows past ~1.65 this value should ease further (-10px or 0). */
-  margin-top: -20px;
+     ever grows past ~1.65 this value should ease further (-10px or 0).
+
+     On SHORT viewports the pull REVERSES into a small downward push, opening a
+     gap ABOVE the brain so it never climbs into the CTA. At the design height
+     (~1300px) the calc term is ≤ -20, so clamp returns the -20px ceiling — the
+     author's window is unchanged. As the window shortens, the term rises,
+     reaching +10px at ~920px tall (1920×1080). Combined with the title shrink
+     above (which lifts the whole stack), this re-creates the author's "space
+     above the brain" while letting the brain's base crop below the fold (no
+     bottom space is needed there, per the brief). Math: term = -20px at
+     ~1300px tall, = +10px at ~920px tall (98 − 9.5 × 9.2 ≈ 11 → clamped 10). */
+  margin-top: clamp(-20px, calc(98px - 9.5svh), 10px);
+  /* Width stays width-driven (it's an invisible, centered spacer — only its
+     measured HEIGHT and top feed the brain's world placement, see HeroBrain).
+     Height gains a 60svh cap so the brain shrinks on short viewports: 60svh
+     only drops below 740px under ~1233px tall, so tall windows keep the exact
+     740px footprint and only 1080p-class screens get a smaller brain. */
   width:  min(740px, 65vw);
-  height: min(740px, 65vw);
+  height: min(740px, 65vw, 60svh);
   z-index: 2;
   /* Since Phase 2 this div is an empty spacer — the actual brain canvas is
      mounted page-globally by <BrainStage /> in a fixed layer at a lower
@@ -383,7 +450,12 @@
   .l6 { top: 280px; bottom: auto; right: -30px; width: 130px; opacity: .10; }
 
   .row  { flex-direction: column; gap: 18px; }
-  .lead { text-align: center; max-width: 320px; }
+  /* Pin lead + CTA back to their original mobile sizing: the desktop rules above
+     are viewport-HEIGHT responsive (svh), which on a short phone viewport would
+     otherwise shrink them. Phones keep the established sizes — lead at its px
+     box (not the desktop em) and the 11px pill. */
+  .lead { text-align: center; max-width: 320px; font-size: clamp(11px, 0.85vw, 13px); }
+  .heroCta.heroCta { font-size: 11px; }
 
   .display   { font-size: clamp(48px, 14vw, 84px); }
   /* Real phones (vs DevTools mobile emulation) have dynamic address bars,

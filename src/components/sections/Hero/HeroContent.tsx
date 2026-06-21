@@ -20,11 +20,17 @@ export function HeroContent() {
       </div>
 
       <div className={styles.row}>
+        {/* Hard line break locks the wrap after "ciclo" — identical to the
+            natural break on the author's window, but now immune to font-metric
+            rounding when the caption shrinks on short viewports (an em-ratio box
+            alone tips "de" up a line right at the boundary). The em max-width on
+            .lead keeps the box wide enough that line 1 never wraps internally at
+            any font size. */}
         <p className={styles.lead}>
-          Nutrição comportamental para sair do ciclo de recomeçar toda
+          Nutrição comportamental para sair do ciclo<br />de recomeçar toda
           segunda-feira.
         </p>
-        <CTAButton>Agendar consulta</CTAButton>
+        <CTAButton className={styles.heroCta}>Agendar consulta</CTAButton>
       </div>
     </>
   );
