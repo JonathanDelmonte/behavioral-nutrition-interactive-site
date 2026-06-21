@@ -217,10 +217,10 @@ export function FaqSection() {
           <div className={styles.aside} data-reveal>
             <span className={styles.rule} aria-hidden="true" />
             <p className={styles.note}>
-              Algumas dúvidas aparecem antes do primeiro passo.
+              “Algumas dúvidas aparecem antes do primeiro passo.”
             </p>
             <span className={styles.sig}>
-              O individual vem depois.
+              Ju.
             </span>
           </div>
         </header>
