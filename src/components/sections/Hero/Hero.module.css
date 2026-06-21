@@ -7,6 +7,13 @@
 .hero {
   position: relative;
   width: 100%;
+  /* The sticky <Header /> (--header-h tall) overlays the top of the page. The
+     "Início" menu link targets #inicio (this section), which starts exactly
+     --header-h below the document top — so without this the anchor lands at
+     scrollY ≈ --header-h, tucking the hero's top under the header. Offsetting
+     the scroll target by the header height makes #inicio land at true top
+     (scrollY 0), header visible, nothing hidden. */
+  scroll-margin-top: var(--header-h);
   /* svh = "small viewport height" — uses the smallest visible viewport
      even on mobile browsers where the address bar can hide and show. With
      plain `vh` the hero can briefly become taller than the visible area
