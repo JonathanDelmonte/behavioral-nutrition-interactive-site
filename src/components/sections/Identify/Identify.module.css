@@ -189,7 +189,13 @@
 .brainSlot {
   position: relative;
   width: 100%;
-  max-width: 520px;
+  /* Height-aware cap (mirrors the Hero brain). 520px is the approved size on the
+     author's tall window; the 44svh term only dips below 520 under ~1180px tall,
+     so that view is byte-identical. On a short viewport (1920×1080 ≈ 920px tall)
+     it eases the slot down to ~405px so the brain reads smaller instead of
+     oversized/zoomed. BrainStage derives the brain's on-screen size from this
+     slot's rect (+ a proportional bleed), so the 3D brain shrinks in step. */
+  max-width: min(520px, 44svh);
   aspect-ratio: 1 / 1;
   justify-self: end;
 }

@@ -28,10 +28,16 @@ const prand = (i: number, salt: number) => {
 /** Grid of zones sized to the viewport, so every region always holds a mark.
    Phones (≤760, the mobile layout) get a DENSER grid of tiny marks — salt
    scattered over the dark green — while desktop stays exactly as approved. */
-function gridFor(w: number): { cols: number; rows: number } {
+function gridFor(w: number, h: number): { cols: number; rows: number } {
   if (w <= 760) return { cols: 3, rows: 6 };
-  if (w < 1040) return { cols: 3, rows: 3 };
-  return { cols: 4, rows: 3 };
+  // Short desktop viewports (≤1100px tall — e.g. 1920×1080) get a DENSER grid of
+  // smaller marks, so the field reads as finer "grain" instead of a few big marks
+  // that look oversized when the section is height-compressed. Tall windows (the
+  // author's ~1300px design height) keep the approved sparser grid, untouched.
+  // It's denser than desktop but NOT as dense/tiny as the phone field above.
+  const short = h <= 1100;
+  if (w < 1040) return short ? { cols: 4, rows: 4 } : { cols: 3, rows: 3 };
+  return short ? { cols: 5, rows: 4 } : { cols: 4, rows: 3 };
 }
 
 export function IdentifyQuestions() {
@@ -42,7 +48,7 @@ export function IdentifyQuestions() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const apply = () => {
-      const next = gridFor(window.innerWidth);
+      const next = gridFor(window.innerWidth, window.innerHeight);
       setGrid((prev) =>
         prev && prev.cols === next.cols && prev.rows === next.rows
           ? prev
@@ -123,10 +129,14 @@ export function IdentifyQuestions() {
       }
       // px font-size (Italianno's glyph sits small in its em, so the visible
       // "?" is smaller than this). Phones: tiny + wide variation = grains of
-      // salt scattered over the green. Desktop: the approved larger range.
+      // salt scattered over the green. Desktop: the approved larger range, but
+      // eased DOWN on short viewports by a height factor (1 on the author's tall
+      // window, ~0.55 at 1920×1080) so the marks shrink with the section into a
+      // finer grain — never as tiny as the phone field, per the brief.
+      const hf = Math.max(0.55, Math.min(1, (window.innerHeight - 900) / 330));
       const size = phone
         ? 16 + prand(seed, 3) * 34
-        : 52 + prand(seed, 3) * 86;
+        : (52 + prand(seed, 3) * 86) * hf;
       const dur = 8 + prand(seed, 4) * 6; // s on screen
       const tilt = -12 + prand(seed, 5) * 24; // deg
       // peak opacity (subtle) — 0 hides a mark whose cell is fully behind the bubble
