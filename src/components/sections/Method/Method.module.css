@@ -482,7 +482,10 @@
 /* ---- Mobile ------------------------------------------------------------ */
 @media (max-width: 760px) {
   .content {
-    padding-top: 30vh;
+    /* Was 30vh — left a tall dead-green void between the Identify CTA and this
+       headline on phones (the headline only entered ~30vh into the section).
+       12vh keeps a breath of dawn sky above the title without the void. */
+    padding-top: 12vh;
   }
   .title {
     max-width: 16ch;
