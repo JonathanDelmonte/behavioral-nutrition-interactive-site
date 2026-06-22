@@ -569,18 +569,34 @@
     display: none;
   }
 
-  .stage {
-    justify-content: center;
-    padding: clamp(10px, 2vh, 18px) 16px;
+  /* Trim the section's tail padding on phones — combined with the in-stage
+     footer sitting at bottom:9vh and the Method headline's own top breath, the
+     desktop 100px here piled into a dead-green void after the CTA. */
+  .identify {
+    padding-bottom: clamp(28px, 7vw, 48px);
   }
 
-  /* ---- act 1: headline overlay ---- */
+  .stage {
+    /* Two stacked zones that never collide at any viewport height: the headline
+       (row 1, in normal flow) pins to the top; the brain + bubble block (row 2)
+       is centered in the space BELOW it. Centering the block inside that
+       remaining row — not inside the whole stage — makes the gap under the
+       headline GROW with viewport height instead of shrinking into an overlap on
+       short screens (the old height-driven bug, where the centered block rose up
+       into the top-anchored headline). */
+    display: grid;
+    grid-template-rows: auto 1fr;
+    justify-items: center;
+    padding: clamp(20px, 6vh, 80px) 16px clamp(10px, 2vh, 18px);
+  }
+
+  /* ---- act 1: headline (row 1, top of the stage) ---- */
   .stageIntro {
+    /* In normal flow now (was an absolute overlay at top:11vh, which floated
+       independently of the brain and so collided with it on short viewports). */
     display: block;
-    position: absolute;
-    left: 18px;
-    right: 18px;
-    top: 11vh;
+    grid-row: 1;
+    width: 100%;
     z-index: 3;
     text-align: center;
     pointer-events: none;
@@ -617,20 +633,31 @@
 
   /* ---- act 2: brain above, bubble below ---- */
   .stageMid {
+    /* Row 2 of the stage; the block centers in the space below the headline.
+       `safe center` keeps it centered when there's room, but on a viewport too
+       short to fit the block it falls back to start-alignment — so any overflow
+       spills DOWNWARD (the bubble clips at the bottom in act 2) and the brain can
+       never rise back up into the headline. */
+    grid-row: 2;
+    align-self: safe center;
     grid-template-columns: 1fr;
     justify-items: center;
     gap: clamp(10px, 2.5vh, 22px);
   }
   .brainSlot {
-    /* Responsive: scales with the viewport — comfortably larger on normal
-       phones, easing down only on very small screens. The aura rings
-       (::before/::after, inset in %) scale with it automatically. */
-    max-width: clamp(196px, 58vw, 280px);
+    /* Width-driven, but also capped by viewport height (svh) — mirrors the
+       desktop slot — so the brain shrinks on short screens instead of staying
+       large and crowding the copy. On a normal-height phone the 58vw term wins
+       and the size is unchanged; the 32svh term only bites once the viewport
+       gets short. The aura rings (::before/::after, inset in %) scale with it. */
+    max-width: clamp(170px, min(58vw, 32svh), 280px);
     justify-self: center;
   }
   .bubbles {
     justify-self: center;
-    width: min(100%, 372px);
+    /* svh term shrinks the bubble on short screens so the brain + bubble block
+       still fits under the headline (keeps the same size on normal phones). */
+    width: min(100%, 330px, 32svh);
     max-width: none;
     aspect-ratio: 1 / 1;
     transition: opacity .5s ease, translate .5s ease;
