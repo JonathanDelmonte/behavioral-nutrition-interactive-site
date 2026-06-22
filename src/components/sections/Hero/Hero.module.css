@@ -83,13 +83,15 @@
 }
 
 /* All sizes and offsets in fixed px (no vw, no %). This is intentional:
-   we want the leaves to LOOK identical on a 1280px laptop, a 1920px
-   monitor, and a 4K screen — same size, same distance from each corner.
-   On wider screens the empty middle just grows; on narrower screens
-   below the mobile breakpoint, the override block at the bottom of this
-   file steps each leaf down to a smaller px size so they don't span the
-   whole phone. Numbers are calibrated to match how the page looked at
-   the 1280×900 desktop preset (which is what the design was tuned to). */
+   we want the corner leaves to LOOK identical on a 1280px laptop, a 1920px
+   monitor, and a 4K screen — same size, same distance from each corner, peeking
+   in from the edges. On wider screens the empty middle just grows; on narrower
+   screens below the mobile breakpoint, the override block at the bottom of this
+   file steps each leaf down to a smaller px size so they don't span the whole
+   phone. The only height-responsive bit is below the leaf list: the two MID-EDGE
+   accents (l5/l6) are dropped on short viewports (they'd otherwise get
+   sandwiched by the rising bottom ferns); the four corner ferns are never
+   resized. Numbers are calibrated to the 1280×900 desktop preset. */
 .l1 { /* top-left */
   top: -130px; left: -155px;
   width: 490px;
@@ -124,6 +126,16 @@
   width: 270px;
   --rot: -80deg; --pf: -30;
   opacity: .11;
+}
+
+/* On SHORT desktop viewports the two mid-edge accents (l5/l6) get sandwiched
+   between the top ferns and the bottom ferns rising up off their anchors.
+   They're decorative extras, so drop them here; the four corner ferns stay at
+   their full fixed size, framing the hero exactly as before. Height-gated so
+   the author's tall window keeps all six; min-width keeps the phone layout
+   (≤760, which positions its own leaves) untouched. */
+@media (max-height: 1100px) and (min-width: 761px) {
+  .l5, .l6 { display: none; }
 }
 
 /* --- center stack --- */
