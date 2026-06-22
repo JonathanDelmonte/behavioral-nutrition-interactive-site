@@ -20,8 +20,19 @@
   /* Persistent top navigation height. Sections below the header read this
      to subtract from their min-height (e.g. the Hero uses calc(100svh - x)
      so the first fold fits exactly inside the viewport with the header on
-     top). Update once here and every section adjusts. */
-  --header-h: 100px;
+     top). Update once here and every section adjusts.
+
+     Height-responsive: 100px is the approved thickness on a tall window and is
+     held as the CAP, so on a big screen the header looks exactly as before. The
+     8svh term only bites as the viewport gets shorter — the bar (and the logo,
+     which scales off this token in Brandmark.module.css) thins down instead of
+     feeling chunky — bottoming out at the 80px floor. Reaches the 100px cap at
+     ~1250px of viewport height, so any roomy desktop stays at the full size.
+
+     NOTE: this is now a clamp() expression, so JS must NOT parse the raw token
+     value (parseFloat would get NaN) — measure the rendered header instead (see
+     IdentifyBrainSlot.readHeaderHeight). */
+  --header-h: clamp(80px, 8svh, 100px);
 
   /* Type stacks live in src/styles/fonts.ts via next/font/local, which writes
      --font-sans / --font-serif / --font-script onto the <html> element. We
@@ -32,12 +43,12 @@
 }
 
 /* Mobile: trim the header so it doesn't eat too much of the compact
-   viewport. The 48 px compact logo + name/role stack only needs ~76 px to
-   breathe; the desktop 100 px felt physically thick on phones. Anything
-   that consumes var(--header-h) (Header height itself, Hero's min-height
-   calc, IndexOverlay positioning) adapts automatically. */
+   viewport. Same height-responsive idea as desktop but a smaller envelope —
+   caps a touch under the old flat 76px and thins further on short phones.
+   Anything that consumes var(--header-h) (Header height itself, the compact
+   logo, Hero's min-height calc, IndexOverlay positioning) adapts automatically. */
 @media (max-width: 760px) {
   :root {
-    --header-h: 76px;
+    --header-h: clamp(60px, 8.5svh, 72px);
   }
 }

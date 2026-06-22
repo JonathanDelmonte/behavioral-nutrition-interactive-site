@@ -20,6 +20,16 @@ import styles from "./Identify.module.css";
 const BLEED_RATIO = 0.22;
 
 function readHeaderHeight(): number {
+  // Measure the rendered header. --header-h is now a clamp() expression, so
+  // reading the raw custom-property value and parseFloat-ing it yields NaN
+  // (custom properties aren't math-evaluated) — the header element's own box is
+  // the reliable source of its current (height-responsive) thickness.
+  const header = document.querySelector("header");
+  if (header) {
+    const h = header.getBoundingClientRect().height;
+    if (h > 0) return h;
+  }
+  // Fallbacks: a plain px token (parseFloat works) then a sane default.
   const raw = getComputedStyle(document.documentElement).getPropertyValue("--header-h");
   const parsed = parseFloat(raw);
   return Number.isFinite(parsed) ? parsed : 100;
