@@ -26,8 +26,8 @@ const POND = `${BASE_PATH}/images/about/pond.webp`;
  *   - the vines breathe: a barely-there CSS sway (reduced-motion: none);
  *   - the vine arch and Juliana separate gently with pointer parallax;
  *   - gold dust motes drift on a 2D canvas, nudged by the pointer;
- *   - now and then a single leaf lets go of the arch and tumbles down the
- *     canvas — never more than a few alive at once.
+ *   - leaves let go of the arch on a steady, even cadence and tumble down,
+ *     spread across its full width — never more than a few alive at once.
  *
  * Progressive enhancement: default render (no-JS / prefers-reduced-motion)
  * is the complete static spread. Same rAF + IO patterns as every other
@@ -45,12 +45,16 @@ const DUST = {
 };
 
 const LEAVES = {
-  slots: 3, // max concurrent falling leaves
-  cooldownMin: 4, // s between releases (per slot)
-  cooldownMax: 11,
-  fall: 26, // px/s base fall speed
+  slots: 6, // pool of leaf objects — only ~3-4 are ever alive at once
+  lanes: 5, // successive leaves round-robin across these x columns of the arch
+  releaseMin: 3.6, // s — one global, evenly-spaced release valve (not per-slot)
+  releaseMax: 6.4,
+  firstAt: 0.6, // first leaf drops shortly after the section scrolls in
+  fall: 46, // px/s base fall speed — a gentle drift, not a near-frozen hang
   sway: 30, // px horizontal sway amplitude
   size: 7, // base half-length in px
+  bandMin: 0.06, // leaves use almost the arch's full width (was 0.15..0.85)
+  bandMax: 0.94,
 };
 
 /** Deterministic pseudo-random (no Math.random — stable across renders). */
@@ -111,17 +115,18 @@ export function AboutSection() {
       tPhase: number; tFreq: number; gold: boolean;
     };
     type Leaf = {
-      active: boolean; nextAt: number; // s timestamp for the next release
+      active: boolean;
       x: number; y: number; phase: number; spin: number; speed: number;
       size: number; alpha: number; moss: boolean;
     };
     let motes: Mote[] = [];
-    const leaves: Leaf[] = Array.from({ length: LEAVES.slots }, (_, i) => ({
+    const leaves: Leaf[] = Array.from({ length: LEAVES.slots }, () => ({
       active: false,
-      nextAt: 2 + i * 3, // stagger the very first releases
       x: 0, y: 0, phase: 0, spin: 0, speed: 0, size: 0, alpha: 0, moss: false,
     }));
     let leafSeed = 0;
+    let laneCursor = 0; // walks the lanes so x stays balanced left↔right
+    let nextReleaseAt = Infinity; // armed when the section scrolls into view
     let W = 0;
     let H = 0;
     let parallaxX = 0;
@@ -167,15 +172,21 @@ export function AboutSection() {
       pointerRef.current.has = false;
     };
 
-    /** A leaf lets go from the upper half of the vine arch. */
-    const releaseLeaf = (leaf: Leaf, t: number) => {
+    /** A leaf lets go of the arch and starts its drift down the canvas. */
+    const releaseLeaf = (leaf: Leaf) => {
       leafSeed++;
       const fr = figure?.getBoundingClientRect();
       const sr = section.getBoundingClientRect();
       const fx = fr ? fr.left - sr.left : W * 0.7;
       const fw = fr ? fr.width : W * 0.3;
+      // Round-robin across lanes so successive leaves step evenly across the
+      // arch's width — left↔right stays balanced even with only a few alive.
+      const laneW = (LEAVES.bandMax - LEAVES.bandMin) / LEAVES.lanes;
+      const lane = laneCursor++ % LEAVES.lanes;
+      const center = LEAVES.bandMin + (lane + 0.5) * laneW;
+      const jitter = (prand(leafSeed, 21) - 0.5) * laneW * 0.7;
       leaf.active = true;
-      leaf.x = fx + fw * (0.15 + prand(leafSeed, 21) * 0.7);
+      leaf.x = fx + fw * (center + jitter);
       leaf.y = fr ? fr.top - sr.top + 30 + prand(leafSeed, 22) * 120 : 0;
       leaf.phase = prand(leafSeed, 23) * Math.PI * 2;
       leaf.spin = 0.6 + prand(leafSeed, 24) * 0.9; // rad/s rocking
@@ -183,7 +194,6 @@ export function AboutSection() {
       leaf.size = LEAVES.size * (0.8 + prand(leafSeed, 26) * 0.6);
       leaf.alpha = 0.32 + prand(leafSeed, 27) * 0.2;
       leaf.moss = prand(leafSeed, 28) > 0.5;
-      void t;
     };
 
     const drawLeaf = (leaf: Leaf, t: number) => {
@@ -258,20 +268,24 @@ export function AboutSection() {
         ctx.fill();
       }
 
+      // Drift the live leaves; recycle the ones that reach the bottom.
       for (const leaf of leaves) {
-        if (!leaf.active) {
-          if (t >= leaf.nextAt) releaseLeaf(leaf, t);
-          continue;
-        }
+        if (!leaf.active) continue;
         leaf.y += leaf.speed * dt;
         if (leaf.y > H + 16) {
           leaf.active = false;
-          leaf.nextAt =
-            t + LEAVES.cooldownMin +
-            prand(++leafSeed, 29) * (LEAVES.cooldownMax - LEAVES.cooldownMin);
           continue;
         }
         drawLeaf(leaf, t);
+      }
+      // One global, evenly-spaced release valve: a steady trickle in time (no
+      // per-slot bursts, no long gaps), independent of how fast each leaf drifts.
+      if (t >= nextReleaseAt) {
+        const free = leaves.find((l) => !l.active);
+        if (free) releaseLeaf(free);
+        nextReleaseAt =
+          t + LEAVES.releaseMin +
+          prand(++leafSeed, 29) * (LEAVES.releaseMax - LEAVES.releaseMin);
       }
 
       raf = requestAnimationFrame(frame);
@@ -292,6 +306,7 @@ export function AboutSection() {
         if (e.isIntersecting && !running) {
           running = true;
           last = performance.now();
+          nextReleaseAt = last / 1000 + LEAVES.firstAt;
           section.addEventListener("pointermove", onMove, { passive: true });
           section.addEventListener("pointerleave", resetParallax);
           raf = requestAnimationFrame(frame);
