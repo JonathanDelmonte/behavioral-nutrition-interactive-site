@@ -16,6 +16,23 @@
   transition:
     opacity 0.25s ease,
     visibility 0s linear 0.25s;
+
+  /* Center the sumário when it fits; let it SCROLL inside the green overlay
+     when a short viewport can't hold all eight items. The scroll is contained
+     here (the page body is already locked while open), so only the green
+     scrolls, never the site behind it. `safe center` is what makes the top
+     reachable: on overflow it falls back to top-alignment instead of centering
+     the first items up out of view (the old bug, where they hid behind the
+     header with no way to scroll back to them). Top padding clears the header
+     (which paints over this overlay at z250); bottom padding gives the last
+     item air. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: calc(var(--header-h) + clamp(12px, 2vh, 28px)) 0 clamp(20px, 4vh, 48px);
 }
 
 .overlay.open {
@@ -31,10 +48,9 @@
    header at the top biases perception further downward. Compensating up
    here makes the sumário feel "centered" instead of "low". */
 .content {
-  position: absolute;
-  top: 42%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  /* In normal flow now (was absolutely centered at top:42%, which clipped the
+     top of the list on short viewports with no way to scroll to it). The
+     overlay's flex centering handles placement; this just sizes the column. */
   width: 100%;
   max-width: 720px;
   padding: 0 clamp(24px, 5vw, 56px);
@@ -45,10 +61,11 @@
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(13px, 1.1vw, 16px);
+  font-size: clamp(12px, 1.5vh, 16px);
   color: var(--color-gold);
   text-align: center;
-  margin-bottom: clamp(28px, 4vw, 48px);
+  /* Height-driven so the whole sumário compresses on short viewports. */
+  margin-bottom: clamp(12px, 2.2vh, 36px);
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 0.5s ease, transform 0.5s cubic-bezier(.2,.7,.2,1);
@@ -89,7 +106,9 @@
   display: flex;
   align-items: baseline;
   gap: clamp(20px, 2.5vw, 36px);
-  padding: clamp(10px, 1.4vw, 16px) 0;
+  /* Vertical padding scales with viewport height — the main lever that lets all
+     eight rows shrink to fit a short screen before scrolling is needed. */
+  padding: clamp(6px, 1.1vh, 14px) 0;
   text-decoration: none;
   border-bottom: 1px solid rgba(10, 76, 33, 0.07);
   transition: padding-left 0.4s cubic-bezier(.2,.7,.2,1);
@@ -106,7 +125,9 @@
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
-  font-size: clamp(22px, 2.4vw, 32px);
+  /* min() of a width and a height term: the numeral eases down on a short
+     viewport (vh) as well as a narrow one (vw), keeping the row compact. */
+  font-size: clamp(18px, min(2.4vw, 3vh), 30px);
   background: linear-gradient(
     100deg,
     #8A6E37 0%,
@@ -121,13 +142,13 @@
   -webkit-text-fill-color: transparent;
   opacity: 0.5;
   transition: opacity 0.3s ease;
-  min-width: 48px;
+  min-width: clamp(38px, 4vw, 48px);
 }
 
 .label {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: clamp(18px, 2vw, 26px);
+  font-size: clamp(15px, min(2vw, 2.4vh), 23px);
   letter-spacing: 0.04em;
   color: var(--color-green-deep);
   transition: color 0.25s ease, transform 0.4s cubic-bezier(.2,.7,.2,1);
@@ -159,14 +180,7 @@
     bottom: auto;
   }
   .content {
-    /* Push the column lower on mobile so the "— Índice —" eyebrow has
-       breathing room below the header instead of sitting right against
-       its bottom border. The 42% optical centering looked balanced on
-       desktop but on the compact mobile viewport the eyebrow ended up
-       only ~20 px from the header — this bump adds ~50 px of air. */
-    top: 48%;
     max-width: 100%;
     padding: 0 24px;
   }
-  .num { min-width: 38px; }
 }
