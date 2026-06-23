@@ -308,9 +308,19 @@ export function BrainStage() {
     height: frame.height,
   };
 
-  // Desktop: full-viewport canvas. Mobile: canvas tracks the frame, as before.
+  // Full-viewport canvas (oversize is always on). This box is position:fixed, so
+  // a fixed element wider than the viewport escapes the body's overflow-x:hidden
+  // (its containing block is the viewport, not the body) and adds a
+  // sideways-pannable strip that reveals the off-white page behind the green
+  // sections. Two traps avoided: 100vw is the viewport width INCLUDING the
+  // scrollbar gutter (overflows by the scrollbar width wherever one exists), and
+  // even `width:100%` can resolve a hair wide on some mobile browsers. Pinning
+  // BOTH horizontal edges (left:0 + right:0, width auto) makes the box span
+  // exactly viewport-left → viewport-right on every browser — it can never
+  // overflow horizontally. Height stays 100vh (vertical size never caused the
+  // drift, and the brain placement reads the live rect either way).
   const stageStyle: CSSProperties = oversize
-    ? { left: 0, top: 0, width: "100vw", height: "100vh" }
+    ? { left: 0, right: 0, top: 0, height: "100vh" }
     : {
         left: frame.left,
         top: frame.top,

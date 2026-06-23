@@ -12,6 +12,26 @@
    references and their @keyframes must share a module. */
 @import "../styles/tokens.css";
 
+/* Clamp horizontal overflow at the ROOT, not just the body. body{overflow-x:hidden}
+   alone is unreliable on mobile (iOS Safari in particular still lets the page be
+   panned sideways), so we also clamp <html>. `clip` is preferred over `hidden`
+   because it does NOT turn the cross-axis into a scroll container — so the
+   sticky section stages keep pinning to the viewport. The `hidden` line is a
+   fallback for browsers too old to support `clip` (Safari < 16): they ignore the
+   later `clip` declaration and keep `hidden`. */
+html {
+  overflow-x: hidden;
+  overflow-x: clip;
+  /* Always reserve the vertical scrollbar's gutter. <html> is the page's
+     scroll container, so when the IndexOverlay locks scroll (sets
+     overflow:hidden on <html>) the scrollbar vanishes — without a reserved
+     gutter the page would widen by the scrollbar's width, dragging the
+     full-bleed sticky header sideways and exposing a bare strip on the
+     right edge. `stable` keeps that ~15px reserved whether or not the
+     scrollbar is painted, so opening the menu shifts nothing. */
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--color-offwhite);
@@ -20,4 +40,5 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overflow-x: clip;
 }

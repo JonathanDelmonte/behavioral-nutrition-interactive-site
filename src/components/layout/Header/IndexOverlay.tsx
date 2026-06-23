@@ -46,27 +46,22 @@ export function IndexOverlay({ open, onClose }: Props) {
   }, [open, onClose]);
 
   // Lock background scroll while the overlay is open so the page behind
-  // doesn't jump or scroll-spy under the user's finger. Desktop browsers
-  // remove the scrollbar when overflow is hidden, so compensate that gutter
-  // to keep the page width stable while the menu fades in.
+  // doesn't jump or scroll-spy under the user's finger. <html> is this page's
+  // scroll container (not <body>), so the lock has to land there — setting
+  // overflow:hidden on <body> leaves the document scrollable. The scrollbar
+  // disappears with the lock, but `scrollbar-gutter: stable` on <html>
+  // (globals.css) keeps its gutter reserved, so the page width stays put and
+  // the full-bleed sticky header doesn't slide sideways while the menu opens.
   useEffect(() => {
     if (!open) return;
 
-    const { body, documentElement } = document;
-    const prevOverflow = body.style.overflow;
-    const prevPaddingRight = body.style.paddingRight;
-    const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
+    const { documentElement } = document;
+    const prevOverflow = documentElement.style.overflow;
 
-    body.style.overflow = "hidden";
-    if (scrollbarWidth > 0) {
-      const currentPaddingRight =
-        Number.parseFloat(window.getComputedStyle(body).paddingRight) || 0;
-      body.style.paddingRight = `${currentPaddingRight + scrollbarWidth}px`;
-    }
+    documentElement.style.overflow = "hidden";
 
     return () => {
-      body.style.overflow = prevOverflow;
-      body.style.paddingRight = prevPaddingRight;
+      documentElement.style.overflow = prevOverflow;
     };
   }, [open]);
 
