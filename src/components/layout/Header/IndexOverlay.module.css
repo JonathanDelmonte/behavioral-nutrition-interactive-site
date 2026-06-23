@@ -165,22 +165,49 @@
   /* Pin the overlay to the LARGE viewport (lvh) instead of letting it
      follow the dynamic viewport via `inset: 0`. Why: mobile browsers
      show / hide a bottom toolbar as the user scrolls; with `inset: 0`
-     the overlay's height bounced between two values, and the absolutely
-     positioned `.content` (at `top: 42%`) recalculated against the new
-     height every time — which is what caused the list to snap upward
-     toward the header the moment the toolbar appeared.
+     the overlay's height bounced between two values every time the
+     toolbar appeared. `100lvh` is always the large (no-chrome) viewport
+     regardless of toolbar state, so the layout stays put. `bottom: auto`
+     cancels the bottom edge that `inset: 0` set on the base rule.
 
-     `100lvh` is always the large (no-chrome) viewport regardless of
-     toolbar state, so 42% of it is a stable pixel position. When the
-     toolbar is visible the bottom of the overlay extends under it; the
-     backdrop is solid so nothing visible breaks. `bottom: auto` cancels
-     the bottom edge that `inset: 0` set on the base rule. */
+     Two phone-specific fixes here:
+       1. Top-align instead of centering. On a tall phone, `safe center`
+          parked the whole sumário in the vertical middle, leaving a big
+          dead zone up top (with the hero serif ghosting through it) and
+          making "Índice" read as "too low". Anchoring to the top under
+          the header sits the eyebrow near the top and lets the list flow
+          down into the space below it.
+       2. Solid backdrop. At 97% the large hero headline bled through
+          behind the items and muddied the read; opaque is cleaner on a
+          small screen. */
   .overlay {
     height: 100lvh;
     bottom: auto;
+    justify-content: flex-start;
+    background: var(--color-offwhite-green);
+    padding: calc(var(--header-h) + clamp(22px, 5vh, 46px)) 0 clamp(24px, 5vh, 44px);
   }
   .content {
     max-width: 100%;
-    padding: 0 24px;
+    padding: 0 26px;
+  }
+  /* The base type sizes lean on vw terms that collapse to their minimums
+     on a narrow phone, leaving everything cramped. Bump to fixed, legible
+     sizes and give the rows real height so the eight items breathe and
+     fill the screen instead of huddling in a short centered stack. */
+  .eyebrow {
+    font-size: 17px;
+    margin-bottom: clamp(20px, 3.6vh, 34px);
+  }
+  .link {
+    padding: clamp(14px, 2.4vh, 22px) 0;
+    gap: 22px;
+  }
+  .num {
+    font-size: 22px;
+    min-width: 42px;
+  }
+  .label {
+    font-size: 19px;
   }
 }
