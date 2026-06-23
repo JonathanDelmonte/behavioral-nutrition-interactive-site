@@ -703,11 +703,20 @@
     margin-top: 14px;
     letter-spacing: .16em;
   }
-  /* Tail dots bridge VERTICALLY from the brain (above) down to the bubble:
-     smallest at the top nearest the brain. */
-  .tailDot:nth-child(1) { width: 18px; height: 18px; left: 40%; top: -3%; }
-  .tailDot:nth-child(2) { width: 12px; height: 12px; left: 46%; top: -9%; }
-  .tailDot:nth-child(3) { width: 8px;  height: 8px;  left: 51%; top: -14%; }
+  /* Three dots trail from the brain (above) down to the bubble on a gentle arc
+     that BOWS to the RIGHT — a thought-tail curving toward the balloon, not a
+     straight drop (matches the author's red-curve sketch). Clear small → medium
+     → large step (10 → 15 → 22px), growing toward the balloon. The whole trail
+     sits LOW in the open green — clear of the brain above (the smallest used to
+     crowd the cerebellum) and stopping just short of the balloon's rim below
+     (its visible top is ~+10% of this box). The vertical EDGE-to-edge gaps are
+     equal (~3%): because the dots grow, equal *centre* spacing would make the
+     visible gaps shrink toward the bottom, so the tops are stepped by size+gap
+     (−16 → −9 → 0%) to keep the gaps the eye sees even. The middle dot is nudged
+     right of the small↔large chord so the trail reads as a right-facing arc. */
+  .tailDot:nth-child(1) { width: 22px; height: 22px; left: 59%; top: 0%; }
+  .tailDot:nth-child(2) { width: 15px; height: 15px; left: 62%; top: -9%; }
+  .tailDot:nth-child(3) { width: 10px; height: 10px; left: 57%; top: -16%; }
 
   /* ---- finale: the closing line + CTA form in the bubble's place ---- */
   .stageFooter {
