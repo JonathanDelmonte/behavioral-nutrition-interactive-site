@@ -111,9 +111,9 @@
   line-height: 1.18;
   letter-spacing: -0.005em;
   text-wrap: balance;
-  text-shadow:
-    0 2px 30px rgba(0, 0, 0, 0.5),
-    0 1px 3px rgba(0, 0, 0, 0.35);
+  /* No tight dark shadow (it read as a black outline) — just a soft, wide pool
+     for legibility over the drifting fruit. */
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.5);
 }
 .title em {
   font-style: italic;
@@ -129,9 +129,8 @@
   line-height: 1.05;
   color: var(--color-gold-soft);
   text-wrap: balance;
-  text-shadow:
-    0 2px 34px rgba(0, 0, 0, 0.55),
-    0 1px 3px rgba(0, 0, 0, 0.35);
+  /* Soft pool only — the tight dark shadow was reading as a black outline. */
+  text-shadow: 0 2px 34px rgba(0, 0, 0, 0.55);
 }
 
 /* ---- THE BIG WHATSAPP BUTTON ----------------------------------------------- */
