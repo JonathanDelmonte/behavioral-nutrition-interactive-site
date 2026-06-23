@@ -35,55 +35,52 @@ const VINE_DIVIDER_TILES = Array.from({ length: 6 }, (_, i) => i);
  * real, consented photos/videos. NO Framer/GSAP.
  */
 
-type Review = { name: string; date: string; text: string };
+type Review = { name: string; handle?: string; text: string };
 
 // Placeholder reviews — the client swaps ALL of these for real, consented
 // ones. Lengths VARY on purpose (some one-liners, some longer) so the wall
-// staggers like a real review board instead of a tidy grid.
+// staggers like a real review board instead of a tidy grid. Only SOME carry an
+// Instagram handle (the others preferred not to share one) — rendered as a
+// soft, gradient-tinted @ that sinks into the green instead of shouting.
 const REVIEWS: Review[] = [
   {
     name: "Rafael L.",
-    date: "há 4 meses",
     text: "Acolhimento de verdade. Senti escuta desde o início.",
   },
   {
     name: "Renata S.",
-    date: "há 1 mês",
+    handle: "@renatas",
     text: "Entendi o que sabotava minhas tentativas. Recomendo demais.",
   },
   {
     name: "Eduardo M.",
-    date: "há 3 meses",
     text: "Resultado que dura, porque a cabeça mudou junto.",
   },
   {
     name: "Lucas T.",
-    date: "há 5 meses",
+    handle: "@lucast",
     text: "Parei de brigar comigo a cada refeição.",
   },
   {
     name: "Carolina V.",
-    date: "há 8 meses",
+    handle: "@carolinav",
     text: "Eu já tinha tentado de tudo: contagem de calorias, jejum, aqueles aplicativos. Foi a primeira vez que alguém olhou a minha história antes do prato. Mudou tudo.",
   },
   {
     name: "Camila R.",
-    date: "há 2 meses",
+    handle: "@camilar",
     text: "A culpa foi embora antes mesmo do peso. E o peso veio depois.",
   },
   {
     name: "Tatiane S.",
-    date: "há 4 meses",
     text: "Saí de cada consulta mais leve, mesmo nos dias difíceis. Hoje eu como sem aquele peso da culpa o tempo todo na cabeça.",
   },
   {
     name: "Júlia A.",
-    date: "há 1 mês",
     text: "Pela primeira vez não larguei na segunda semana.",
   },
   {
     name: "Priscila N.",
-    date: "há 3 meses",
     text: "Não é mágica, é entender o porquê. E quando você entende, não tem mais como voltar atrás.",
   },
 ];
@@ -200,8 +197,12 @@ function Note({ review }: { review: Review }) {
         <span className={styles.noteAvatar} aria-hidden="true">
           <AvatarGlyph />
         </span>
-        <span className={styles.noteName}>{review.name}</span>
-        <span className={styles.noteDate}>{review.date}</span>
+        <span className={styles.noteByline}>
+          <span className={styles.noteName}>{review.name}</span>
+          {review.handle ? (
+            <span className={styles.noteHandle}>{review.handle}</span>
+          ) : null}
+        </span>
       </span>
       <p className={styles.noteText}>{review.text}</p>
     </div>

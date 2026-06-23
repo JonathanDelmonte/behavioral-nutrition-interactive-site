@@ -406,6 +406,16 @@
   gap: 10px;
   margin-bottom: 12px;
 }
+/* Name + handle share one baseline (the "notebook line"), so the smaller @
+   rests ON the name's line instead of floating at mid-height. Wraps under only
+   if a card gets too narrow. The avatar stays centered against this group via
+   .noteHead's align-items: center. */
+.noteByline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
 .noteAvatar {
   flex: 0 0 auto;
   width: 30px;
@@ -428,11 +438,14 @@
   font-size: clamp(13px, 1.2vw, 15px);
   color: color-mix(in srgb, var(--color-offwhite) 94%, transparent);
 }
-.noteDate {
+/* Instagram handle — only on reviews that opted to share one. Plain reduced-
+   opacity white: quiet metadata beside the name, not a gradient badge. It rests
+   on the name's baseline (see .noteByline). Knob: the 55% mix sets how faint. */
+.noteHandle {
   font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 10px;
-  color: color-mix(in srgb, var(--color-green-sage) 80%, transparent);
+  font-weight: 600;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--color-offwhite) 55%, transparent);
 }
 .noteText {
   margin: 0;
