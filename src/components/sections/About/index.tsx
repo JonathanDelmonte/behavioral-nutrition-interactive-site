@@ -24,7 +24,8 @@ const POND = `${BASE_PATH}/images/about/pond.webp`;
  *
  * Ambient life ("vivo mas calmo", all gated by .enhanced + IO visibility):
  *   - the vines breathe: a barely-there CSS sway (reduced-motion: none);
- *   - the vine arch and Juliana separate gently with pointer parallax;
+ *   - the vine arch and Juliana drift with a single-smoother depth parallax —
+ *     the near portrait leads the far arch on both pointer move and scroll;
  *   - gold dust motes drift on a 2D canvas, nudged by the pointer;
  *   - leaves let go of the arch on a steady, even cadence and tumble down,
  *     spread across its full width — never more than a few alive at once.
@@ -55,6 +56,19 @@ const LEAVES = {
   size: 7, // base half-length in px
   bandMin: 0.06, // leaves use almost the arch's full width (was 0.15..0.85)
   bandMax: 0.94,
+};
+
+/* Depth parallax for the arch + portrait. ONE smoother (the rAF lerp below) —
+   the CSS carries no transform transition, so motion stays glued to the input
+   instead of rubber-banding. Both layers travel the SAME direction; the near
+   portrait simply moves more than the far arch, which reads as depth (moving
+   them opposite would just shear two flat planes). "vivo mas calmo": small px. */
+const PARALLAX = {
+  smooth: 5.5, // /s — exponential follow of the pointer toward its target
+  vinesPointer: { x: 5, y: 3 }, // far arch — a small, anchored drift
+  portraitPointer: { x: 13, y: 8 }, // near portrait — leads the arch
+  vinesScroll: 7, // px — arch's vertical drift across the whole scroll pass
+  portraitScroll: 16, // px — portrait drifts more → it leads on scroll too
 };
 
 /** Deterministic pseudo-random (no Math.random — stable across renders). */
@@ -160,11 +174,17 @@ export function AboutSection() {
     const ro = new ResizeObserver(seed);
     ro.observe(section);
 
-    const setParallax = (x: number, y: number) => {
-      section.style.setProperty("--about-vines-x", `${(-x * 7).toFixed(2)}px`);
-      section.style.setProperty("--about-vines-y", `${(-y * 4).toFixed(2)}px`);
-      section.style.setProperty("--about-portrait-x", `${(x * 13).toFixed(2)}px`);
-      section.style.setProperty("--about-portrait-y", `${(y * 8).toFixed(2)}px`);
+    // x,y ∈ [-1,1] from the pointer (eased); s ∈ [-1,1] from scroll progress.
+    // Same-direction offsets, portrait magnitude > arch magnitude → depth.
+    const setParallax = (x: number, y: number, s: number) => {
+      const vx = -x * PARALLAX.vinesPointer.x;
+      const vy = -y * PARALLAX.vinesPointer.y - s * PARALLAX.vinesScroll;
+      const px = -x * PARALLAX.portraitPointer.x;
+      const py = -y * PARALLAX.portraitPointer.y - s * PARALLAX.portraitScroll;
+      section.style.setProperty("--about-vines-x", `${vx.toFixed(2)}px`);
+      section.style.setProperty("--about-vines-y", `${vy.toFixed(2)}px`);
+      section.style.setProperty("--about-portrait-x", `${px.toFixed(2)}px`);
+      section.style.setProperty("--about-portrait-y", `${py.toFixed(2)}px`);
     };
     const resetParallax = () => {
       targetParallaxX = 0;
@@ -226,10 +246,19 @@ export function AboutSection() {
       const t = now / 1000;
       ctx.clearRect(0, 0, W, H);
 
-      const parallaxEase = 1 - Math.exp(-dt * 5.5);
+      const parallaxEase = 1 - Math.exp(-dt * PARALLAX.smooth);
       parallaxX += (targetParallaxX - parallaxX) * parallaxEase;
       parallaxY += (targetParallaxY - parallaxY) * parallaxEase;
-      setParallax(parallaxX, parallaxY);
+      // Scroll progress straight from the live rect (canvas spans the section):
+      // -1 entering from the bottom, 0 centered, +1 leaving the top. No easing —
+      // the rect already tracks the real scroll position smoothly, frame by frame.
+      const vh = window.innerHeight || 1;
+      const center = rect.top + rect.height / 2;
+      const scrollProg = Math.max(
+        -1,
+        Math.min(1, (vh / 2 - center) / ((vh + rect.height) / 2)),
+      );
+      setParallax(parallaxX, parallaxY, scrollProg);
 
       for (const m of motes) {
         m.by -= DUST.drift * dt;
@@ -318,7 +347,7 @@ export function AboutSection() {
           parallaxX = 0;
           parallaxY = 0;
           resetParallax();
-          setParallax(0, 0);
+          setParallax(0, 0, 0);
         }
       },
       { rootMargin: "8% 0px" },
@@ -330,7 +359,7 @@ export function AboutSection() {
       section.removeEventListener("pointermove", onMove);
       section.removeEventListener("pointerleave", resetParallax);
       cancelAnimationFrame(raf);
-      setParallax(0, 0);
+      setParallax(0, 0, 0);
     };
   }, [enhanced]);
 

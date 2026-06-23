@@ -171,7 +171,9 @@
     var(--about-vines-y, 0px),
     0
   );
-  transition: transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* No transform transition: the rAF lerp in index.tsx is the sole smoother.
+     Stacking a CSS transition on top of per-frame eased writes is what made
+     the old parallax rubber-band. */
   will-change: transform;
 }
 .enhanced .vines {
@@ -199,7 +201,7 @@
     var(--about-portrait-y, 0px),
     0
   );
-  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Sole smoother is the rAF lerp (see .vines) — no transform transition. */
   mask-image: linear-gradient(180deg, #000 82%, transparent 98%);
   will-change: transform;
 }
