@@ -5,7 +5,7 @@ import { CONTACT, WHATSAPP_HREF } from "@/lib/contact";
 import styles from "./Footer.module.css";
 
 /**
- * Site footer — contact data, address, CRN, Instagram, privacy policy and the
+ * Site footer — contact data, address, CRN, Instagram and the
  * legal line, closing the page in the same deep green as the fruit-field
  * finale (only the gold hairline separates them). Soft effects only, inside
  * the site's grammar: rise+unblur reveal per column and gold underlines on
@@ -57,15 +57,6 @@ function InstaIcon() {
       <rect x="5.5" y="5.5" width="21" height="21" rx="6" />
       <circle cx="16" cy="16" r="5.2" />
       <circle cx="23" cy="9" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden {...stroke}>
-      <path d="M16 4.5 26 8.2v7.2c0 6-4 10.4-10 12.1-6-1.7-10-6.1-10-12.1V8.2z" />
-      <path d="M11.8 16.2l3 3 5.4-6" />
     </svg>
   );
 }
@@ -157,11 +148,6 @@ export function SiteFooter() {
             >
               <InstaIcon />
               <span className={styles.rowText}>{CONTACT.instagram}</span>
-            </a>
-            {/* Page to be created (or replaced by the client's hosted policy). */}
-            <a className={styles.row} href="/politica-de-privacidade">
-              <ShieldIcon />
-              <span className={styles.rowText}>Política de privacidade</span>
             </a>
           </nav>
         </div>
