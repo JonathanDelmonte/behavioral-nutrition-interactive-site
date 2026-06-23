@@ -262,9 +262,18 @@
   opacity: 0.4;
 }
 
-/* The CTA inside the price answer / closing. */
+/* The CTA inside the price answer / closing.
+   The pill defaults to `white-space: nowrap` + wide tracking, so its min-content
+   width (~270px) is larger than this width-capped chat bubble can hold on a
+   narrow phone — it punched out of the bubble and off-screen (fine in desktop
+   emulation only because that viewport is wider). Inside the bubble, let it wrap
+   and never exceed the bubble width. */
 .bubbleCta {
   margin-top: 16px;
+}
+.bubbleCta a {
+  max-width: 100%;
+  white-space: normal;
 }
 
 /* ---- A Q&A EXCHANGE ------------------------------------------------------ */
@@ -547,6 +556,21 @@
     width: 32px;
     height: 32px;
     font-size: 17px;
+  }
+}
+
+/* Below ~420px the bubble can no longer hold the inline pill, so make the CTA a
+   full-width, centered pill: it fills the bubble and the label wraps to two
+   lines instead of overflowing. Tighter tracking/padding keeps each line clear
+   of the edges on the narrowest phones. */
+@media (max-width: 480px) {
+  .bubbleCta a {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    --pad-x: 16px;
+    letter-spacing: 0.14em;
   }
 }
 
