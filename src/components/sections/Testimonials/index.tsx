@@ -19,7 +19,7 @@ const VINE_DIVIDER_TILES = Array.from({ length: 6 }, (_, i) => i);
  *   - CENTER FOCUS: the piece nearest the viewport's center comes into focus
  *     (scales up, its dim veil lifts) while neighbours soften — the site's
  *     focus motif, horizontal. The video gets the cinematic dose: it grows
- *     from 0.86× to ~1.2× as its chapter reaches center stage.
+ *     from 0.78× to ~1.20× as its chapter reaches center stage.
  *   - DEPTH PARALLAX: every piece carries a depth factor and slides at its
  *     own speed, so the rail reads as layers, not a flat strip.
  *   - VELOCITY TILT: scroll speed leans the prints like paper dragged across
@@ -287,7 +287,10 @@ export function TestimonialsSection() {
         const f = (Math.cos(a * Math.PI) + 1) / 2;
 
         const par = (1 - pc.depth) * 260 * c;
-        const scale = pc.video ? 0.78 + f * 0.48 : 0.94 + f * 0.08;
+        // Video peak eased (0.48→0.42, ~1.26×→~1.20×): at full zoom it filled
+        // too much of the stage, worst on shorter/smaller screens. Prints keep
+        // their gentle 0.94→1.02 swell.
+        const scale = pc.video ? 0.78 + f * 0.42 : 0.94 + f * 0.08;
         const rot = lean * pc.tilt;
 
         const t = `translate3d(${par.toFixed(1)}px,0,0) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;

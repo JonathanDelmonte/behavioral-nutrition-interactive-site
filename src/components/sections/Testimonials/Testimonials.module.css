@@ -196,11 +196,11 @@
 
 .video {
   position: relative;
-  /* Max trimmed a bit MORE than the prints (720→640): the video also grows to
-     ~1.26× at center focus, so on wide viewports it dominated the stage. The
-     smaller base scales the zoom's peak down with it (behaviour unchanged),
-     and below ~1422px the vw term is under the cap — design viewport intact. */
-  width: clamp(470px, 45vw, 640px);
+  /* Trimmed again (640→600 cap, 45→42vw, 470→440 min) and the zoom peak eased
+     to ~1.20× (see index.tsx): at full focus the video filled too much of the
+     stage — worst on shorter/smaller viewports, where it crowded the screen.
+     The width shrinks the "overall" size; the gentler peak shrinks the zoom. */
+  width: clamp(440px, 42vw, 600px);
   height: 100%;
   border-radius: 20px;
   overflow: hidden;
@@ -515,12 +515,12 @@
   .photoStack {
     width: 86vw;
   }
-  /* Phones: shrink ONLY the video (82vw→70vw). It grows to ~1.26× at center,
-     so at 82vw the zoom peak overflowed the viewport; the smaller base keeps
-     the same growth behaviour while the peak stays on screen. Prints, quotes
-     and the review wall are left as they were. */
+  /* Phones: shrink ONLY the video (82vw→70vw→64vw). It grows to ~1.20× at
+     center, so a wider base let the zoom peak crowd the small screen; the
+     smaller base keeps the same growth while the peak stays comfortable.
+     Prints, quotes and the review wall are left as they were. */
   .video {
-    width: 70vw;
+    width: 64vw;
   }
   .quote {
     width: 74vw;
