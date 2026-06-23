@@ -583,11 +583,16 @@
        remaining row — not inside the whole stage — makes the gap under the
        headline GROW with viewport height instead of shrinking into an overlap on
        short screens (the old height-driven bug, where the centered block rose up
-       into the top-anchored headline). */
+       into the top-anchored headline). Once the headline dissolves (act 2) the
+       block then rises to the TRUE stage center — see --intro-gone below. */
     display: grid;
     grid-template-rows: auto 1fr;
     justify-items: center;
     padding: clamp(20px, 6vh, 80px) 16px clamp(10px, 2vh, 18px);
+    /* 0 while the headline is up → 1 once it has dissolved (same window the
+       headline opacity/lift use, so the two are perfectly coupled). Drives both
+       the headline's fade and the brain+bubble block's recentre. */
+    --intro-gone: clamp(0, (var(--tp, 0) - 0.015) / 0.05, 1);
   }
 
   /* ---- act 1: headline (row 1, top of the stage) ---- */
@@ -600,8 +605,8 @@
     z-index: 3;
     text-align: center;
     pointer-events: none;
-    opacity: calc(1 - clamp(0, (var(--tp, 0) - 0.015) / 0.05, 1));
-    translate: 0 calc(clamp(0, (var(--tp, 0) - 0.015) / 0.05, 1) * -16px);
+    opacity: calc(1 - var(--intro-gone, 0));
+    translate: 0 calc(var(--intro-gone, 0) * -16px);
   }
   /* Inside the pinned stage the entrance animation is pointless and risks
      leaving text stuck at opacity 0 — show it outright (the --tp fade rules). */
@@ -643,6 +648,15 @@
     grid-template-columns: 1fr;
     justify-items: center;
     gap: clamp(10px, 2.5vh, 22px);
+    /* Recentre as the headline leaves: while it's up the block stays parked in
+       row 2 (no overlap); as it dissolves the block rises by half the headline's
+       height, landing the brain+bubble as ONE unit on the stage's true center
+       instead of stranded low with the bubble way down the screen. --mid-rise is
+       set from JS (= headline height / 2, exact at any width; 0px on desktop
+       where the headline is display:none, so this is a phone-only no-op). The
+       lift tracks scroll frame-by-frame via --intro-gone, so it eases up in step
+       with the user's scroll rather than snapping. */
+    translate: 0 calc(var(--intro-gone, 0) * var(--mid-rise, 0px) * -1);
   }
   .brainSlot {
     /* Width-driven, but also capped by viewport height (svh) — mirrors the
@@ -855,6 +869,12 @@
   }
   .stageIntro {
     opacity: 1 !important;
+    translate: none !important;
+  }
+  /* The headline never dissolves under reduced motion, so the block must stay
+     parked in row 2 below it — recentring would slide the brain up into the
+     permanently-visible headline. */
+  .stageMid {
     translate: none !important;
   }
 }

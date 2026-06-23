@@ -70,6 +70,16 @@ export function ThoughtTrack() {
     let raf: number | null = null;
     let lastIdx = -2; // sentinel: no think-pulse on the very first sync
 
+    // Publish half the (phone-only) headline height as --mid-rise so the CSS can
+    // lift the brain+bubble block to the stage's true center once the headline
+    // dissolves. Measured (not hardcoded) so it's exact however the title wraps
+    // at a given width; on desktop the headline is display:none → 0, a no-op.
+    const intro = stage.querySelector<HTMLElement>(`.${styles.stageIntro}`);
+    const measure = () => {
+      const h = intro ? intro.offsetHeight : 0;
+      stage.style.setProperty("--mid-rise", `${(h / 2).toFixed(1)}px`);
+    };
+
     const update = () => {
       raf = null;
       const rect = track.getBoundingClientRect();
@@ -112,13 +122,22 @@ export function ThoughtTrack() {
       if (raf === null) raf = requestAnimationFrame(update);
     };
 
+    const onResize = () => {
+      measure();
+      onScroll();
+    };
+
+    measure();
+    // Re-measure once webfonts land — the title's line count (and so its height)
+    // can shift when the serif swaps in.
+    if (document.fonts?.ready) document.fonts.ready.then(measure);
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
     return () => {
       if (raf !== null) cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
 
