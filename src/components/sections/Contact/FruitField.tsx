@@ -48,10 +48,16 @@ import {
  *      as the front passes (same interaction vocabulary as the brain's click
  *      ripple in the Hero), velocity-capped so nothing flies off.
  *
- * Containment is depth-aware: the visible frustum is narrower near the
- * camera, so each fruit's bounds follow its own depth — escapees are pulled
- * back by a firm spring AND have their cruise drift flipped inward, so the
- * stage never empties. Tumble is capped and decays to a calm idle rate.
+ * THE RING owns the field: fruits live in a soft annulus framing the copy,
+ * drifting slowly around it. A depth-aware radial spring keeps them there —
+ * firmly expelling anything that wanders into the central keep-out, gently
+ * reeling escapees home from the edge over a couple of seconds (capped accel,
+ * never a snap), and never letting one settle in the middle. The band feathers
+ * OUTWARD (toward the screen edge), so the ring reads as a soft scatter, not a
+ * drawn circle. A short-range tangential repulsion gives every fruit angular
+ * personal space, so an arc the hand empties refills itself — the ring re-evens
+ * instead of going bald where the cursor lingered. Tumble is capped and decays
+ * to a calm idle rate.
  *
  * The pointer arrives via a ref written by the section (the canvas itself is
  * pointer-events: none, so it can never swallow clicks). `active` gates the
@@ -81,22 +87,22 @@ const CAM_Z = 6;
 const FOV_TAN = Math.tan((45 / 2) * (Math.PI / 180)); // camera fov 45
 
 /* The thick medium. WEIGHT comes from the ACCELERATION CAP, not from force
-   size: the hand has real influence, but a fruit needs ~half a second of
-   sustained presence to get moving, then glides and settles — nothing ever
-   darts. (v2 lerped fruit velocity toward the raw hand velocity, which in
-   world units is huge even for a calm mouse — that was the ugly snap.) */
+   size: the hand has real influence, but a fruit still needs sustained
+   presence to get moving, then glides and settles — nothing ever darts. */
 const POINTER_FRESH_MS = 2400;
-const DRAG = 1.5; // 1/s — relax toward cruise (lower = longer, smoother glide)
-const MAX_SPEED = 0.62; // hard ceiling on any fruit's speed
+const DRAG = 1.35; // 1/s — relax toward cruise (lower = longer, smoother glide)
+const MAX_SPEED = 1.0; // hard ceiling on any fruit's speed
 
-/* The hand: proximity force (the v1 feel) + inertia. v3 was too timid — the
-   force/cap pair is ~3× stronger so hover visibly answers within the first
-   half-second, while the accel cap still forbids darting. */
-const HAND_R = 1.8; // influence radius (world units)
-const HAND_FORCE = 1.7; // u/s² at the very center — builds motion gradually
-const HAND_ACCEL_CAP = 1.6; // max |Δv|/s the hand can impose (the inertia)
-const HAND_RAMP = 2.5; // 1/s — influence fades in when the pointer (re)appears
-const DRIFT_BIAS = 0.25; // fraction of the push steered toward the hand's motion
+/* The hand: proximity force (the v1 feel) + inertia. v6 — really grabby now: a
+   wide reach with a LINEAR falloff (so even a cursor crossing the open middle
+   still tugs the near side of the ring), a strong force/cap pair so fruit answer
+   within a few frames, and a big steer toward the hand's travel so a sweep drags
+   a fluid wake along with it. The accel cap still forbids an instant snap. */
+const HAND_R = 2.8; // influence radius (world units) — reaches across the gap
+const HAND_FORCE = 5.0; // u/s² at the very center — builds motion fast
+const HAND_ACCEL_CAP = 4.5; // max |Δv|/s the hand can impose (the inertia)
+const HAND_RAMP = 4.5; // 1/s — influence fades in when the pointer (re)appears
+const DRIFT_BIAS = 0.7; // fraction of the push steered toward the hand's motion
 const HAND_DEPTH = 2.4; // |z| beyond which the hand stops touching fruit
 
 /* Fruit–fruit separation: fruits never weld together — overlap creates a soft
@@ -104,20 +110,48 @@ const HAND_DEPTH = 2.4; // |z| beyond which the hand stops touching fruit
 const SEP_PAD = 1.12; // breathing room: fruits want ~12% gap between radii
 const SEP_FORCE = 1.5;
 
-/* The copy's island: an elliptical keep-out behind the headline/button. Near
-   fruits are gently expelled (they frame the message instead of crossing it);
-   deep, fog-dimmed ones may still drift behind it for atmosphere. */
-const EXCL_FORCE = 1.0;
-const EXCL_DEPTH = 2.2; // strength fades to zero by this |z|
-const EXCL_AX = 0.36; // semi-axis, fraction of viewport width (at z = 0)
-const EXCL_BY = 0.4; // semi-axis, fraction of viewport height (at z = 0)
+/* RING SPREAD: fruits also repel each other ALONG the loop (tangentially), so
+   after the hand blows a hole in one arc the neighbours drift in to refill it —
+   the ring re-evens itself instead of leaving the hovered spot bare. Gentle and
+   short-range (a soft "personal space" in angle), it relaxes toward even
+   spacing over a couple of seconds — never a snapping lattice. */
+const SPREAD_FORCE = 0.16; // tangential push — gentle: refills big gaps without
+//                            ironing the ring into an even, "drawn" outline
+const SPREAD_RANGE = 0.7; // rad — angular reach of the repulsion (~40°)
+
+/* THE RING — the field's gravity. Fruits live in a soft annulus between TWO
+   CONCENTRIC ELLIPSES: the inner keep-out (the copy's island) and an outer
+   ellipse. BOTH are ellipses on purpose — the outer edge must NOT track the
+   rectangular screen box, or fruit pile into the corners and the "ring" turns
+   into a square. A radial spring with a wide dead-band owns motion: the inner
+   ellipse firmly EXPELS anything that drifts toward the copy, the outer ellipse
+   GENTLY reels escapees back over a couple of seconds (capped accel = a soft
+   magnet, never a snap). The band is wide, so fruit scatter across it at varied
+   radii — a soft oval cloud, felt rather than a hard-drawn circle. */
+const EXCL_AX = 0.32; // inner keep-out semi-axis, fraction of viewport width
+const EXCL_BY = 0.22; // inner keep-out semi-axis, fraction of viewport height — the
+//                       copy is SHORT, so this is small: a tight guard around the
+//                       text, which opens a wide band (fruit weren't dispersed, the
+//                       keep-out was just bloated up against the outer ellipse).
+const RING_AX = 0.47; // OUTER ellipse semi-axis, fraction of width (< ~0.48 = on-screen)
+const RING_BY = 0.46; // OUTER ellipse semi-axis, fraction of height
+const RING_LO = 0.04; // band inner edge — fruit may sit close to the guard (a bit "in")
+const RING_HI = 1.0; // band outer edge — full span; the gentle outer spring still
+//                      lets a few stragglers drift a touch beyond (dispersed OUT)
+const RING_IN_K = 3.4; // 1/s² — central expulsion stiffness (firm; guards the copy)
+const RING_IN_CAP = 2.6; // max outward accel — firm but not violent
+const RING_OUT_K = 1.4; // 1/s² — homeward pull stiffness (gentle)
+const RING_OUT_CAP = 0.55; // max inward accel — the soft, slow magnet home
 
 /* The click pressure ring — a real thump (the viscous medium swallows small
    impulses, so the front must hit clearly; MAX_SPEED still bounds it). */
-const WAVE_SPEED = 2.6; // world units/s — slow enough to read as a wave
+const WAVE_SPEED = 2.6; // world units/s — slow enough to read as a wave, not a snap
 const WAVE_WIDTH = 0.9;
-const WAVE_IMPULSE = 11; // dt-scaled at the front
+const WAVE_IMPULSE = 11; // dt-scaled at the front — a soft thump that reads cleanly
 const WAVE_LIFE_S = 1.6;
+const CLICK_CAP = 0.62; // a click never flings a fruit faster than the ORIGINAL
+//                         field ceiling, so the ripple stays as soft as it was
+//                         before the hand got its bigger MAX_SPEED above.
 
 /* Tumble. */
 const SPIN_CAP = 1.5; // rad/s per axis
@@ -152,8 +186,11 @@ interface FruitSim {
   r: number;
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
-  /** Cruise drift the velocity relaxes back to (flipped inward on escape). */
+  /** Cruise the velocity relaxes back to. bx/by are recomputed every frame as
+   *  the tangential drift AROUND the ring; bz is a slow idle z-bob. */
   bx: number; by: number; bz: number;
+  /** Signed tangential speed — this fruit's share of the slow ring orbit. */
+  orbit: number;
   /** Tumble rates (rad/s) and the spin-kick jitter axis. */
   wx: number; wy: number; wz: number;
   kx: number; ky: number; kz: number;
@@ -277,12 +314,30 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
     const vw = viewport.width;
     const vh = viewport.height;
 
-    // Every fruit appears once; mobile thins the two crowded small kinds.
+    // The cast: every fruit once, then a few EXTRA copies of the scarce, very
+    // distinct kinds (kiwi, orange) so each arc of the ring is varied instead
+    // of a long run of one fruit. Then SHUFFLE so no kind clusters into a
+    // corner — the old in-order layout pooled all blueberries top-left and all
+    // strawberries bottom-right. Mobile stays lighter: thinned, no extras.
     const picks: number[] = [];
     types.forEach((_, ti) => {
       if (isMobile && ti % 3 === 1) return;
       picks.push(ti);
     });
+    if (!isMobile) {
+      types.forEach((t, ti) => {
+        if (t.name.startsWith("kiwi") || t.name.startsWith("laranja")) {
+          picks.push(ti, ti); // two more of each scarce, vivid fruit
+        }
+      });
+    }
+    // Fisher–Yates with the seeded RNG → the mix is identical every mount.
+    for (let i = picks.length - 1; i > 0; i--) {
+      const k = Math.floor(rng() * (i + 1));
+      const tmp = picks[i];
+      picks[i] = picks[k];
+      picks[k] = tmp;
+    }
     const n = picks.length;
 
     const all: FruitSim[] = picks.map((ti, j) => {
@@ -295,34 +350,32 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const scale = visual / t.sizeW;
 
       // STRATIFIED RING SPAWN: angles are evenly distributed (with jitter) and
-      // each fruit lands between the copy's elliptical island and the screen
-      // edge AT ITS OWN DEPTH — full occupancy, no birth clumps, headline
-      // clear. Deep (fog-dimmed) fruits may sit inside the island for
-      // atmosphere.
+      // each fruit is born in the elliptical band between the inner keep-out and
+      // the OUTER ELLIPSE (never the screen rectangle — that's what squared the
+      // ring). Full occupancy, no birth clumps, headline clear, nothing inside.
       const z = -2.7 + rng() * 3.4;
       const dist = CAM_Z - z;
-      const halfH = FOV_TAN * dist * 0.9;
-      const halfW = halfH * (vw / vh);
       const kz = dist / CAM_Z;
-      const ea = vw * EXCL_AX * kz;
-      const eb = vh * EXCL_BY * kz;
+      const eaIn = vw * EXCL_AX * kz;
+      const ebIn = vh * EXCL_BY * kz;
+      const eaOut = vw * RING_AX * kz;
+      const ebOut = vh * RING_BY * kz;
 
-      const ang = ((j + 0.5) / n) * Math.PI * 2 + (rng() - 0.5) * 0.55;
+      const ang = ((j + 0.5) / n) * Math.PI * 2 + (rng() - 0.5) * 0.5;
       const ca = Math.cos(ang);
       const sa = Math.sin(ang);
-      const rEll = 1 / Math.sqrt((ca / ea) ** 2 + (sa / eb) ** 2);
-      const rMax = Math.min(
-        Math.abs(ca) > 1e-4 ? (halfW - visual / 2) / Math.abs(ca) : 1e9,
-        Math.abs(sa) > 1e-4 ? (halfH - visual / 2) / Math.abs(sa) : 1e9,
-      );
-      const deepPass = z < -1.6;
-      const rMin = deepPass ? rEll * (0.2 + rng() * 0.5) : rEll * 1.02;
-      const rad = Math.min(rMax, rMin + Math.max(0, rMax - rMin) * rng() ** 0.8);
+      const rIn = 1 / Math.sqrt((ca / eaIn) ** 2 + (sa / ebIn) ** 2);
+      const rOut = 1 / Math.sqrt((ca / eaOut) ** 2 + (sa / ebOut) ** 2);
+      // Scatter UNIFORMLY across the whole (now wide) band so radii vary widely
+      // — some near the guard, some near the edge, most in between: a dispersed
+      // cloud you can't trace a circle through. The guard keeps it off the copy.
+      const frac = RING_LO + (RING_HI - RING_LO) * rng();
+      const rad = rIn + (rOut - rIn) * frac;
       const x = ca * rad;
       const y = sa * rad;
 
-      const dAng = rng() * Math.PI * 2;
-      const speed = 0.03 + rng() * 0.05; // slow cruise — the medium is thick
+      // slow tangential drift around the ring (signed per fruit, ±)
+      const orbit = (0.035 + rng() * 0.045) * (rng() < 0.5 ? -1 : 1);
       const kLen = Math.hypot(rng() - 0.5, rng() - 0.5, rng() - 0.5) || 1;
 
       return {
@@ -330,12 +383,13 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
         scale,
         r: visual / 2,
         x, y, z,
-        vx: Math.cos(dAng) * speed,
-        vy: Math.sin(dAng) * speed,
-        vz: (rng() - 0.5) * 0.04,
-        bx: Math.cos(dAng) * speed,
-        by: Math.sin(dAng) * speed,
-        bz: (rng() - 0.5) * 0.04,
+        vx: -sa * orbit,
+        vy: ca * orbit,
+        vz: (rng() - 0.5) * 0.03,
+        bx: -sa * orbit,
+        by: ca * orbit,
+        bz: (rng() - 0.5) * 0.03,
+        orbit,
         wx: (rng() - 0.5) * 0.5,
         wy: (rng() - 0.5) * 0.5,
         wz: (rng() - 0.5) * 0.5,
@@ -424,6 +478,34 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       }
     }
 
+    // ---- ring spread: fruits keep angular "personal space" so a hovered-out
+    // arc refills itself. A short-range tangential repulsion in PROJECTED ring
+    // angle: near-in-angle pairs push apart along the loop, balanced pairs
+    // cancel, so only the imbalance beside a gap produces net drift — the ring
+    // relaxes back to even spacing instead of leaving the bare spot bare.
+    const ringAng = sims.map((s) => Math.atan2(s.y, s.x));
+    for (let i = 0; i < sims.length; i++) {
+      const A = sims[i];
+      const ai = ringAng[i];
+      const sinI = Math.sin(ai);
+      const cosI = Math.cos(ai);
+      for (let j = i + 1; j < sims.length; j++) {
+        let dA = ai - ringAng[j];
+        if (dA > Math.PI) dA -= 2 * Math.PI;
+        else if (dA < -Math.PI) dA += 2 * Math.PI;
+        const adA = Math.abs(dA);
+        if (adA >= SPREAD_RANGE || adA < 1e-4) continue;
+        const w = (1 - adA / SPREAD_RANGE) ** 2;
+        const f = SPREAD_FORCE * w * dt * (dA > 0 ? 1 : -1);
+        // push i toward +tangent (increase its angle), j toward −tangent
+        A.vx += -sinI * f;
+        A.vy += cosI * f;
+        const B = sims[j];
+        B.vx -= -Math.sin(ringAng[j]) * f;
+        B.vy -= Math.cos(ringAng[j]) * f;
+      }
+    }
+
     for (let i = 0; i < sims.length; i++) {
       const s = sims[i];
       const g = groupRefs.current[i];
@@ -441,7 +523,9 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
         const dy = s.y - py;
         const d = Math.hypot(dx, dy) || 1e-4;
         if (d < HAND_R) {
-          const w = (1 - d / HAND_R) ** 1.5 * depthFade * h.ramp;
+          // Linear falloff (was ^1.5) so reach extends across the open middle —
+          // even a cursor in the empty center still tugs the near side of the ring.
+          const w = (1 - d / HAND_R) * depthFade * h.ramp;
 
           let ux = dx / d;
           let uy = dy / d;
@@ -488,35 +572,53 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
           s.wx += s.kx * f * 1.4;
           s.wy += s.ky * f * 1.4;
           s.wz += s.kz * f * 1.4;
+          // Hold the click ripple to the original (gentle) ceiling, independent
+          // of the hand's larger MAX_SPEED — restores the click that read better.
+          const csp = Math.hypot(s.vx, s.vy);
+          if (csp > CLICK_CAP) {
+            const ck = CLICK_CAP / csp;
+            s.vx *= ck;
+            s.vy *= ck;
+          }
         }
       }
 
-      // ---- the copy's island: gently expelled from the center ellipse -------
-      const deepFade = Math.max(0, 1 - Math.abs(s.z) / EXCL_DEPTH);
-      if (deepFade > 0) {
-        const kz = (CAM_Z - s.z) / CAM_Z;
-        const ea = vw * EXCL_AX * kz;
-        const eb = vh * EXCL_BY * kz;
-        const ex = s.x / ea;
-        const ey = s.y / eb;
-        const e2 = ex * ex + ey * ey;
-        if (e2 < 1) {
-          let gx = ex / ea;
-          let gy = ey / eb;
-          const gl = Math.hypot(gx, gy);
-          if (gl < 1e-4) {
-            // Dead center: pick a stable per-fruit escape direction.
-            gx = Math.cos(i * 2.4);
-            gy = Math.sin(i * 2.4);
-          } else {
-            gx /= gl;
-            gy /= gl;
-          }
-          const g = (1 - e2) * EXCL_FORCE * deepFade;
-          s.vx += gx * g * dt;
-          s.vy += gy * g * dt;
-        }
+      // ---- THE RING: radial spring toward the home annulus -------------------
+      // Below the band → firmly EXPELLED outward (nothing floats in the middle);
+      // above it → GENTLY reeled back home. Both accels are capped, so the
+      // central keep-out is firm while the homeward magnet stays soft — a far
+      // escapee drifts back over a couple of seconds, never a snap. Inside the
+      // band there's no radial force at all: free float around the loop.
+      const distR = CAM_Z - s.z;
+      const kzR = distR / CAM_Z;
+      const eaIn = vw * EXCL_AX * kzR;
+      const ebIn = vh * EXCL_BY * kzR;
+      const eaOut = vw * RING_AX * kzR;
+      const ebOut = vh * RING_BY * kzR;
+      const radR = Math.hypot(s.x, s.y) || 1e-4;
+      const ux = s.x / radR;
+      const uy = s.y / radR;
+      // Both bounds are ELLIPSES at this fruit's angle — never the screen
+      // rectangle, so the band stays oval and the corners stay empty.
+      const rIn = 1 / Math.hypot(ux / eaIn, uy / ebIn);
+      const rOut = 1 / Math.hypot(ux / eaOut, uy / ebOut);
+      const gapR = Math.max(0.001, rOut - rIn);
+      const lo = rIn + gapR * RING_LO;
+      const hi = rIn + gapR * RING_HI;
+      if (radR < lo) {
+        const a = Math.min((lo - radR) * RING_IN_K, RING_IN_CAP);
+        s.vx += ux * a * dt;
+        s.vy += uy * a * dt;
+      } else if (radR > hi) {
+        const a = Math.min((radR - hi) * RING_OUT_K, RING_OUT_CAP);
+        s.vx -= ux * a * dt;
+        s.vy -= uy * a * dt;
       }
+
+      // The cruise the velocity relaxes toward IS the tangential orbit, so a
+      // settled fruit glides slowly AROUND the ring — never across the middle.
+      s.bx = -uy * s.orbit;
+      s.by = ux * s.orbit;
 
       // ---- thick medium: relax to cruise + hard speed cap --------------------
       const relax = Math.min(1, DRAG * dt);
@@ -546,6 +648,27 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       s.y += s.vy * dt;
       s.z += s.vz * dt;
 
+      // ---- HARD TEXT GUARD -----------------------------------------------------
+      // The soft inner spring handles normal drift, but the hand is strong enough
+      // to shove a fruit straight at the copy. This is the failsafe wall: a fruit
+      // center may NEVER cross the keep-out ellipse. If it does, snap it back onto
+      // the boundary and kill the inward part of its velocity — it slides along
+      // the guard instead of sailing under the text. The copy stays readable.
+      const ein = (s.x / eaIn) ** 2 + (s.y / ebIn) ** 2;
+      if (ein < 1 && ein > 1e-6) {
+        const push = 1 / Math.sqrt(ein);
+        s.x *= push;
+        s.y *= push;
+        const rr = Math.hypot(s.x, s.y) || 1e-4;
+        const gx = s.x / rr;
+        const gy = s.y / rr;
+        const vr = s.vx * gx + s.vy * gy;
+        if (vr < 0) {
+          s.vx -= vr * gx;
+          s.vy -= vr * gy;
+        }
+      }
+
       // ---- depth-aware containment ---------------------------------------------
       // The visible frustum is narrower near the camera: bound each fruit by
       // the half-extents AT ITS OWN DEPTH, so nothing parks off-screen and the
@@ -556,20 +679,14 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const bx = Math.max(0.4, halfW - s.r);
       const by = Math.max(0.4, halfH - s.r);
 
-      if (s.x > bx) {
-        s.vx -= (s.x - bx) * 6 * dt;
-        s.bx = -Math.abs(s.bx); // cruise turns back inward
-      } else if (s.x < -bx) {
-        s.vx -= (s.x + bx) * 6 * dt;
-        s.bx = Math.abs(s.bx);
-      }
-      if (s.y > by) {
-        s.vy -= (s.y - by) * 6 * dt;
-        s.by = -Math.abs(s.by);
-      } else if (s.y < -by) {
-        s.vy -= (s.y + by) * 6 * dt;
-        s.by = Math.abs(s.by);
-      }
+      // The ring spring already keeps fruit in frame; this is a hard safety so
+      // a strong shove can't park anything off-screen. (x/y cruise is the
+      // tangential orbit, rebuilt each frame — nothing to flip here; only z
+      // keeps a bouncing idle bob.)
+      if (s.x > bx) s.vx -= (s.x - bx) * 6 * dt;
+      else if (s.x < -bx) s.vx -= (s.x + bx) * 6 * dt;
+      if (s.y > by) s.vy -= (s.y - by) * 6 * dt;
+      else if (s.y < -by) s.vy -= (s.y + by) * 6 * dt;
       if (s.z > 0.7) {
         s.vz -= (s.z - 0.7) * 6 * dt;
         s.bz = -Math.abs(s.bz);
