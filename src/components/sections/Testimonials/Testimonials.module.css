@@ -360,6 +360,11 @@
 
 .note {
   position: relative;
+  /* The whole card is one interactive surface: pointer cursor anywhere inside,
+     and its text can't be selected or copied. */
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   /* roomy padding so each card reads tall and substantial (the wall fills more
      vertical space — "mais gordo de altura") */
   padding: clamp(18px, 1.5vw, 26px) clamp(18px, 1.5vw, 24px);
