@@ -72,6 +72,20 @@
   pointer-events: none;
   overflow: hidden;
   z-index: 0;
+  /* Height-driven MASTER SCALE for the whole botanical set. Every leaf sizes and
+     positions itself in `em` (below), and font-size is inherited, so this single
+     value is the one knob that scales ALL six leaves — size AND offset — together,
+     smoothly, as a function of viewport height:
+       • ≥1300px tall (the author's design window): caps at 100px, so leaves render
+         at their full design px (4.9em = 490px, etc.). Tall screens are UNCHANGED.
+       • shorter: 7.7svh shrinks the whole composition proportionally (≈83px ≈ 83%
+         at 1080px tall) — so top, mid AND bottom leaves all drift inward and shrink
+         in step, not just the bottom corners.
+       • very short: floors at 60px (60%) so the leaves never shrivel away.
+     1svh = 1% of viewport height, so at the ~1300px design height 7.7svh ≈ 100px.
+     TUNE: raise/lower the 100px to change full size, the 7.7svh to change how fast
+     it shrinks, the 60px to change the smallest it's allowed to get. */
+  font-size: clamp(60px, 7.7svh, 100px);
 }
 .leaf {
   position: absolute;
@@ -82,61 +96,60 @@
   transform: translate(var(--px, 0px), var(--py, 0px)) rotate(var(--rot));
 }
 
-/* All sizes and offsets in fixed px (no vw, no %). This is intentional:
-   we want the corner leaves to LOOK identical on a 1280px laptop, a 1920px
-   monitor, and a 4K screen — same size, same distance from each corner, peeking
-   in from the edges. On wider screens the empty middle just grows; on narrower
-   screens below the mobile breakpoint, the override block at the bottom of this
-   file steps each leaf down to a smaller px size so they don't span the whole
-   phone. The only height-responsive bit is below the leaf list: the two MID-EDGE
-   accents (l5/l6) are dropped on short viewports (they'd otherwise get
-   sandwiched by the rising bottom ferns); the four corner ferns are never
-   resized. Numbers are calibrated to the 1280×900 desktop preset. */
+/* Every size and offset below is in `em` — a multiple of .botanical's
+   height-driven font-size above. 1em = 100px at the design height, so the numbers
+   read as "px ÷ 100": 4.9em was 490px, -1.3em was -130px, 3.8em was 380px, …
+   Editing a value here moves/resizes that leaf in the DESIGN composition (the
+   look on the author's tall window); the master font-size then shrinks the whole
+   set proportionally on shorter viewports, so all six stay in the same relative
+   arrangement. Below the mobile breakpoint the override block at the bottom of
+   this file swaps these for phone-specific px. --rot/--pf are unitless (rotation +
+   parallax factor) and intentionally NOT scaled.
+
+   HORIZONTAL nudge: less-negative left/right (e.g. -1.55em → -1.2em) pulls a leaf
+   further INTO view; more-negative tucks it off-screen. VERTICAL: corners use a
+   negative top/bottom (less negative = more in view); mid leaves (l5/l6) use a
+   positive top (larger = lower). SIZE: width; height auto-tracks at ×1.5. */
 .l1 { /* top-left */
-  top: -130px; left: -155px;
-  width: 490px;
+  top: -1.3em; left: -1.55em;
+  width: 4.9em;
   --rot: 15deg; --pf: 18;
 }
 .l2 { /* top-right */
-  top: -225px; right: -180px;
-  width: 540px;
+  top: -2.25em; right: -1.8em;
+  width: 5.4em;
   --rot: 155deg; --pf: -22;
 }
 .l3 { /* bottom-left */
-  bottom: -110px; left: -100px;
-  width: 435px;
+  bottom: -1.1em; left: -1em;
+  width: 4.35em;
   --rot: 25deg; --pf: 14;
 }
 .l4 { /* bottom-right */
-  bottom: -200px; right: -120px;
-  width: 515px;
+  bottom: -2em; right: -1.2em;
+  width: 5.15em;
   --rot: 40deg; --pf: -16;
 }
 .l5 { /* mid-left small */
-  top: 380px; left: -75px;
-  width: 230px;
+  top: 3.8em; left: -0.75em;
+  width: 2.3em;
   --rot: 95deg; --pf: 28;
   opacity: .10;
 }
 .l6 { /* mid-right — paired with .l5 on the opposite side. Sized up and pulled
          inward so it reads as an intentional mid-height accent instead of a
          peek from the edge. */
-  top: 560px; bottom: auto;
-  right: -70px;
-  width: 270px;
+  top: 5.6em; bottom: auto;
+  right: -0.7em;
+  width: 2.7em;
   --rot: -80deg; --pf: -30;
   opacity: .11;
 }
 
-/* On SHORT desktop viewports the two mid-edge accents (l5/l6) get sandwiched
-   between the top ferns and the bottom ferns rising up off their anchors.
-   They're decorative extras, so drop them here; the four corner ferns stay at
-   their full fixed size, framing the hero exactly as before. Height-gated so
-   the author's tall window keeps all six; min-width keeps the phone layout
-   (≤760, which positions its own leaves) untouched. */
-@media (max-height: 1100px) and (min-width: 761px) {
-  .l5, .l6 { display: none; }
-}
+/* (The old `@media (max-height:1100px)` step-down block lived here. It's gone:
+   the height-driven font-size on .botanical now scales the whole set fluidly, so
+   there's no hard breakpoint and every leaf — top, mid and bottom — responds to
+   height instead of only the bottom corners.) */
 
 /* --- center stack --- */
 .stage {
