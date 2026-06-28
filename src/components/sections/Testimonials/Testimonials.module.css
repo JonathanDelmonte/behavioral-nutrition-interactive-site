@@ -684,23 +684,40 @@
    desktop, per client request. */
 
 @media (max-width: 760px) {
+  /* dvh, NOT svh: the pinned stage must match window.innerHeight — the value
+     the rail math uses — so the centered band lands at the TRUE viewport
+     center. With svh the stage was the *small* viewport, so the moment the
+     mobile browser's address bar hid (innerHeight → large) the stage left a gap
+     at the BOTTOM and the centered video appeared shoved UP ("mais pra cima").
+     The .row stays in svh: a stable content band that re-centers inside the
+     dvh stage as the bar shows/hides. */
   .stage {
-    height: 100svh;
+    height: 100dvh;
   }
   .row {
     height: clamp(420px, 62svh, 540px);
     padding: 0 20px;
     gap: clamp(40px, 9vw, 64px);
   }
-  .photoStack {
-    width: 86vw;
+  .carousel {
+    gap: clamp(16px, 4.5vw, 28px);
+    /* drop the big desktop side-margins so the bolo fits the narrow rail */
+    margin: 0 16px;
   }
-  /* Phones: shrink ONLY the video (82vw→70vw→64vw). It grows to ~1.20× at
-     center, so a wider base let the zoom peak crowd the small screen; the
-     smaller base keeps the same growth while the peak stays comfortable.
-     Prints, quotes and the review wall are left as they were. */
+  .stack {
+    width: clamp(240px, 62vw, 320px);
+  }
+  .navBtn {
+    width: 46px;
+    height: 46px;
+  }
+  /* Phones: the video carries its own (svh-based) box, smaller than before
+     (64vw→60vw, plus a real height cap instead of the full band) so the gentler
+     center zoom no longer crowds the small screen. It stays centered in the
+     band. Prints, quotes and the review wall are left as they were. */
   .video {
-    width: 64vw;
+    width: 60vw;
+    height: clamp(320px, 50svh, 480px);
   }
   .quote {
     width: 74vw;
