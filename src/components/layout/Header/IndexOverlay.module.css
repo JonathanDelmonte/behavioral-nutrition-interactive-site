@@ -185,29 +185,34 @@
     bottom: auto;
     justify-content: flex-start;
     background: var(--color-offwhite-green);
-    padding: calc(var(--header-h) + clamp(22px, 5vh, 46px)) 0 clamp(24px, 5vh, 44px);
+    /* All vertical spacing here is svh-based, NOT vh/lvh. A phone keeps its
+       address bar on screen while the menu holds scroll locked, so the area
+       the user actually sees is the SMALL viewport (~680px on a tall phone),
+       well short of the large 100lvh the overlay paints. Sizing against svh
+       makes the whole sumário collapse to that visible band so all eight rows
+       fit without item 08 sliding under the fold. */
+    padding: calc(var(--header-h) + clamp(10px, 2svh, 22px)) 0 clamp(12px, 2svh, 22px);
   }
   .content {
     max-width: 100%;
     padding: 0 26px;
   }
-  /* The base type sizes lean on vw terms that collapse to their minimums
-     on a narrow phone, leaving everything cramped. Bump to fixed, legible
-     sizes and give the rows real height so the eight items breathe and
-     fill the screen instead of huddling in a short centered stack. */
+  /* The base type sizes lean on vw terms that collapse to their minimums on a
+     narrow phone. Set legible fixed sizes (a touch smaller than before so the
+     eight rows fit) and let the row height ease with svh. */
   .eyebrow {
-    font-size: 17px;
-    margin-bottom: clamp(20px, 3.6vh, 34px);
+    font-size: 15px;
+    margin-bottom: clamp(10px, 1.8svh, 20px);
   }
   .link {
-    padding: clamp(14px, 2.4vh, 22px) 0;
-    gap: 22px;
+    padding: clamp(9px, 2.4svh, 16px) 0;
+    gap: 20px;
   }
   .num {
-    font-size: 22px;
-    min-width: 42px;
+    font-size: 19px;
+    min-width: 40px;
   }
   .label {
-    font-size: 19px;
+    font-size: 17px;
   }
 }
