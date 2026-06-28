@@ -23,6 +23,12 @@ const BrainModel = dynamic(
 
 const SCALE_DESKTOP = 1.55;
 
+/** Mirrors the `@media (max-width: 760px)` breakpoint in BrainStage.module.css
+ *  (and HeroBrain). Above it = desktop, where the brain's hover/click reuse is
+ *  re-enabled at a parked slot; at/below it = phone, which keeps its CSS-muted
+ *  canvas + window-level tap handler untouched. */
+const MOBILE_BREAKPOINT = 760;
+
 /** While the brain travels between sections it is lifted from its resting
  *  z-index (1, behind the section copy) to this value, so the descending brain
  *  AND the fruit flying outward pass OVER the section text instead of behind
@@ -218,14 +224,40 @@ export function BrainStage() {
       // Desktop only: drive a world placement so the canvas can be full-viewport.
       if (oversizeRef.current) writePlacement(nextFrame);
 
-      // The brain rests in the Hero only while progress ≈ 0. Crossing that
-      // threshold flips two things together:
+      // The canvas is "interactive" when the brain is at REST in a slot AND that
+      // slot is on screen — never mid-travel, never once a parked slot scrolls
+      // away. Toggling it flips two things together:
       //   1. pointer-events — dropped while traveling so the full-viewport
       //      canvas never intercepts clicks meant for the sections below it.
       //   2. z-index — lifted (TRAVEL_Z) so the descending brain and the fruit
       //      flying outward pass OVER the section copy instead of behind it;
-      //      reset at rest so the Hero headline/CTA keep painting over it.
-      const interactive = progressRef.current < 0.04;
+      //      reset (to z 1, below the copy) at rest so the section headline/CTA/
+      //      thoughts keep painting over it AND stay clickable — only the brain
+      //      region itself hit-tests.
+      //
+      // Two interactive cases:
+      //   • Hero rest (progress ≈ 0) — the brain's hover tilt + click pulse, all
+      //     widths (the original behavior).
+      //   • Parked at a LATER slot while its footprint is still in view (e.g. the
+      //     Identify section, progress ≈ 1) — re-enables the SAME magnetism +
+      //     impact animations there. Desktop only: phones keep the CSS-muted
+      //     canvas and their window-level tap handler, so they're excluded so the
+      //     parked-slot z-index/pointer behavior is byte-identical to before.
+      //
+      // `parkedOnScreen` uses the fractional travel progress (≈0 or ≈1 = at a
+      // slot, mid-range = traveling) AND requires the brain frame to overlap the
+      // viewport — the on-screen test is what tells a parked-and-pinned slot
+      // apart from one that has scrolled past (both sit at progress 1), so later
+      // sections stay fully clickable.
+      const progress = progressRef.current;
+      const atHeroRest = progress < 0.04;
+      const frac = progress - Math.floor(progress);
+      const atSlot = frac < 0.04 || frac > 0.96;
+      const onScreen =
+        nextFrame.top + nextFrame.height > 0 &&
+        nextFrame.top < window.innerHeight;
+      const isDesktop = window.innerWidth > MOBILE_BREAKPOINT;
+      const interactive = atHeroRest || (isDesktop && atSlot && onScreen);
       if (lastInteractive.current !== interactive) {
         // Only latch once the refs exist and the state was actually APPLIED.
         // Latching with null refs (a reload that restores scroll mid-page runs
