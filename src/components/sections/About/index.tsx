@@ -27,8 +27,9 @@ const POND = `${BASE_PATH}/images/about/pond.webp`;
  *   - the vine arch and Juliana drift with a single-smoother depth parallax —
  *     the near portrait leads the far arch on both pointer move and scroll;
  *   - gold dust motes drift on a 2D canvas, nudged by the pointer;
- *   - leaves let go of the arch on a steady, even cadence and tumble down,
- *     spread across its full width — never more than a few alive at once.
+ *   - leaves let go of the arch on a steady, gentle cadence and tumble down,
+ *     scattered across its full width by random non-adjacent hops — a slow,
+ *     continuous trickle, never a downpour and never the same side twice.
  *
  * Progressive enhancement: default render (no-JS / prefers-reduced-motion)
  * is the complete static spread. Same rAF + IO patterns as every other
@@ -46,16 +47,41 @@ const DUST = {
 };
 
 const LEAVES = {
-  slots: 6, // pool of leaf objects — only ~3-4 are ever alive at once
-  lanes: 5, // successive leaves round-robin across these x columns of the arch
-  releaseMin: 3.6, // s — one global, evenly-spaced release valve (not per-slot)
-  releaseMax: 6.4,
+  slots: 10, // pool of leaf objects — headroom so a release is never dropped
+  lanes: 7, // x columns of the arch; successive leaves hop ≥2 lanes apart
+  releaseMin: 2.4, // s — one global release valve; tighter range = no long gaps
+  releaseMax: 4.0,
   firstAt: 0.6, // first leaf drops shortly after the section scrolls in
   fall: 46, // px/s base fall speed — a gentle drift, not a near-frozen hang
   sway: 30, // px horizontal sway amplitude
   size: 7, // base half-length in px
   bandMin: 0.06, // leaves use almost the arch's full width (was 0.15..0.85)
   bandMax: 0.94,
+};
+
+/* One-shot "shake the bush" burst — fired on click, drawn on its OWN canvas
+   layered IN FRONT of the arch + portrait (the ambient leaves above stay
+   behind them, untouched). A generous handful of leaves let go across the
+   canopy in quick succession and tumble down with a little gravity and an
+   outward scatter, then the array drains itself empty. */
+const BURST = {
+  countMin: 16, // leaves per click — "muitas", como sacudir um galho
+  countMax: 26,
+  cap: 120, // hard ceiling across rapid clicks (perf guard)
+  canopy: 0.62, // leaves originate in the upper this-fraction of the arch
+  gravity: 130, // px/s² — they pick up a little speed as they fall
+  vy0Min: 24, // px/s — initial downward speed
+  vy0Max: 56,
+  vyMax: 165, // px/s — terminal fall speed
+  scatter: 46, // px/s — sideways kick away from the canopy centre
+  drag: 1.1, // /s — that sideways kick eases out
+  delayMax: 0.36, // s — they detach in quick succession, not all at once
+  sizeMin: 0.8, // ×LEAVES.size half-length
+  sizeMax: 1.7,
+  alphaMin: 0.42, // a touch stronger than ambient — they read in front
+  alphaMax: 0.72,
+  spinMin: 0.7, // rad/s rocking
+  spinMax: 1.9,
 };
 
 /* Depth parallax for the arch + portrait. ONE smoother (the rAF lerp below) —
@@ -81,6 +107,7 @@ export function AboutSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const figureRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const burstCanvasRef = useRef<HTMLCanvasElement>(null);
   const pointerRef = useRef({ x: 0, y: 0, has: false });
 
   const [enhanced, setEnhanced] = useState(false);
@@ -121,6 +148,11 @@ export function AboutSection() {
     if (!section || !canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    // Front layer for the click burst (separate canvas → it sits over the arch
+    // while the ambient leaves stay behind it). Optional: absence just disables
+    // the burst, never the ambient layer.
+    const burstCanvas = burstCanvasRef.current;
+    const burstCtx = burstCanvas?.getContext("2d") ?? null;
 
     type Mote = {
       bx: number; by: number;
@@ -133,13 +165,20 @@ export function AboutSection() {
       x: number; y: number; phase: number; spin: number; speed: number;
       size: number; alpha: number; moss: boolean;
     };
+    // Burst leaves are a dynamic list (grows on click, drains as they fall).
+    // Shares drawLeaf's shape; carries its own velocity + detach delay.
+    type BurstLeaf = {
+      x: number; y: number; vx: number; vy: number; delay: number;
+      phase: number; spin: number; size: number; alpha: number; moss: boolean;
+    };
     let motes: Mote[] = [];
     const leaves: Leaf[] = Array.from({ length: LEAVES.slots }, () => ({
       active: false,
       x: 0, y: 0, phase: 0, spin: 0, speed: 0, size: 0, alpha: 0, moss: false,
     }));
+    const burstLeaves: BurstLeaf[] = [];
     let leafSeed = 0;
-    let laneCursor = 0; // walks the lanes so x stays balanced left↔right
+    let lastLane = 0; // last lane used; next leaf hops a random ≥2-lane jump
     let nextReleaseAt = Infinity; // armed when the section scrolls into view
     let W = 0;
     let H = 0;
@@ -156,6 +195,11 @@ export function AboutSection() {
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (burstCanvas && burstCtx) {
+        burstCanvas.width = Math.round(W * dpr);
+        burstCanvas.height = Math.round(H * dpr);
+        burstCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
       const n = Math.min(DUST.max, Math.round(W * H * DUST.density));
       motes = Array.from({ length: n }, (_, i) => ({
         bx: prand(i, 1) * W,
@@ -199,12 +243,16 @@ export function AboutSection() {
       const sr = section.getBoundingClientRect();
       const fx = fr ? fr.left - sr.left : W * 0.7;
       const fw = fr ? fr.width : W * 0.3;
-      // Round-robin across lanes so successive leaves step evenly across the
-      // arch's width — left↔right stays balanced even with only a few alive.
+      // Random non-adjacent hop across lanes (circular): the next leaf jumps
+      // 2..lanes-2 columns from the last one, so it never lands on the same
+      // spot or one beside it — scattered and balanced, but with no fixed
+      // sweep pattern the eye can latch onto.
       const laneW = (LEAVES.bandMax - LEAVES.bandMin) / LEAVES.lanes;
-      const lane = laneCursor++ % LEAVES.lanes;
+      const hop = 2 + Math.floor(prand(leafSeed, 20) * (LEAVES.lanes - 3));
+      lastLane = (lastLane + hop) % LEAVES.lanes;
+      const lane = lastLane;
       const center = LEAVES.bandMin + (lane + 0.5) * laneW;
-      const jitter = (prand(leafSeed, 21) - 0.5) * laneW * 0.7;
+      const jitter = (prand(leafSeed, 21) - 0.5) * laneW * 0.8;
       leaf.active = true;
       leaf.x = fx + fw * (center + jitter);
       leaf.y = fr ? fr.top - sr.top + 30 + prand(leafSeed, 22) * 120 : 0;
@@ -216,21 +264,70 @@ export function AboutSection() {
       leaf.moss = prand(leafSeed, 28) > 0.5;
     };
 
-    const drawLeaf = (leaf: Leaf, t: number) => {
+    // Shared leaf shape — drawn to whichever canvas (dust = ambient,
+    // burstCtx = the click burst in front). Only reads x/y/phase/spin/size/
+    // alpha/moss, so both leaf kinds qualify.
+    type DrawableLeaf = {
+      x: number; y: number; phase: number; spin: number;
+      size: number; alpha: number; moss: boolean;
+    };
+    const drawLeaf = (
+      c: CanvasRenderingContext2D,
+      leaf: DrawableLeaf,
+      t: number,
+    ) => {
       const rock = Math.sin(t * leaf.spin + leaf.phase) * 0.7;
-      ctx.save();
-      ctx.translate(leaf.x + Math.sin(t * 0.7 + leaf.phase) * LEAVES.sway, leaf.y);
-      ctx.rotate(rock);
-      ctx.globalAlpha = leaf.alpha;
-      ctx.fillStyle = leaf.moss ? "#2E6B47" : "#7e9272";
+      c.save();
+      c.translate(leaf.x + Math.sin(t * 0.7 + leaf.phase) * LEAVES.sway, leaf.y);
+      c.rotate(rock);
+      c.globalAlpha = leaf.alpha;
+      c.fillStyle = leaf.moss ? "#2E6B47" : "#7e9272";
       const s = leaf.size;
-      ctx.beginPath();
-      ctx.moveTo(0, -s);
-      ctx.quadraticCurveTo(s * 0.9, 0, 0, s);
-      ctx.quadraticCurveTo(-s * 0.9, 0, 0, -s);
-      ctx.fill();
-      ctx.restore();
-      ctx.globalAlpha = 1;
+      c.beginPath();
+      c.moveTo(0, -s);
+      c.quadraticCurveTo(s * 0.9, 0, 0, s);
+      c.quadraticCurveTo(-s * 0.9, 0, 0, -s);
+      c.fill();
+      c.restore();
+      c.globalAlpha = 1;
+    };
+
+    /** Click → a handful of leaves let go across the canopy and tumble down.
+        Math.random (not prand): each shake should differ, and this only ever
+        runs from a user gesture, so there's no hydration stability to keep. */
+    const spawnBurst = () => {
+      const fr = figure?.getBoundingClientRect();
+      if (!fr || burstLeaves.length > BURST.cap) return;
+      const sr = section.getBoundingClientRect();
+      const fx = fr.left - sr.left;
+      const fy = fr.top - sr.top;
+      const fw = fr.width;
+      const fh = fr.height;
+      const span = LEAVES.bandMax - LEAVES.bandMin;
+      const count =
+        BURST.countMin +
+        Math.floor(Math.random() * (BURST.countMax - BURST.countMin + 1));
+      for (let i = 0; i < count; i++) {
+        const u = Math.random(); // 0..1 across the arch's width
+        burstLeaves.push({
+          x: fx + fw * (LEAVES.bandMin + u * span),
+          y: fy + fh * (0.04 + Math.random() * BURST.canopy),
+          // kick outward from centre, plus a little noise
+          vx:
+            (u - 0.5) * 2 * BURST.scatter * (0.4 + Math.random() * 0.6) +
+            (Math.random() - 0.5) * 20,
+          vy: BURST.vy0Min + Math.random() * (BURST.vy0Max - BURST.vy0Min),
+          delay: Math.random() * BURST.delayMax,
+          phase: Math.random() * Math.PI * 2,
+          spin: BURST.spinMin + Math.random() * (BURST.spinMax - BURST.spinMin),
+          size:
+            LEAVES.size *
+            (BURST.sizeMin + Math.random() * (BURST.sizeMax - BURST.sizeMin)),
+          alpha:
+            BURST.alphaMin + Math.random() * (BURST.alphaMax - BURST.alphaMin),
+          moss: Math.random() > 0.5,
+        });
+      }
     };
 
     let raf = 0;
@@ -245,6 +342,7 @@ export function AboutSection() {
       const py = p.y - rect.top;
       const t = now / 1000;
       ctx.clearRect(0, 0, W, H);
+      if (burstCtx) burstCtx.clearRect(0, 0, W, H);
 
       const parallaxEase = 1 - Math.exp(-dt * PARALLAX.smooth);
       parallaxX += (targetParallaxX - parallaxX) * parallaxEase;
@@ -305,7 +403,7 @@ export function AboutSection() {
           leaf.active = false;
           continue;
         }
-        drawLeaf(leaf, t);
+        drawLeaf(ctx, leaf, t);
       }
       // One global, evenly-spaced release valve: a steady trickle in time (no
       // per-slot bursts, no long gaps), independent of how fast each leaf drifts.
@@ -315,6 +413,28 @@ export function AboutSection() {
         nextReleaseAt =
           t + LEAVES.releaseMin +
           prand(++leafSeed, 29) * (LEAVES.releaseMax - LEAVES.releaseMin);
+      }
+
+      // Click burst — front canvas. Each leaf waits out its detach delay, then
+      // falls with a little gravity while its sideways kick eases off. Iterated
+      // back-to-front so spent leaves can splice out without skipping any.
+      if (burstCtx) {
+        for (let i = burstLeaves.length - 1; i >= 0; i--) {
+          const b = burstLeaves[i];
+          if (b.delay > 0) {
+            b.delay -= dt;
+            continue; // still attached — not drawn yet
+          }
+          b.vy = Math.min(b.vy + BURST.gravity * dt, BURST.vyMax);
+          b.y += b.vy * dt;
+          b.x += b.vx * dt;
+          b.vx *= Math.max(0, 1 - BURST.drag * dt);
+          if (b.y > H + 20) {
+            burstLeaves.splice(i, 1);
+            continue;
+          }
+          drawLeaf(burstCtx, b, t);
+        }
       }
 
       raf = requestAnimationFrame(frame);
@@ -330,6 +450,11 @@ export function AboutSection() {
       targetParallaxX = Math.max(-1, Math.min(1, nx));
       targetParallaxY = Math.max(-1, Math.min(1, ny));
     };
+    // Click the bush → shake leaves loose. The press-in scale is pure CSS
+    // (.figure:active); this only seeds the burst. Listener lives for the whole
+    // effect, not gated by in-view (you can only reach it while it's on screen).
+    const onShake = () => spawnBurst();
+    figure?.addEventListener("pointerdown", onShake);
     const io = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting && !running) {
@@ -348,6 +473,9 @@ export function AboutSection() {
           parallaxY = 0;
           resetParallax();
           setParallax(0, 0, 0);
+          // Drop any in-flight burst so it doesn't freeze mid-air off-screen.
+          burstLeaves.length = 0;
+          burstCtx?.clearRect(0, 0, W, H);
         }
       },
       { rootMargin: "8% 0px" },
@@ -358,6 +486,7 @@ export function AboutSection() {
       ro.disconnect();
       section.removeEventListener("pointermove", onMove);
       section.removeEventListener("pointerleave", resetParallax);
+      figure?.removeEventListener("pointerdown", onShake);
       cancelAnimationFrame(raf);
       setParallax(0, 0, 0);
     };
@@ -384,7 +513,14 @@ export function AboutSection() {
         aria-hidden="true"
       />
       {enhanced && (
-        <canvas className={styles.dust} ref={canvasRef} aria-hidden="true" />
+        <>
+          <canvas className={styles.dust} ref={canvasRef} aria-hidden="true" />
+          <canvas
+            className={styles.burst}
+            ref={burstCanvasRef}
+            aria-hidden="true"
+          />
+        </>
       )}
       <div className={styles.inner}>
         <span className={styles.kicker}>a pessoa por trás do método</span>

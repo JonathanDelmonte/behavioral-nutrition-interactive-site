@@ -38,7 +38,7 @@
   background-size: cover;
   background-position: right bottom;
   background-repeat: no-repeat;
-  opacity: 0.18;
+  opacity: 0.14;
   mix-blend-mode: multiply;
   pointer-events: none;
 }
@@ -47,6 +47,18 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Click-burst leaves: same span as .dust but layered ABOVE the figure (z2) so
+   the shaken leaves tumble in FRONT of the arch + portrait. The ambient .dust
+   stays behind. Never intercepts the click — it passes through to the figure. */
+.burst {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -229,9 +241,19 @@
 .enhanced .figure {
   opacity: 0;
   translate: 0 26px;
+  /* The figure is clickable (shake the bush): pointer affordance + a barely
+     -there press-in. transform is separate from the entrance `translate`, so
+     the two never fight. Origin centred → both arch and portrait dip together. */
+  cursor: pointer;
+  transform-origin: 50% 50%;
   transition:
     opacity 1s 0.1s var(--ease),
-    translate 1s 0.1s var(--ease);
+    translate 1s 0.1s var(--ease),
+    transform 0.16s var(--ease);
+}
+/* Pressed: a ~1.5% dip — "muito pouco mesmo, bem suave", like a real click. */
+.enhanced .figure:active {
+  transform: scale(0.985);
 }
 .enhanced .heading {
   transition-delay: 0.06s;
