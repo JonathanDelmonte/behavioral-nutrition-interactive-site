@@ -377,7 +377,6 @@ export function TestimonialsSection() {
     };
 
     const update = () => {
-      raf = null;
       if (!isJacked() || dist <= 0) return;
       const rect = track.getBoundingClientRect();
       const max = track.offsetHeight - window.innerHeight;
@@ -453,8 +452,21 @@ export function TestimonialsSection() {
       update();
     };
 
+    // Scheduling ONE rAF per scroll event froze the velocity lean at its last
+    // value the instant the scroll stopped — the pieces (the video most of all)
+    // stayed visibly tilted ("torto"). Instead self-sustain the loop until the
+    // lean has decayed to ~0, so they spring fully upright at rest as the
+    // comment above promises. The pan itself is unchanged (tx tracks scroll).
+    const tick = () => {
+      raf = null;
+      update();
+      if (isJacked() && dist > 0 && Math.abs(vel) > 0.04) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
     const onScroll = () => {
-      if (raf === null) raf = requestAnimationFrame(update);
+      if (raf === null) raf = requestAnimationFrame(tick);
     };
 
     measure();
