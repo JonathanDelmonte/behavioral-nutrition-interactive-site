@@ -13,10 +13,21 @@
   width: 88px;
   height: 88px;
   object-fit: contain;
-  filter: drop-shadow(0 1px 0 rgba(10, 76, 33, .05));
-  transition: transform .5s ease;
+  filter: drop-shadow(0 1px 1px rgba(10, 76, 33, .06));
+  /* Reuses the header hamburger's easing so the whole bar shares one motion
+     rhythm — just a touch slower, so the lift reads as a calm, deliberate
+     rise instead of a snap. */
+  transition:
+    transform .55s cubic-bezier(.2, .7, .2, 1),
+    filter .55s cubic-bezier(.2, .7, .2, 1);
 }
-.brandmark:hover img { transform: rotate(-4deg); }
+/* Hover: the mark gently rises and grows a hair while its shadow blooms —
+   reads as the logo lifting toward the viewer. Replaces the old playful −4°
+   tilt, which felt comic next to the scripted name. */
+.brandmark:hover img {
+  transform: translateY(-1.5px) scale(1.05);
+  filter: drop-shadow(0 5px 10px rgba(10, 76, 33, .16));
+}
 
 /* Compact variant — used inside the persistent global <Header />. Sized so
    the lockup reads clearly at desktop without dominating the header. The
@@ -63,6 +74,14 @@
   color: transparent;
   -webkit-text-fill-color: transparent;
   opacity: 1;
+  transition: filter .55s cubic-bezier(.2, .7, .2, 1);
+}
+/* Hover: the gold warms a touch — like metal catching light as you lean in.
+   A calm, status-y companion to the logo's lift. No movement or loop, so it
+   stays off the "AI shimmer" register and reuses the brand's own polished-gold
+   grammar. */
+.brandmarkCompact:hover .role {
+  filter: brightness(1.12) saturate(1.06);
 }
 
 .lockup { display: flex; flex-direction: column; line-height: 1; }
