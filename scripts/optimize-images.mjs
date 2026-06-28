@@ -27,6 +27,15 @@ const JOBS = [
   { in: "images/hero/vine-divider.png", out: "images/hero/vine-divider.webp", quality: 90 },
   { in: "images/hero/logo.png", out: "images/hero/logo.webp", lossless: true, resizeWidth: 360 },
   { in: "images/about/pond.jpg", out: "images/about/pond.webp", quality: 85 },
+  // Testimonial polaroids (Mariana's evolution) — shown ~300px wide in the
+  // stack, so 760px is comfortably retina; q82 WebP keeps them light. These are
+  // placeholders the client swaps for each case's real, consented photos.
+  { in: "images/testimonials/mariana-1.jpg", out: "images/testimonials/mariana-1.webp", quality: 82, resizeWidth: 760 },
+  { in: "images/testimonials/mariana-2.jpg", out: "images/testimonials/mariana-2.webp", quality: 82, resizeWidth: 760 },
+  { in: "images/testimonials/mariana-3.jpg", out: "images/testimonials/mariana-3.webp", quality: 82, resizeWidth: 760 },
+  { in: "images/testimonials/caue-1.jpg", out: "images/testimonials/caue-1.webp", quality: 82, resizeWidth: 760 },
+  { in: "images/testimonials/caue-2.jpg", out: "images/testimonials/caue-2.webp", quality: 82, resizeWidth: 760 },
+  { in: "images/testimonials/caue-3.jpg", out: "images/testimonials/caue-3.webp", quality: 82, resizeWidth: 760 },
 ];
 
 const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
@@ -47,6 +56,7 @@ for (const job of JOBS) {
   const opts = job.lossless
     ? { lossless: true, effort: 6 }
     : { quality: job.quality, effort: 6 };
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
   await img.webp(opts).toFile(outPath);
 
   const after = (await fs.stat(outPath)).size;
