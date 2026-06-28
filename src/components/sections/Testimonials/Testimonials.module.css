@@ -105,85 +105,242 @@
   pointer-events: none;
 }
 
-/* ---- Photo stacks (two prints like physical photos) --------------------- */
+/* ---- Polaroid carousel ("bolo de polaroide") ----------------------------- */
+/* A pile of prints: one in focus, the rest peeking a sliver behind. Click the
+   pile (or the arrow) and the top print lifts and arcs to the back while the
+   next eases forward — a fluid "deal to the bottom of the deck". The OUTER
+   transform (rail focus/parallax/lean) is owned by the JS loop on .piece, so
+   the choreography below lives entirely on inner elements the loop never
+   touches: depth is driven by --d (set per card in React), the flight by one
+   keyframe. The pile is narrower than the old two-print spread, so the side
+   arrow fills the freed room and signals "there's more to flip through". */
 
-.photoStack {
+.carousel {
   position: relative;
-  /* Max trimmed (860→800): on viewports WIDER than the design (~1325px) the
-     vw term used to cap big, so the prints read "zoomed". Below ~1428px the
-     vw term is under the cap, so the design viewport is untouched. */
-  width: clamp(560px, 56vw, 800px);
+  display: flex;
+  align-items: center;
+  /* room between the pile and its side controls — kept generous even as the
+     viewport narrows (the controls were reading "glued" to the prints). */
+  gap: clamp(44px, 5vw, 72px);
   height: 100%;
+  /* float the whole bolo off its rail neighbours — more room on the LEFT so it
+     sits further right (off the intro/quote) without crowding the video. */
+  margin: 0 clamp(20px, 2.4vw, 44px) 0 clamp(40px, 5vw, 90px);
 }
 
-.photoCard {
+/* The whole pile is one big click target (a reset <button>). Bigger than the
+   first pass — the prints read large again, closer to the old two-print spread. */
+.stack {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(310px, 31.5vw, 418px);
+  aspect-ratio: 5 / 6;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  overflow: visible; /* let the lifted/rotated print escape the pile box */
+  -webkit-tap-highlight-color: transparent;
+}
+.stack:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-gold-soft) 80%, transparent);
+  outline-offset: 7px;
+  border-radius: 9px;
+}
+
+/* Each print fills the pile box; --d (depth: 0 on top) shifts it into the pile.
+   The resting transform and the flight keyframe's last frame use the SAME
+   formula, so a card lands seamlessly when its animation class is removed. */
+.card {
   position: absolute;
-  z-index: 1;
-  width: 57%; /* wide ("fat") prints */
-  height: 78%;
-  padding: 12px 12px 42px; /* paper frame, deeper at the bottom */
+  inset: 0;
+  margin: 0;
+  padding: 5.5% 5.5% 17%; /* paper frame, deeper at the bottom (polaroid) */
   background: #fbfaf5;
-  border-radius: 5px;
-  box-shadow: 0 26px 52px -22px rgba(3, 30, 14, 0.7);
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.back {
-  left: 0;
-  top: 8%;
-  transform: rotate(-8deg);
-  z-index: 1;
-}
-.front {
-  right: 5%;
-  bottom: 4%;
-  transform: rotate(6deg);
-  z-index: 2;
-}
-/* Hover peeks behind the prints — they slide apart like loose photos. */
-.photoStack:hover .back {
-  transform: rotate(-11.5deg) translate(-18px, -10px);
-}
-.photoStack:hover .front {
-  transform: rotate(4deg) translate(8px, 6px);
+  border-radius: 6px;
+  box-shadow:
+    0 22px 44px -20px rgba(3, 30, 14, 0.72),
+    0 4px 12px -7px rgba(3, 30, 14, 0.45);
+  transform-origin: 50% 62%;
+  transform:
+    translate(calc(var(--d, 0) * 5%), calc(var(--d, 0) * -4.2%))
+    rotate(calc(-1.6deg + var(--d, 0) * 4.6deg))
+    scale(calc(1 - var(--d, 0) * 0.045));
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
 }
 
-.slot {
+.cardPhoto {
+  display: block;
   width: 100%;
   height: 100%;
   border-radius: 3px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background:
-    radial-gradient(120% 90% at 50% 18%, #d8e0cf, transparent 72%),
-    linear-gradient(160deg, #c4d1b8, #a3b896);
-  color: color-mix(in srgb, var(--color-green-deep) 55%, transparent);
+  overflow: hidden;
+  /* soft green while the WebP loads (matches the section, never a white flash) */
+  background: linear-gradient(160deg, #c4d1b8, #a3b896);
 }
-.slotLabel {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 9px;
-  color: color-mix(in srgb, var(--color-green-deep) 50%, transparent);
+.cardPhoto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% var(--posy, 26%); /* per-photo bias keeps faces in frame */
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-/* Handwritten-feel caption on the front print's paper strip. */
+/* Date stamp on the print's paper strip. */
 .printCaption {
   position: absolute;
-  z-index: 2;
+  z-index: 1;
   left: 0;
   right: 0;
-  bottom: 13px;
+  bottom: 5.5%;
   text-align: center;
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
+  font-size: clamp(9px, 0.85vw, 11px);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-ink) 55%, transparent);
+  color: color-mix(in srgb, var(--color-ink) 52%, transparent);
+  pointer-events: none;
+}
+
+/* Per-print shadow veil: deeper in the pile = a touch darker (less light). */
+.cardVeil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #06351a;
+  opacity: min(0.34, calc(var(--d, 0) * 0.17));
+  transition: opacity 0.7s ease;
+  pointer-events: none;
+}
+
+/* Focus veil over the front print — the rail's center-focus motif (lifts as the
+   piece reaches center). It sits SQUARE on the top print (same rotation/origin
+   as a resting depth-0 card) so the tint never reads crooked or spills past the
+   paper edge. Above the prints, never intercepts the click. */
+.stackDim {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  border-radius: 6px;
+  background: #06351a;
+  opacity: calc((1 - var(--f, 1)) * 0.3);
+  transform: rotate(-1.6deg);
+  transform-origin: 50% 62%;
+  pointer-events: none;
+}
+
+/* The flying print: lifts up-and-out, then arcs down into the back of the pile,
+   dropping below the others just past the peak. The last frame mirrors the
+   resting formula above (--d is already the back depth), so removing the class
+   leaves no jump. */
+.flying {
+  animation: flyToBack 0.74s cubic-bezier(0.5, 0, 0.2, 1) both;
+}
+@keyframes flyToBack {
+  0% {
+    transform: translate(0, 0) rotate(-1.6deg) scale(1);
+    z-index: 40;
+  }
+  32% {
+    transform: translate(8%, -15%) rotate(7deg) scale(1.05);
+    z-index: 40;
+  }
+  56% {
+    z-index: 40;
+  }
+  57% {
+    z-index: 0;
+  }
+  100% {
+    transform:
+      translate(calc(var(--d, 0) * 5%), calc(var(--d, 0) * -4.2%))
+      rotate(calc(-1.6deg + var(--d, 0) * 4.6deg))
+      scale(calc(1 - var(--d, 0) * 0.045));
+    z-index: 0;
+  }
+}
+
+/* ---- Side affordances: next-arrow, position dots, expand ----------------- */
+
+.stackNav {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* generous vertical rhythm: arrow up top, dots lower, expand at the bottom */
+  gap: clamp(20px, 2.2vw, 34px);
+}
+
+/* Shared circular control (arrow + expand). */
+.navBtn {
+  width: clamp(48px, 4.2vw, 60px);
+  height: clamp(48px, 4.2vw, 60px);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--color-gold-soft) 50%, transparent);
+  background: color-mix(in srgb, var(--color-offwhite) 6%, transparent);
+  color: var(--color-offwhite);
+  cursor: pointer;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.4s ease,
+    border-color 0.4s ease;
+}
+.navBtn:hover {
+  background: color-mix(in srgb, var(--color-gold-soft) 22%, transparent);
+  border-color: color-mix(in srgb, var(--color-gold-soft) 80%, transparent);
+}
+.navBtn:active {
+  transform: scale(0.96);
+}
+.navBtn svg {
+  width: 42%;
+  height: 42%;
+}
+.navBtn svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The arrow alone drifts to invite the click, and nudges right on hover. */
+.navArrow:hover {
+  transform: translateX(3px);
+}
+.navArrow:active {
+  transform: translateX(1px) scale(0.96);
+}
+.navArrow svg {
+  /* a calm idle drift inviting the click (same grammar as the scroll hint) */
+  animation: navNudge 2.6s ease-in-out infinite;
+}
+
+.navDots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+.navDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-offwhite) 28%, transparent);
+  transition:
+    background 0.4s ease,
+    transform 0.4s ease;
+}
+.navDotOn {
+  background: var(--color-gold-soft);
+  transform: scale(1.3);
 }
 
 .avatar {
@@ -579,6 +736,19 @@
   .hintArrow {
     animation: none;
   }
+  /* Pile stays stacked (cards keep their --d transform), but nothing animates:
+     the top print swaps instantly and the controls sit still. */
+  .card,
+  .cardVeil,
+  .navBtn {
+    transition: none;
+  }
+  .flying {
+    animation: none;
+  }
+  .navArrow svg {
+    animation: none;
+  }
 }
 
 /* ---- keyframes -------------------------------------------------------------- */
@@ -591,4 +761,9 @@
 @keyframes hintSlide {
   0%, 100% { transform: translateX(0); }
   50%      { transform: translateX(7px); }
+}
+
+@keyframes navNudge {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(3px); }
 }

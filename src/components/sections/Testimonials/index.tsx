@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./Testimonials.module.css";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -95,11 +95,33 @@ const REVIEW_COLUMNS = Array.from({ length: WALL_COLS }, (_, c) =>
   REVIEWS.filter((_, i) => i % WALL_COLS === c),
 );
 
-/** The two main cases (names tie into the first two written reviews). */
-const CASES = [
-  { name: "Mariana", caption: "Mariana C. · 8 meses de acompanhamento" },
-  { name: "Rafael", caption: "Rafael L. · 1 ano de acompanhamento" },
+/** The pile of prints behind each case — a "bolo de polaroide" the visitor
+ *  flips through. These are real, consented evolution shots; dates are invented
+ *  test values, ordered oldest→newest so the pile reads as a timeline (the prints
+ *  are dealt to the back, so index 0 sits on top first). `posY` biases the cover
+ *  crop vertically (smaller = higher) so each subject's face stays in frame as
+ *  the portrait source crops to the squarish polaroid window. */
+type Polaroid = { src: string; date: string; posY?: string };
+const POLAROIDS_MARIANA: Polaroid[] = [
+  { src: `${BASE_PATH}/images/testimonials/mariana-1.webp`, date: "Mariana • 14 mar 2020", posY: "26%" },
+  { src: `${BASE_PATH}/images/testimonials/mariana-2.webp`, date: "Mariana • 09 set 2023", posY: "16%" },
+  { src: `${BASE_PATH}/images/testimonials/mariana-3.webp`, date: "Mariana • 21 jun 2026", posY: "20%" },
 ];
+const POLAROIDS_CAUE: Polaroid[] = [
+  { src: `${BASE_PATH}/images/testimonials/caue-1.webp`, date: "Cauê • 11 mar 2019", posY: "22%" },
+  { src: `${BASE_PATH}/images/testimonials/caue-2.webp`, date: "Cauê • 06 out 2020", posY: "14%" },
+  { src: `${BASE_PATH}/images/testimonials/caue-3.webp`, date: "Cauê • 18 jul 2025", posY: "12%" },
+];
+
+/** The two main cases. */
+const CASES = [
+  { name: "Mariana", photos: POLAROIDS_MARIANA },
+  { name: "Cauê", photos: POLAROIDS_CAUE },
+];
+
+/** ms the fly-to-back animation runs — kept in sync with the CSS keyframe so the
+ *  pile re-locks (and accepts the next click) exactly as the card lands. */
+const FLY_MS = 760;
 
 function AvatarGlyph() {
   return (
@@ -115,32 +137,123 @@ function AvatarGlyph() {
   );
 }
 
-function Slot() {
-  return (
-    <div className={styles.slot} aria-hidden="true">
-      <AvatarGlyph />
-      <span className={styles.slotLabel}>foto de paciente</span>
-    </div>
-  );
-}
+/** A pile of prints ("bolo de polaroide"): one in focus, the rest peeking just
+ *  a sliver behind. Click the pile (or the side arrow) and the top print lifts
+ *  and arcs to the back while the next eases forward — the choreography lives in
+ *  CSS (transitions + one keyframe); React only swaps which index is on top.
+ *
+ *  The pieces' OUTER transform (rail focus/parallax/lean) is owned by the JS
+ *  loop on .piece, so everything interactive here sits on inner elements the
+ *  loop never touches. */
+function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
+  const [active, setActive] = useState(0);
+  // Index of the print currently flying to the back (null = pile at rest). It
+  // doubles as the "busy" guard so clicks mid-flight are ignored.
+  const [flying, setFlying] = useState<number | null>(null);
+  const flyTimer = useRef<number | null>(null);
+  const n = photos.length;
 
-/** Two prints shown like physical photos — overlapping, tilted, peekable. */
-function PhotoStack({ caption }: { caption: string }) {
+  useEffect(
+    () => () => {
+      if (flyTimer.current !== null) window.clearTimeout(flyTimer.current);
+    },
+    [],
+  );
+
+  const advance = () => {
+    if (flying !== null) return; // mid-animation — ignore
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setActive((a) => (a + 1) % n); // no flight: just swap the top print
+      return;
+    }
+    setFlying(active); // the current top print is the one that flies
+    setActive((a) => (a + 1) % n);
+    flyTimer.current = window.setTimeout(() => setFlying(null), FLY_MS);
+  };
+
   return (
     <div
-      className={`${styles.piece} ${styles.photoStack}`}
+      className={`${styles.piece} ${styles.carousel}`}
       data-piece
-      data-depth="0.94"
-      data-tilt="1"
+      data-depth="0.96"
+      data-tilt="0.7"
     >
-      <div className={`${styles.photoCard} ${styles.back}`} aria-hidden="true">
-        <Slot />
-        <span className={styles.dim} />
-      </div>
-      <div className={`${styles.photoCard} ${styles.front}`} aria-hidden="true">
-        <Slot />
-        <span className={styles.printCaption}>{caption}</span>
-        <span className={styles.dim} />
+      <button
+        type="button"
+        className={styles.stack}
+        onClick={advance}
+        aria-label={`Evolução de ${name} — ver a próxima foto`}
+      >
+        {photos.map((p, i) => {
+          // 0 = on top (in focus), 1 = next, … wrapping round the pile.
+          const depth = (i - active + n) % n;
+          return (
+            <figure
+              key={i}
+              className={`${styles.card} ${flying === i ? styles.flying : ""}`.trim()}
+              style={
+                {
+                  ["--d"]: depth,
+                  ["--posy"]: p.posY ?? "26%",
+                  zIndex: n - depth,
+                } as React.CSSProperties
+              }
+              aria-hidden={depth !== 0}
+            >
+              <span className={styles.cardPhoto}>
+                <img
+                  src={p.src}
+                  alt={depth === 0 ? `${name}, ${p.date}` : ""}
+                  draggable={false}
+                  loading="lazy"
+                />
+              </span>
+              <figcaption className={styles.printCaption}>{p.date}</figcaption>
+              <span className={styles.cardVeil} aria-hidden="true" />
+            </figure>
+          );
+        })}
+        <span className={styles.stackDim} aria-hidden="true" />
+      </button>
+
+      {/* Pure pointer affordances beside the pile — the pile itself already
+          carries the action for keyboard/SR users, so these stay out of the tab
+          order. They also fill the room beside the rail: arrow (next) up top,
+          the position dots lower, then an expand control (not wired yet). */}
+      <div className={styles.stackNav} aria-hidden="true">
+        <button
+          type="button"
+          className={`${styles.navBtn} ${styles.navArrow}`}
+          onClick={advance}
+          tabIndex={-1}
+          aria-label="Próxima foto"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+        <span className={styles.navDots}>
+          {photos.map((_, i) => (
+            <span
+              key={i}
+              className={`${styles.navDot} ${i === active ? styles.navDotOn : ""}`.trim()}
+            />
+          ))}
+        </span>
+        <button
+          type="button"
+          className={styles.navBtn}
+          tabIndex={-1}
+          aria-label="Expandir"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+            <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+            <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+            <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -411,12 +524,12 @@ export function TestimonialsSection() {
               </span>
             </div>
 
-            <PhotoStack caption={CASES[0].caption} />
+            <PolaroidStack name={CASES[0].name} photos={CASES[0].photos} />
             <VideoTile name={CASES[0].name} />
 
             <Quote>Segunda-feira deixou de ser recomeço.</Quote>
 
-            <PhotoStack caption={CASES[1].caption} />
+            <PolaroidStack name={CASES[1].name} photos={CASES[1].photos} />
             <VideoTile name={CASES[1].name} />
 
             <Quote>O que mudou primeiro foi a cabeça.</Quote>
