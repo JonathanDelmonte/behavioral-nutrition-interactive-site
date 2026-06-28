@@ -353,12 +353,17 @@
 
 .video {
   position: relative;
-  /* Trimmed again (640→600 cap, 45→42vw, 470→440 min) and the zoom peak eased
-     to ~1.20× (see index.tsx): at full focus the video filled too much of the
-     stage — worst on shorter/smaller viewports, where it crowded the screen.
-     The width shrinks the "overall" size; the gentler peak shrinks the zoom. */
-  width: clamp(440px, 42vw, 600px);
-  height: 100%;
+  /* Sized SMALLER than the rail band ON PURPOSE. It used to be height:100% of
+     the .row (up to 660px) AND grow to ~1.20×, so at full focus it filled ~73%
+     of a 1080p viewport's height — and ~94% on a 1366×768 screen, where the
+     whole video nearly touched both edges. That bulk (top near the screen edge)
+     is what read as "huge" and as if it sat too high. Now it carries its OWN
+     viewport-relative box, so it stays a calm, CONSISTENT share of the screen at
+     every height instead of ballooning on short ones (the cap also keeps it
+     modest on the author's tall viewport). It's still centered in the band via
+     the row's align-items: center. The gentler zoom peak lives in index.tsx. */
+  width: clamp(360px, 32vw, 490px);
+  height: clamp(360px, 54vh, 580px);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 34px 70px -28px rgba(3, 30, 14, 0.75);

@@ -267,7 +267,7 @@ function VideoTile({ name }: { name: string }) {
       data-piece
       data-depth="1.07"
       data-kind="video"
-      data-tilt="0.45"
+      data-tilt="0.32"
     >
       <div className={styles.media} aria-hidden="true">
         <span className={styles.play}>
@@ -401,10 +401,12 @@ export function TestimonialsSection() {
         const f = (Math.cos(a * Math.PI) + 1) / 2;
 
         const par = (1 - pc.depth) * 260 * c;
-        // Video peak eased (0.48→0.42, ~1.26×→~1.20×): at full zoom it filled
-        // too much of the stage, worst on shorter/smaller screens. Prints keep
-        // their gentle 0.94→1.02 swell.
-        const scale = pc.video ? 0.78 + f * 0.42 : 0.94 + f * 0.08;
+        // Video zoom eased further (0.42→0.26 span, peak ~1.20×→~1.10×) and its
+        // base raised (0.78→0.84) so it neither balloons at center nor shrinks
+        // away off-center. Paired with the smaller, viewport-relative box in CSS,
+        // the video reads calm instead of crowding the stage. Prints keep their
+        // gentle 0.94→1.02 swell.
+        const scale = pc.video ? 0.84 + f * 0.26 : 0.94 + f * 0.08;
         const rot = lean * pc.tilt;
 
         const t = `translate3d(${par.toFixed(1)}px,0,0) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
