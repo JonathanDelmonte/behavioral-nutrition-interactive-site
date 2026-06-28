@@ -718,6 +718,25 @@
   .tailDot:nth-child(2) { width: 15px; height: 15px; left: 62%; top: -9%; }
   .tailDot:nth-child(3) { width: 10px; height: 10px; left: 57%; top: -16%; }
 
+  /* RESPONSIVE rescue (replaces the old hard height breakpoint). On short phones
+     the balloon outgrows its svh-capped box and bleeds upward over the dots — and
+     because the box also gets NARROWER, the text wraps taller, so the overflow
+     grows fast as the screen shrinks. Instead of snapping the dots to a fixed
+     "short" spot (which looked stranded just below the breakpoint), we slide the
+     whole trail up-and-right CONTINUOUSLY, by an amount tied to how far THIS
+     thought's balloon actually overflows. JS publishes that overflow as
+     --tail-overflow (px, per active thought; 0 when the balloon fits → the arc
+     above stays put, hugging the balloon). The map is steep-then-capped: a little
+     overflow already nudges the dots clear of the oval's wide centre, then it
+     saturates so they never fly off past the brain. Moving the shared parent (not
+     each dot) preserves the arc and never fights the dots' own float/pop. */
+  .thoughtTail {
+    --tx: min(45px, calc(var(--tail-overflow, 0px) * 3.5));
+    --ty: min(32px, calc(var(--tail-overflow, 0px) * 1.6));
+    transform: translate(var(--tx), calc(-1 * var(--ty)));
+    transition: transform .5s cubic-bezier(.2, .7, .2, 1);
+  }
+
   /* ---- finale: the closing line + CTA form in the bubble's place ---- */
   .stageFooter {
     display: flex;
@@ -868,6 +887,11 @@
     animation: none;
     opacity: 1;
     scale: none;
+  }
+  /* The trail still gets positioned (transform via --tail-overflow) so it clears
+     the balloon on short screens — just don't animate the slide. */
+  .thoughtTail {
+    transition: none;
   }
   .qmark {
     animation: none;

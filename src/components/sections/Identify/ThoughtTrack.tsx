@@ -75,9 +75,30 @@ export function ThoughtTrack() {
     // dissolves. Measured (not hardcoded) so it's exact however the title wraps
     // at a given width; on desktop the headline is display:none → 0, a no-op.
     const intro = stage.querySelector<HTMLElement>(`.${styles.stageIntro}`);
+
+    // Phone-only "tail rescue": how far the ACTIVE thought's balloon bleeds above
+    // its (svh-capped) box. The CSS slides the dot trail up-and-right by an amount
+    // mapped from this, so the dots clear the overflowing oval continuously instead
+    // of snapping at a hard height breakpoint. Per-thought (taller quotes overflow
+    // more) and 0 when the balloon fits — then the trail just hugs the balloon.
+    const bubbles = stage.querySelector<HTMLElement>("[data-bubbles]");
+    let shapeHeights: number[] = [];
+    const applyTail = (idx: number) => {
+      if (!bubbles) return;
+      const h = shapeHeights[Math.max(0, idx)] ?? 0;
+      const overflow = Math.max(0, (h - bubbles.clientHeight) / 2);
+      bubbles.style.setProperty("--tail-overflow", `${overflow.toFixed(1)}px`);
+    };
+
     const measure = () => {
       const h = intro ? intro.offsetHeight : 0;
       stage.style.setProperty("--mid-rise", `${(h / 2).toFixed(1)}px`);
+      if (bubbles) {
+        shapeHeights = [
+          ...bubbles.querySelectorAll<HTMLElement>("[data-bubbleshape]"),
+        ].map((el) => el.offsetHeight);
+        applyTail(lastIdx);
+      }
     };
 
     const update = () => {
@@ -100,6 +121,9 @@ export function ThoughtTrack() {
       if (idx !== lastIdx) {
         const prev = lastIdx;
         lastIdx = idx;
+        // Re-point the tail's overflow lift at the arriving thought's balloon
+        // (set before React remounts the tail, so it appears already placed).
+        applyTail(idx);
         setPair({ active: idx, prev });
         // The brain "thinks" each arriving bubble — a soft pulse through the
         // same channel the click uses (see ThinkPulse in BrainModel/Scene).
