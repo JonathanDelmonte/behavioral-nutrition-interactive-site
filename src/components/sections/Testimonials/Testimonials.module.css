@@ -852,17 +852,55 @@
   }
   /* The wall keeps its multi-column width on phones too — the section is a
      horizontal scrolljack at every width, so the extra columns just become
-     more sideways travel (consistent with the rest of the rail). Cards ease
-     down a touch so each still fits the narrow viewport comfortably. */
+     more sideways travel (consistent with the rest of the rail). On phones the
+     cards were reading oversized (and the focus swell made them feel like they
+     zoomed on top of being big), so the whole wall scales DOWN here: narrower
+     columns, tighter padding and type. */
   .notesPanel {
     width: auto;
+    /* Centered in the band (base rule) like every other piece — no manual lift.
+       The band is centered in the dvh stage, so the panel lands at the true
+       viewport center on tall phones instead of sitting high. */
   }
   .notesCol {
-    width: clamp(232px, 72vw, 270px);
-    gap: 16px;
+    width: clamp(196px, 58vw, 232px);
+    gap: 12px;
   }
   .notesWall {
-    gap: 14px;
+    gap: 11px;
+    /* same band-height cap as desktop, in the mobile band's units */
+    max-height: calc(clamp(420px, 62svh, 540px) - 44px);
+  }
+  .notesEyebrow {
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .note {
+    padding: 14px 15px;
+    border-radius: 14px;
+  }
+  .note::after {
+    top: 6px;
+    right: 13px;
+    font-size: 27px;
+  }
+  .noteHead {
+    margin-bottom: 9px;
+    gap: 9px;
+  }
+  .noteAvatar {
+    width: 26px;
+    height: 26px;
+  }
+  .noteName {
+    font-size: 12.5px;
+  }
+  .noteHandle {
+    font-size: 10px;
+  }
+  .noteText {
+    font-size: 12.5px;
+    line-height: 1.55;
   }
   .intro {
     width: 82vw;

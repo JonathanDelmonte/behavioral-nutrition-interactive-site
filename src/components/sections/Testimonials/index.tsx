@@ -564,6 +564,9 @@ export function TestimonialsSection() {
       width: number;
       depth: number;
       tilt: number;
+      /** Focus-zoom span (peak scale = base + span). Smaller = gentler swell;
+       *  the review wall opts down so it doesn't balloon on phones. */
+      scaleSpan: number;
       video: boolean;
       last: string;
       lastF: number;
@@ -634,7 +637,9 @@ export function TestimonialsSection() {
         if (pc.video) {
           t = `translate3d(${Math.round(par)}px,0,0)`;
         } else {
-          const scale = 0.94 + f * 0.08;
+          // base keeps the prior 0.94→1.02 default (span 0.08); a piece can dial
+          // its span down via data-scale so its swell stays gentle (review wall).
+          const scale = 1 - pc.scaleSpan * 0.75 + f * pc.scaleSpan;
           const rot = lean * pc.tilt;
           t = `translate3d(${par.toFixed(1)}px,0,0) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
         }
@@ -673,6 +678,7 @@ export function TestimonialsSection() {
           width: node.offsetWidth,
           depth: parseFloat(node.dataset.depth ?? "1"),
           tilt: parseFloat(node.dataset.tilt ?? "1"),
+          scaleSpan: parseFloat(node.dataset.scale ?? "0.08"),
           video: node.dataset.kind === "video",
           last: "",
           lastF: -1,
@@ -790,6 +796,7 @@ export function TestimonialsSection() {
               data-piece
               data-depth="0.97"
               data-tilt="0.6"
+              data-scale="0.03"
             >
               <span className={styles.notesEyebrow}>avaliações</span>
               <div className={styles.notesWall}>
