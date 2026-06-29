@@ -2,6 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./Testimonials.module.css";
+import { useVideoLightbox } from "@/components/video/VideoLightbox";
+import {
+  loadYouTubeIframeAPI,
+  YT_PLAYER_STATE,
+  type YTPlayer,
+} from "@/components/video/youtube";
+import {
+  usePolaroidLightbox,
+  type Polaroid,
+} from "@/components/polaroid/PolaroidLightbox";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const VINE_DIVIDER = `${BASE_PATH}/images/hero/vine-divider.webp`;
@@ -100,8 +110,8 @@ const REVIEW_COLUMNS = Array.from({ length: WALL_COLS }, (_, c) =>
  *  test values, ordered oldest→newest so the pile reads as a timeline (the prints
  *  are dealt to the back, so index 0 sits on top first). `posY` biases the cover
  *  crop vertically (smaller = higher) so each subject's face stays in frame as
- *  the portrait source crops to the squarish polaroid window. */
-type Polaroid = { src: string; date: string; posY?: string };
+ *  the portrait source crops to the squarish polaroid window. (`Polaroid` is
+ *  shared with the expand lightbox.) */
 const POLAROIDS_MARIANA: Polaroid[] = [
   { src: `${BASE_PATH}/images/testimonials/mariana-1.webp`, date: "Mariana • 14 mar 2020", posY: "26%" },
   { src: `${BASE_PATH}/images/testimonials/mariana-2.webp`, date: "Mariana • 09 set 2023", posY: "16%" },
@@ -113,15 +123,33 @@ const POLAROIDS_CAUE: Polaroid[] = [
   { src: `${BASE_PATH}/images/testimonials/caue-3.webp`, date: "Cauê • 18 jul 2025", posY: "12%" },
 ];
 
-/** The two main cases. */
+/** The two main cases. `videoId` is the YouTube id (the bit after /shorts/ or
+ *  watch?v=) — PLACEHOLDER example shorts for now; the client swaps these for
+ *  their own unlisted recordings (kept on YouTube so they don't weigh on the
+ *  site). `length` is a decorative chip the client edits to match (the lightbox
+ *  always shows the real, API-reported duration). */
 const CASES = [
-  { name: "Mariana", photos: POLAROIDS_MARIANA },
-  { name: "Cauê", photos: POLAROIDS_CAUE },
+  {
+    name: "Mariana",
+    photos: POLAROIDS_MARIANA,
+    videoId: "1Du0oZkN-q8",
+    length: "0:32",
+  },
+  {
+    name: "Cauê",
+    photos: POLAROIDS_CAUE,
+    videoId: "lDngyg-F6rA",
+    length: "0:46",
+  },
 ];
 
 /** ms the fly-to-back animation runs — kept in sync with the CSS keyframe so the
  *  pile re-locks (and accepts the next click) exactly as the card lands. */
 const FLY_MS = 760;
+
+/** After this long with no interaction, the pile eases back to the first print
+ *  (so an abandoned carousel resets itself to the start). */
+const IDLE_RESET_MS = 30000;
 
 function AvatarGlyph() {
   return (
@@ -151,17 +179,29 @@ function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
   // doubles as the "busy" guard so clicks mid-flight are ignored.
   const [flying, setFlying] = useState<number | null>(null);
   const flyTimer = useRef<number | null>(null);
+  const idleTimer = useRef<number | null>(null);
+  const { open: openExpand } = usePolaroidLightbox();
   const n = photos.length;
 
   useEffect(
     () => () => {
       if (flyTimer.current !== null) window.clearTimeout(flyTimer.current);
+      if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
     },
     [],
   );
 
+  // Each interaction (re)arms a countdown; when it lapses, the pile eases back to
+  // the first print. Cleared/restarted on every advance so it only fires once the
+  // visitor truly stops flipping.
+  const armIdleReset = () => {
+    if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
+    idleTimer.current = window.setTimeout(() => setActive(0), IDLE_RESET_MS);
+  };
+
   const advance = () => {
     if (flying !== null) return; // mid-animation — ignore
+    armIdleReset();
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
       setActive((a) => (a + 1) % n); // no flight: just swap the top print
@@ -246,6 +286,7 @@ function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
           className={styles.navBtn}
           tabIndex={-1}
           aria-label="Expandir"
+          onClick={() => openExpand({ name, photos, start: active })}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M8 3H5a2 2 0 0 0-2 2v3" />
@@ -259,29 +300,190 @@ function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
   );
 }
 
-/** The video — the chapter's protagonist; grows as it reaches center stage. */
-function VideoTile({ name }: { name: string }) {
+/** The video — the chapter's protagonist; grows as it reaches center stage.
+ *
+ *  At rest it plays a clean muted loop. It's driven by the IFrame API (NOT a
+ *  plain `loop=1&playlist=` embed) on purpose: the playlist param is what makes
+ *  YouTube paint its prev/next buttons, so we loop manually instead (seamless
+ *  pre-seek before the end, so the end-screen never shows). A poster covers the
+ *  player until it's truly PLAYING, hiding YouTube's unstarted overlay. Click it
+ *  and the shared lightbox takes over. The loop only mounts once the tile nears
+ *  the viewport (never under reduced-motion), and pauses while offscreen or
+ *  while the lightbox is open. */
+function VideoTile({
+  name,
+  videoId,
+  length,
+}: {
+  name: string;
+  videoId: string;
+  length: string;
+}) {
+  const { open } = useVideoLightbox();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YTPlayer | null>(null);
+  const [mounted, setMounted] = useState(false);
+  // One-way: the poster covers the player until the stream is decoding, then
+  // fades out for good. The loop is NEVER paused (per request: it keeps running
+  // when it scrolls off and back, instead of reloading), so the poster never
+  // needs to come back.
+  const [revealed, setRevealed] = useState(false);
+
+  // Lazy-mount the loop the first time the tile nears the viewport, then stop
+  // observing — once it's playing it just keeps going. Skip entirely for
+  // reduced-motion (the poster stays as a still; the click still opens the
+  // lightbox).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setMounted(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Build the API player once mounted.
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
+    let revealTimer: number | null = null;
+    setRevealed(false);
+
+    loadYouTubeIframeAPI()
+      .then((YT) => {
+        if (cancelled || !hostRef.current) return;
+        hostRef.current.innerHTML = "";
+        const mount = document.createElement("div");
+        hostRef.current.appendChild(mount);
+
+        playerRef.current = new YT.Player(mount, {
+          videoId,
+          width: "100%",
+          height: "100%",
+          playerVars: {
+            autoplay: 1,
+            mute: 1, // muted loop — required for autoplay
+            controls: 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            fs: 0,
+            disablekb: 1,
+            iv_load_policy: 3,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: (e) => {
+              if (cancelled) return;
+              e.target.mute();
+              e.target.playVideo();
+            },
+            onStateChange: (e) => {
+              if (cancelled) return;
+              const s = e.target.getPlayerState();
+              // Reveal a beat AFTER playback is actually decoding (the very first
+              // live frame can still flash the seam), then drop the poster for
+              // good — the loop never pauses, so it never needs to come back.
+              if (s === YT_PLAYER_STATE.PLAYING && revealTimer === null) {
+                revealTimer = window.setTimeout(() => {
+                  if (!cancelled) setRevealed(true);
+                }, 450);
+              }
+              // Manual loop fallback (the pre-seek below usually beats it).
+              if (s === YT_PLAYER_STATE.ENDED) {
+                e.target.seekTo(0, true);
+                e.target.playVideo();
+              }
+            },
+          },
+        });
+      })
+      .catch(() => {
+        /* offline / blocked — the poster stays put */
+      });
+
+    return () => {
+      cancelled = true;
+      if (revealTimer !== null) window.clearTimeout(revealTimer);
+      try {
+        playerRef.current?.destroy();
+      } catch {
+        /* already gone */
+      }
+      playerRef.current = null;
+      if (hostRef.current) hostRef.current.innerHTML = "";
+    };
+  }, [mounted, videoId]);
+
+  // Seamless loop: jump back to the start just before the end so YouTube's
+  // end-screen (related videos / replay) never gets a chance to paint.
+  useEffect(() => {
+    if (!mounted) return;
+    const id = window.setInterval(() => {
+      const p = playerRef.current;
+      if (!p) return;
+      try {
+        const d = p.getDuration();
+        if (d > 0 && p.getCurrentTime() >= d - 0.4) p.seekTo(0, true);
+      } catch {
+        /* not ready */
+      }
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [mounted]);
+
   return (
     <div
+      ref={rootRef}
       className={`${styles.piece} ${styles.video}`}
       data-piece
       data-depth="1.07"
       data-kind="video"
       data-tilt="0.32"
     >
-      <div className={styles.media} aria-hidden="true">
-        <span className={styles.play}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 7.5v9l8-4.5-8-4.5z" fill="currentColor" />
-          </svg>
-        </span>
-        <span className={styles.mediaLabel}>vídeo de depoimento</span>
-        <span className={styles.videoName}>
-          <em>a história de {name}</em>
-        </span>
-        <span className={styles.videoLen}>2:14</span>
-      </div>
-      <span className={styles.dim} />
+      <span className={styles.media} aria-hidden="true">
+        {mounted && (
+          <span className={styles.frameCover}>
+            <span className={styles.ytHost} ref={hostRef} />
+          </span>
+        )}
+      </span>
+      {/* Poster over the player until it's actually rendering frames — hides
+          YouTube's unstarted/loading overlay. Fades out once PLAYING. */}
+      <span
+        className={`${styles.poster} ${revealed ? styles.posterHidden : ""}`.trim()}
+        aria-hidden="true"
+      />
+      <span className={styles.play} aria-hidden="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 7.5v9l8-4.5-8-4.5z" fill="currentColor" />
+        </svg>
+      </span>
+      <span className={styles.videoName} aria-hidden="true">
+        <em>a história de {name}</em>
+      </span>
+      <span className={styles.videoLen} aria-hidden="true">
+        {length}
+      </span>
+      <span className={styles.dim} aria-hidden="true" />
+      {/* Transparent hit layer over the whole tile — clicking opens the
+          lightbox. The keyboard/SR-accessible action lives here. */}
+      <button
+        type="button"
+        className={styles.videoOpen}
+        onClick={() => open({ id: videoId, title: `a história de ${name}` })}
+        aria-label={`Assistir ao depoimento — a história de ${name}`}
+      />
     </div>
   );
 }
@@ -405,10 +607,21 @@ export function TestimonialsSection() {
         // away off-center. Paired with the smaller, viewport-relative box in CSS,
         // the video reads calm instead of crowding the stage. Prints keep their
         // gentle 0.94→1.02 swell.
-        const scale = pc.video ? 0.84 + f * 0.26 : 0.94 + f * 0.08;
-        const rot = lean * pc.tilt;
-
-        const t = `translate3d(${par.toFixed(1)}px,0,0) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+        // The video tile must NOT be sub-pixel transformed: scaling/rotating a
+        // cross-origin YouTube iframe resamples its compositing layer and leaves
+        // a faint seam (the "thin line") across it — worst on a static frame.
+        // So the video gets an INTEGER-pixel parallax only (no zoom, no lean),
+        // which renders pixel-clean. Its focus still reads through the dim veil +
+        // breathing play ring (both opacity-driven by --f). Every other piece
+        // keeps the full choreography.
+        let t: string;
+        if (pc.video) {
+          t = `translate3d(${Math.round(par)}px,0,0)`;
+        } else {
+          const scale = 0.94 + f * 0.08;
+          const rot = lean * pc.tilt;
+          t = `translate3d(${par.toFixed(1)}px,0,0) rotate(${rot.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
+        }
         if (t !== pc.last) {
           pc.node.style.transform = t;
           pc.last = t;
@@ -539,12 +752,20 @@ export function TestimonialsSection() {
             </div>
 
             <PolaroidStack name={CASES[0].name} photos={CASES[0].photos} />
-            <VideoTile name={CASES[0].name} />
+            <VideoTile
+              name={CASES[0].name}
+              videoId={CASES[0].videoId}
+              length={CASES[0].length}
+            />
 
             <Quote>Segunda-feira deixou de ser recomeço.</Quote>
 
             <PolaroidStack name={CASES[1].name} photos={CASES[1].photos} />
-            <VideoTile name={CASES[1].name} />
+            <VideoTile
+              name={CASES[1].name}
+              videoId={CASES[1].videoId}
+              length={CASES[1].length}
+            />
 
             <Quote>O que mudou primeiro foi a cabeça.</Quote>
 

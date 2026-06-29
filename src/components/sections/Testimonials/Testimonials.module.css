@@ -119,9 +119,10 @@
   position: relative;
   display: flex;
   align-items: center;
-  /* room between the pile and its side controls — kept generous even as the
-     viewport narrows (the controls were reading "glued" to the prints). */
-  gap: clamp(44px, 5vw, 72px);
+  /* room between the pile and its side controls — a high MINIMUM so the controls
+     never glue to the prints in the tablet/landscape range (700–900px), where a
+     vw-only gap collapsed. */
+  gap: clamp(60px, 5vw, 72px);
   height: 100%;
   /* float the whole bolo off its rail neighbours — more room on the LEFT so it
      sits further right (off the intro/quote) without crowding the video. */
@@ -366,35 +367,105 @@
   height: clamp(360px, 54vh, 580px);
   border-radius: 20px;
   overflow: hidden;
+  /* own stacking context — keeps the rounded clip self-contained while the rail
+     animates this tile's transform */
+  isolation: isolate;
   box-shadow: 0 34px 70px -28px rgba(3, 30, 14, 0.75);
 }
 
+/* The poster layer: a soft green wash shown before the loop mounts (and as the
+   reduced-motion still). The YouTube loop covers it once loaded. Centers the
+   cover via flex (see .frameCover) and clips the overflow. */
 .media {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  overflow: hidden;
+  /* Round + promote THIS layer (it never receives the rail's animated transform —
+     only .video does). A cross-origin iframe is its own compositing layer, and a
+     rounded ancestor that's being scaled per-frame fails to re-clip it cleanly →
+     the corners flicker square during scroll. Baking the rounded clip into this
+     STABLE layer makes the corners hold; .video just scales the whole layer. */
+  border-radius: inherit;
+  transform: translateZ(0);
   background:
     radial-gradient(120% 90% at 50% 18%, #d8e0cf, transparent 72%),
     linear-gradient(160deg, #c4d1b8, #a3b896);
   color: color-mix(in srgb, var(--color-green-deep) 55%, transparent);
 }
-.mediaLabel {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 9.5px;
-  color: color-mix(in srgb, var(--color-green-deep) 50%, transparent);
+
+/* The looping embed is a 9:16 short; size it to COVER the (slightly wider)
+   tile so there are no black bars — it's centered and the tile's overflow:hidden
+   crops the top/bottom sliver. The iframe itself can't be clicked (the hit
+   layer below owns the click), so YouTube's own chrome never surfaces. */
+/* 9:16 cover, centered with FLEX (not translate). A translate(-50%,-50%) landed
+   the tall cross-origin iframe layer on a half-pixel and GPU compositing drew a
+   faint hairline across its middle; flex centering keeps it pixel-aligned, and
+   .media clips the vertical overflow. */
+.frameCover {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+}
+.ytHost {
+  position: absolute;
+  inset: 0;
+}
+.frameCover iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+/* Covers the player until it's truly PLAYING — hides YouTube's unstarted /
+   loading overlay (and the brief prev/next chrome on first frame). Same wash as
+   the pre-mount poster; fades out once frames are rendering. */
+.poster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(120% 90% at 50% 18%, #d8e0cf, transparent 72%),
+    linear-gradient(160deg, #c4d1b8, #a3b896);
+  pointer-events: none;
+  /* NO transition here on purpose: when the poster comes BACK (video pauses), it
+     must snap on instantly to hide the static-frame seam. The fade lives on
+     .posterHidden, so only the REVEAL (poster leaving) animates. */
+}
+.posterHidden {
+  opacity: 0;
+  transition: opacity 0.55s ease;
+}
+
+/* Transparent click target over the whole tile — opens the lightbox. */
+.videoOpen {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.videoOpen:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-gold-soft) 80%, transparent);
+  outline-offset: 4px;
 }
 
 .play {
   position: absolute;
   top: 50%;
   left: 50%;
+  z-index: 2;
   transform: translate(-50%, -50%);
   width: 96px;
   height: 96px;
@@ -404,6 +475,7 @@
   background: var(--color-offwhite);
   color: var(--color-green-deep);
   box-shadow: 0 18px 40px -10px rgba(3, 30, 14, 0.65);
+  pointer-events: none;
 }
 .play svg {
   width: 40px;
@@ -420,13 +492,23 @@
   animation: ringBreath 2.8s ease-in-out infinite;
 }
 
+/* Caption + duration chip sit ABOVE the loop on a soft scrim so they stay
+   legible over moving footage (they used to rest on the flat poster). */
 .videoName {
   position: absolute;
   left: 22px;
   bottom: 16px;
+  z-index: 3;
+  max-width: calc(100% - 90px);
+  padding: 4px 12px;
+  border-radius: 10px;
   font-family: var(--font-serif);
   font-size: clamp(18px, 1.7vw, 25px);
-  color: color-mix(in srgb, var(--color-green-deep) 82%, transparent);
+  color: var(--color-offwhite);
+  background: rgba(6, 40, 22, 0.42);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
 }
 .videoName em {
   font-style: italic;
@@ -435,14 +517,16 @@
   position: absolute;
   right: 20px;
   bottom: 20px;
+  z-index: 3;
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 10.5px;
   letter-spacing: 0.08em;
   padding: 5px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-green-deep) 16%, transparent);
-  color: color-mix(in srgb, var(--color-green-deep) 75%, transparent);
+  background: rgba(6, 40, 22, 0.5);
+  color: color-mix(in srgb, var(--color-offwhite) 88%, transparent);
+  pointer-events: none;
 }
 
 /* ---- Pull-quotes (the subtle separation between chapters) ---------------- */
@@ -697,15 +781,18 @@
   .row {
     height: clamp(420px, 62svh, 540px);
     padding: 0 20px;
-    gap: clamp(40px, 9vw, 64px);
+    /* wider rail gaps on phones so the deck no longer sits right against the
+       video (the deck also fans a little to the right, eating into the gap). */
+    gap: clamp(76px, 17vw, 108px);
   }
   .carousel {
-    gap: clamp(16px, 4.5vw, 28px);
-    /* drop the big desktop side-margins so the bolo fits the narrow rail */
+    /* keep the generous base gap (≥60px) so the side controls never glue to the
+       pile in the 600–760px range; just drop the big desktop side-margins. */
     margin: 0 16px;
   }
   .stack {
-    width: clamp(240px, 62vw, 320px);
+    /* a touch larger on phones (the side controls moved below, freeing width). */
+    width: clamp(252px, 66vw, 332px);
   }
   .navBtn {
     width: 46px;
@@ -739,6 +826,30 @@
   .intro {
     width: 82vw;
     padding-right: 0;
+  }
+}
+
+/* Phones: drop the side controls UNDERNEATH the pile — arrow (prev) on the left,
+   the position dots laid HORIZONTAL in the middle, expand on the right, the row
+   spanning the print width so it reads centred under the photo. The breakpoint
+   sits ABOVE the widest phones (≤600px) so even "fat" phones get this layout and
+   never the side one; tablets/desktop (>600px) keep the controls beside the pile. */
+@media (max-width: 600px) {
+  .carousel {
+    flex-direction: column;
+    justify-content: center;
+    /* drop the controls further below the print (was reading too tight). */
+    gap: clamp(30px, 7vw, 46px);
+  }
+  .stackNav {
+    flex-direction: row;
+    align-self: stretch; /* span the print width so dots land dead-centre */
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .navDots {
+    flex-direction: row;
   }
 }
 
