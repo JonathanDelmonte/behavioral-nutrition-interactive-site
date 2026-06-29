@@ -1,8 +1,56 @@
 "use client";
 
-import { useEffect } from "react";
-import type { CSSProperties } from "react";
+import { useEffect, useRef } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import styles from "./IndexOverlay.module.css";
+
+/** Ease-in-out cubic — slow lift-off, brisk middle, decelerating arrival.
+ *  The same "calm but alive" arc the rest of the site uses for travel. */
+const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+/**
+ * Glide the page to an absolute scroll position over `duration` ms.
+ *
+ * <html> is this page's scroll container, so window.scrollTo drives it
+ * directly each frame (no native `behavior:"smooth"`, whose duration the
+ * browser owns and tends to drag out across this long page). The user can
+ * wrest control back at any moment — a wheel / touch / key aborts the glide
+ * so we never fight their input. Returns a cancel fn so a new navigation (or
+ * unmount) can stop a glide already in flight.
+ */
+function glideScrollTo(dest: number, duration: number, onArrive: () => void) {
+  const start = window.scrollY;
+  const delta = dest - start;
+  let raf = 0;
+  let startTime = 0;
+
+  const stop = () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener("wheel", stop);
+    window.removeEventListener("touchstart", stop);
+    window.removeEventListener("keydown", stop);
+  };
+
+  const step = (now: number) => {
+    if (!startTime) startTime = now;
+    const t = Math.min(1, (now - startTime) / duration);
+    window.scrollTo(0, start + delta * easeInOutCubic(t));
+    if (t < 1) {
+      raf = requestAnimationFrame(step);
+    } else {
+      stop();
+      onArrive();
+    }
+  };
+
+  window.addEventListener("wheel", stop, { passive: true });
+  window.addEventListener("touchstart", stop, { passive: true });
+  window.addEventListener("keydown", stop);
+  raf = requestAnimationFrame(step);
+
+  return stop;
+}
 
 /** All 8 site sections, in scroll order. The hash references match anchor
  *  ids that the section components will declare as they're added. */
@@ -65,6 +113,60 @@ export function IndexOverlay({ open, onClose }: Props) {
     };
   }, [open]);
 
+  // Holds the cancel fn of an in-flight glide so a second tap (or unmount)
+  // can abort it cleanly instead of two glides fighting over the scroll.
+  const cancelGlide = useRef<(() => void) | null>(null);
+  useEffect(() => () => cancelGlide.current?.(), []);
+
+  // Clicking a section: dissolve the overlay and glide the page to the
+  // section instead of the browser's hard hash-jump. The CSS opacity fade on
+  // the overlay (0.25s) lifts the veil while the page is still gliding, so the
+  // travel reads as a smooth reveal rather than a dry cut.
+  const handleNavigate = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+    const target = document.getElementById(href.slice(1));
+    // Can't resolve the anchor → let the browser do its default thing.
+    if (!target) {
+      onClose();
+      return;
+    }
+    e.preventDefault();
+
+    // Start the overlay fading out, then release the scroll lock the open
+    // effect put on <html>. The effect's own cleanup unlocks on the next
+    // commit too, but doing it here first removes the one-frame race where
+    // overflow:hidden would swallow our programmatic scroll.
+    onClose();
+    document.documentElement.style.overflow = "";
+    cancelGlide.current?.();
+
+    // Land the section just below the sticky header (its real, resolved
+    // height — not the raw clamp() token), clamped so #inicio rests at the top.
+    const headerH = document.querySelector("header")?.offsetHeight ?? 0;
+    const dest = Math.max(
+      0,
+      window.scrollY + target.getBoundingClientRect().top - headerH,
+    );
+    const arrive = () => history.replaceState(null, "", href);
+
+    // Reduced motion → land instantly, no glide.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      window.scrollTo(0, dest);
+      arrive();
+      return;
+    }
+
+    const distance = Math.abs(dest - window.scrollY);
+    if (distance < 4) {
+      arrive();
+      return;
+    }
+
+    // Distance-aware duration: short hops stay perceptible, and even a
+    // top-to-bottom jump stays brisk (capped ~0.7s) so it never drags.
+    const duration = Math.min(700, Math.max(420, distance * 0.45));
+    cancelGlide.current = glideScrollTo(dest, duration, arrive);
+  };
+
   return (
     <div
       className={`${styles.overlay} ${open ? styles.open : ""}`.trim()}
@@ -92,7 +194,11 @@ export function IndexOverlay({ open, onClose }: Props) {
               className={styles.item}
               style={{ "--i": i } as CSSProperties}
             >
-              <a href={s.href} className={styles.link} onClick={onClose}>
+              <a
+                href={s.href}
+                className={styles.link}
+                onClick={(e) => handleNavigate(e, s.href)}
+              >
                 <span className={styles.num} aria-hidden="true">
                   {s.num}
                 </span>
