@@ -61,20 +61,20 @@ const LEAVES = {
 
 /* One-shot "shake the bush" burst — fired on click, drawn on its OWN canvas
    layered IN FRONT of the arch + portrait (the ambient leaves above stay
-   behind them, untouched). A generous handful of leaves let go across the
-   canopy in quick succession and tumble down with a little gravity and an
-   outward scatter, then the array drains itself empty. */
+   behind them, untouched). A generous handful of leaves let go ALONG the
+   silhouette's contour (see ARCH) in quick succession and tumble down with a
+   little gravity, hugging the shape, then the array drains itself empty. */
 const BURST = {
   countMin: 16, // leaves per click — "muitas", como sacudir um galho
   countMax: 26,
   cap: 120, // hard ceiling across rapid clicks (perf guard)
-  canopy: 0.62, // leaves originate in the upper this-fraction of the arch
   gravity: 130, // px/s² — they pick up a little speed as they fall
   vy0Min: 24, // px/s — initial downward speed
   vy0Max: 56,
   vyMax: 165, // px/s — terminal fall speed
-  scatter: 46, // px/s — sideways kick away from the canopy centre
-  drag: 1.1, // /s — that sideways kick eases out
+  scatter: 14, // px/s — gentle drift off the edge (small: leaves stay near it)
+  noise: 6, // px/s — tiny random horizontal jitter on top
+  drag: 1.1, // /s — that sideways drift eases out
   delayMax: 0.36, // s — they detach in quick succession, not all at once
   sizeMin: 0.8, // ×LEAVES.size half-length
   sizeMax: 1.7,
@@ -82,6 +82,20 @@ const BURST = {
   alphaMax: 0.72,
   spinMin: 0.7, // rad/s rocking
   spinMax: 1.9,
+};
+
+/* The vine arch's outline in figure-normalized coords (0..1 across the figure
+   box): a domed top sitting on two near-vertical sides. Burst leaves are born
+   ALONG this contour so they peel off the silhouette's EDGE — never appearing
+   out of nowhere in the middle of it. Approximate; nudge to trace the art. */
+const ARCH = {
+  cx: 0.5, // horizontal centre of the arch
+  halfW: 0.46, // half-width → sides sit at u ≈ 0.04 and 0.96
+  domeTopV: 0.015, // the crown, just below the figure's top edge
+  shoulderV: 0.34, // where the dome rounds into the vertical sides
+  baseV: 0.9, // how far down the sides the leaves still let go
+  band: 0.05, // soft inward thickness so it's an edge, not a hairline
+  domeShare: 0.5, // share of leaves released from the crown vs the two sides
 };
 
 /* Depth parallax for the arch + portrait. ONE smoother (the rAF lerp below) —
@@ -106,6 +120,7 @@ const prand = (i: number, salt: number) => {
 export function AboutSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const figureRef = useRef<HTMLDivElement>(null);
+  const portraitRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const burstCanvasRef = useRef<HTMLCanvasElement>(null);
   const pointerRef = useRef({ x: 0, y: 0, has: false });
@@ -145,7 +160,11 @@ export function AboutSection() {
     const section = sectionRef.current;
     const canvas = canvasRef.current;
     const figure = figureRef.current;
+    const portrait = portraitRef.current;
     if (!section || !canvas) return;
+    // Phone breakpoint (matches the CSS @media): on phones the parallax is
+    // dropped and the click only counts on Juliana's portrait, not the foliage.
+    const phone = window.matchMedia("(max-width: 860px)");
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     // Front layer for the click burst (separate canvas → it sits over the arch
@@ -292,7 +311,28 @@ export function AboutSection() {
       c.globalAlpha = 1;
     };
 
-    /** Click → a handful of leaves let go across the canopy and tumble down.
+    /** A random point on the arch's contour (figure-normalized u,v), pulled a
+        touch inward by a soft band so the edge isn't a hairline. Returns the
+        outward sign too (−1 left, +1 right, ~0 crown) for the drift kick. */
+    const archPoint = () => {
+      const inset = Math.random() * ARCH.band; // toward the interior
+      if (Math.random() < ARCH.domeShare) {
+        // Top dome: a ∈ [0,π] sweeps left shoulder → crown → right shoulder.
+        const a = Math.random() * Math.PI;
+        const rx = ARCH.halfW - inset;
+        const ry = Math.max(0, ARCH.shoulderV - ARCH.domeTopV - inset);
+        const u = ARCH.cx - rx * Math.cos(a);
+        return { u, v: ARCH.shoulderV - ry * Math.sin(a), out: (u - ARCH.cx) };
+      }
+      // One of the two vertical sides, somewhere between shoulder and base.
+      const right = Math.random() < 0.5;
+      const edge = right ? ARCH.cx + ARCH.halfW : ARCH.cx - ARCH.halfW;
+      const u = right ? edge - inset : edge + inset;
+      const v = ARCH.shoulderV + Math.random() * (ARCH.baseV - ARCH.shoulderV);
+      return { u, v, out: right ? 1 : -1 };
+    };
+
+    /** Click → a handful of leaves let go along the contour and tumble down.
         Math.random (not prand): each shake should differ, and this only ever
         runs from a user gesture, so there's no hydration stability to keep. */
     const spawnBurst = () => {
@@ -303,19 +343,19 @@ export function AboutSection() {
       const fy = fr.top - sr.top;
       const fw = fr.width;
       const fh = fr.height;
-      const span = LEAVES.bandMax - LEAVES.bandMin;
       const count =
         BURST.countMin +
         Math.floor(Math.random() * (BURST.countMax - BURST.countMin + 1));
       for (let i = 0; i < count; i++) {
-        const u = Math.random(); // 0..1 across the arch's width
+        const p = archPoint();
         burstLeaves.push({
-          x: fx + fw * (LEAVES.bandMin + u * span),
-          y: fy + fh * (0.04 + Math.random() * BURST.canopy),
-          // kick outward from centre, plus a little noise
+          x: fx + fw * p.u,
+          y: fy + fh * p.v,
+          // a gentle drift off the edge (outward), plus a touch of noise —
+          // kept small so leaves stay hugging the silhouette, not flying away.
           vx:
-            (u - 0.5) * 2 * BURST.scatter * (0.4 + Math.random() * 0.6) +
-            (Math.random() - 0.5) * 20,
+            p.out * BURST.scatter * (0.4 + Math.random() * 0.6) +
+            (Math.random() - 0.5) * 2 * BURST.noise,
           vy: BURST.vy0Min + Math.random() * (BURST.vy0Max - BURST.vy0Min),
           delay: Math.random() * BURST.delayMax,
           phase: Math.random() * Math.PI * 2,
@@ -344,19 +384,25 @@ export function AboutSection() {
       ctx.clearRect(0, 0, W, H);
       if (burstCtx) burstCtx.clearRect(0, 0, W, H);
 
-      const parallaxEase = 1 - Math.exp(-dt * PARALLAX.smooth);
-      parallaxX += (targetParallaxX - parallaxX) * parallaxEase;
-      parallaxY += (targetParallaxY - parallaxY) * parallaxEase;
-      // Scroll progress straight from the live rect (canvas spans the section):
-      // -1 entering from the bottom, 0 centered, +1 leaving the top. No easing —
-      // the rect already tracks the real scroll position smoothly, frame by frame.
-      const vh = window.innerHeight || 1;
-      const center = rect.top + rect.height / 2;
-      const scrollProg = Math.max(
-        -1,
-        Math.min(1, (vh / 2 - center) / ((vh + rect.height) / 2)),
-      );
-      setParallax(parallaxX, parallaxY, scrollProg);
+      // Parallax: desktop only. On phones the arch + portrait stay anchored
+      // (the offsets default to 0 in CSS), so just keep them pinned at zero.
+      if (phone.matches) {
+        setParallax(0, 0, 0);
+      } else {
+        const parallaxEase = 1 - Math.exp(-dt * PARALLAX.smooth);
+        parallaxX += (targetParallaxX - parallaxX) * parallaxEase;
+        parallaxY += (targetParallaxY - parallaxY) * parallaxEase;
+        // Scroll progress straight from the live rect (canvas spans the
+        // section): -1 entering from the bottom, 0 centered, +1 leaving the
+        // top. No easing — the rect already tracks the real scroll smoothly.
+        const vh = window.innerHeight || 1;
+        const center = rect.top + rect.height / 2;
+        const scrollProg = Math.max(
+          -1,
+          Math.min(1, (vh / 2 - center) / ((vh + rect.height) / 2)),
+        );
+        setParallax(parallaxX, parallaxY, scrollProg);
+      }
 
       for (const m of motes) {
         m.by -= DUST.drift * dt;
@@ -450,11 +496,29 @@ export function AboutSection() {
       targetParallaxX = Math.max(-1, Math.min(1, nx));
       targetParallaxY = Math.max(-1, Math.min(1, ny));
     };
-    // Click the bush → shake leaves loose. The press-in scale is pure CSS
-    // (.figure:active); this only seeds the burst. Listener lives for the whole
-    // effect, not gated by in-view (you can only reach it while it's on screen).
-    const onShake = () => spawnBurst();
+    // Click the bush → an elegant little nudge + leaves shake loose. The nudge
+    // is a one-shot CSS animation (class re-armed each press with a reflow);
+    // animationend strips the class so it can replay. On phones the click only
+    // counts on Juliana's portrait — taps on the foliage are ignored.
+    const playNudge = () => {
+      if (!figure) return;
+      figure.classList.remove(styles.nudge);
+      void figure.offsetWidth; // restart the animation on rapid re-taps
+      figure.classList.add(styles.nudge);
+    };
+    const onNudgeEnd = (ev: AnimationEvent) => {
+      if (ev.target === figure) figure?.classList.remove(styles.nudge);
+    };
+    const onShake = (ev: PointerEvent) => {
+      if (phone.matches) {
+        const target = ev.target as Node | null;
+        if (!portrait || !target || !portrait.contains(target)) return;
+      }
+      playNudge();
+      spawnBurst();
+    };
     figure?.addEventListener("pointerdown", onShake);
+    figure?.addEventListener("animationend", onNudgeEnd);
     const io = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting && !running) {
@@ -487,6 +551,7 @@ export function AboutSection() {
       section.removeEventListener("pointermove", onMove);
       section.removeEventListener("pointerleave", resetParallax);
       figure?.removeEventListener("pointerdown", onShake);
+      figure?.removeEventListener("animationend", onNudgeEnd);
       cancelAnimationFrame(raf);
       setParallax(0, 0, 0);
     };
@@ -539,7 +604,7 @@ export function AboutSection() {
               aria-hidden="true"
               draggable={false}
             />
-            <div className={styles.portrait}>
+            <div className={styles.portrait} ref={portraitRef}>
               <img
                 src={PORTRAIT}
                 alt="Juliana Delmonte, nutricionista, sorrindo"

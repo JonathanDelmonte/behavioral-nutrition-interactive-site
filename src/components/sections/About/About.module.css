@@ -241,19 +241,42 @@
 .enhanced .figure {
   opacity: 0;
   translate: 0 26px;
-  /* The figure is clickable (shake the bush): pointer affordance + a barely
-     -there press-in. transform is separate from the entrance `translate`, so
-     the two never fight. Origin centred → both arch and portrait dip together. */
+  /* The figure is clickable (shake the bush): pointer affordance. The click
+     nudge below is a one-shot `transform` animation — separate from the
+     entrance `translate`, so the two never fight. */
   cursor: pointer;
   transform-origin: 50% 50%;
   transition:
     opacity 1s 0.1s var(--ease),
-    translate 1s 0.1s var(--ease),
-    transform 0.16s var(--ease);
+    translate 1s 0.1s var(--ease);
 }
-/* Pressed: a ~1.5% dip — "muito pouco mesmo, bem suave", like a real click. */
-.enhanced .figure:active {
-  transform: scale(0.985);
+/* Click feedback: a soft press-in that springs back with a buoyant, almost
+   magnetic settle — both arch and portrait sway together (scaling the parent
+   carries the children). Amplitudes stay tiny: "muito pouco, bem elegante".
+   .nudge is added per click in JS and stripped on animationend so it replays. */
+.enhanced .figure.nudge {
+  will-change: transform;
+  animation: figureNudge 0.82s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes figureNudge {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  16% {
+    transform: translateY(1.2px) scale(0.984) rotate(-0.32deg);
+  }
+  42% {
+    transform: translateY(-1px) scale(1.005) rotate(0.24deg);
+  }
+  66% {
+    transform: translateY(0.4px) scale(0.997) rotate(-0.12deg);
+  }
+  85% {
+    transform: translateY(-0.15px) scale(1.001) rotate(0.05deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
 }
 .enhanced .heading {
   transition-delay: 0.06s;
@@ -321,6 +344,9 @@
   .prose p,
   .figure {
     transition: none !important;
+  }
+  .figure {
+    animation: none !important;
   }
   .vines {
     animation: none !important;
