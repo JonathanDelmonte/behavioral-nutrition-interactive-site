@@ -1,0 +1,345 @@
+/* Fullscreen video viewer (see VideoLightbox.tsx).
+   Sits ABOVE the index overlay (z 200) but BELOW the sticky header (z 250) on
+   purpose: the header's hamburger morphs into an X over the darkened video and
+   stays clickable as the close control. The page behind darkens + blurs; the
+   9:16 short grows in with a calm scale+fade. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vh, 44px);
+  /* darken + blur the page; both animate from clear → set */
+  background: rgba(4, 22, 11, 0);
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.42s ease,
+    background 0.42s ease,
+    -webkit-backdrop-filter 0.42s ease,
+    backdrop-filter 0.42s ease,
+    visibility 0s linear 0.42s;
+}
+
+.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  background: rgba(4, 22, 11, 0.74);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition:
+    opacity 0.42s ease,
+    background 0.42s ease,
+    -webkit-backdrop-filter 0.42s ease,
+    backdrop-filter 0.42s ease,
+    visibility 0s;
+}
+
+/* The player column: a 9:16 box sized to the viewport, with the caption and
+   control bar stacked beneath it. One width var feeds the frame AND the bar so
+   they line up exactly. */
+.stage {
+  /* width that keeps the 9:16 frame within both the viewport width and a
+     vertical budget (leaving room for the caption + the taller control panel) */
+  --col: min(92vw, calc(60svh * 9 / 16));
+  width: var(--col);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(12px, 2vh, 20px);
+  transform: scale(0.9);
+  opacity: 0;
+  transition:
+    transform 0.46s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.42s ease;
+}
+.open .stage {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16; /* height derived → a tall short */
+  border-radius: 18px;
+  overflow: hidden;
+  background: #06210f; /* no white flash before the iframe paints */
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.7);
+}
+
+/* Host for the API iframe — pointer-events off so YouTube's own hover chrome
+   never appears; every interaction goes through the site's controls. */
+.player {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.player iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Click the video to play/pause (the control strip lives outside the frame, so
+   this can safely cover the whole picture). */
+.tapToggle {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Dark cover over the player until the first frame plays (see VideoLightbox.tsx). */
+.cover {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: #06210f;
+  transition: opacity 0.5s ease;
+}
+.coverHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid rgba(247, 246, 242, 0.22);
+  border-top-color: var(--color-gold-soft);
+  animation: ytSpin 0.9s linear infinite;
+  pointer-events: none;
+}
+
+.caption {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(15px, 1.6vw, 20px);
+  color: color-mix(in srgb, var(--color-offwhite) 90%, transparent);
+}
+
+/* ---- the site's own control panel (two roomy rows, big touch targets) --- */
+
+.controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.4vh, 16px);
+  padding: clamp(12px, 1.5vh, 18px) clamp(14px, 1.6vw, 20px);
+  border-radius: 24px;
+  background: rgba(8, 30, 16, 0.55);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(247, 246, 242, 0.12);
+}
+
+.seekRow {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.4vw, 16px);
+}
+.btnRow {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 1.8vw, 20px);
+}
+
+.ctrlBtn {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-offwhite) 9%, transparent);
+  color: var(--color-offwhite);
+  cursor: pointer;
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    transform 0.3s ease;
+}
+.ctrlBtn:hover {
+  background: color-mix(in srgb, var(--color-gold-soft) 26%, transparent);
+  color: var(--color-gold-soft);
+}
+.ctrlBtn:active {
+  transform: scale(0.94);
+}
+.ctrlBtn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+/* speaker waves / mute slash are strokes, not fills */
+.ctrlBtn svg .stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The play/pause button is the biggest — a solid disc echoing the resting tile. */
+.ctrlBtnLg {
+  width: 62px;
+  height: 62px;
+  background: var(--color-offwhite);
+  color: var(--color-green-deep);
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.55);
+}
+.ctrlBtnLg:hover {
+  background: var(--color-offwhite);
+  color: var(--color-green-deep);
+  transform: scale(1.04);
+}
+.ctrlBtnLg svg {
+  width: 30px;
+  height: 30px;
+}
+
+.time {
+  flex: 0 0 auto;
+  min-width: 44px;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--color-offwhite) 78%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Seek + volume share the same fat track / big thumb look. */
+.scrub,
+.volume {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(247, 246, 242, 0.22);
+}
+.scrub {
+  flex: 1 1 auto;
+}
+.volume {
+  flex: 1 1 auto;
+  min-width: 70px;
+  max-width: 180px;
+}
+.scrubFill,
+.volumeFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left center;
+  background: var(--color-gold-soft);
+  pointer-events: none;
+}
+
+.scrubInput,
+.volumeInput {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  transform: translateY(-50%);
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.scrubInput::-webkit-slider-runnable-track,
+.volumeInput::-webkit-slider-runnable-track {
+  background: transparent;
+}
+.scrubInput::-moz-range-track,
+.volumeInput::-moz-range-track {
+  background: transparent;
+}
+.scrubInput::-webkit-slider-thumb,
+.volumeInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-offwhite);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+.scrubInput::-moz-range-thumb,
+.volumeInput::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-offwhite);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+}
+.scrubInput:focus-visible,
+.volumeInput:focus-visible {
+  outline: none;
+}
+.scrubInput:focus-visible::-webkit-slider-thumb,
+.volumeInput:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-gold-soft) 55%, transparent);
+}
+
+@media (max-width: 760px) {
+  .btnRow {
+    gap: 12px;
+  }
+  .ctrlBtn {
+    width: 48px;
+    height: 48px;
+  }
+  .ctrlBtnLg {
+    width: 58px;
+    height: 58px;
+  }
+  .volume {
+    min-width: 56px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .open,
+  .stage,
+  .open .stage,
+  .cover {
+    transition-duration: 0.01ms;
+  }
+  .loading {
+    animation: none;
+  }
+}
+
+@keyframes ytSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
