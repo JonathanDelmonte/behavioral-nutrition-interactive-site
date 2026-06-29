@@ -4,6 +4,8 @@ import { useState } from "react";
 import styles from "./Header.module.css";
 import { Brandmark } from "@/components/brand/Brandmark";
 import { IndexOverlay } from "./IndexOverlay";
+import { useVideoLightbox } from "@/components/video/VideoLightbox";
+import { usePolaroidLightbox } from "@/components/polaroid/PolaroidLightbox";
 
 /**
  * Persistent top header — sticky at viewport top.
@@ -23,20 +25,52 @@ import { IndexOverlay } from "./IndexOverlay";
  */
 export function Header() {
   const [open, setOpen] = useState(false);
+  // A fullscreen viewer (a playing video OR an expanded polaroid pile) "borrows"
+  // the hamburger: it shows the X and a click closes that viewer (taking priority
+  // over the section menu). While one is open the header goes transparent so only
+  // the X floats over the darkened film.
+  const { active: video, close: closeVideo } = useVideoLightbox();
+  const { active: pile, close: closePile } = usePolaroidLightbox();
+  const overlayOpen = video !== null || pile !== null;
+  const showClose = open || overlayOpen;
+
+  const handleClick = () => {
+    if (video) {
+      closeVideo();
+      return;
+    }
+    if (pile) {
+      closePile();
+      return;
+    }
+    setOpen((v) => !v);
+  };
 
   return (
     <>
-      <header className={styles.header}>
+      <header
+        className={`${styles.header} ${overlayOpen ? styles.videoMode : ""}`.trim()}
+      >
         <div className={styles.inner}>
-          <Brandmark compact />
+          <span className={styles.brandWrap}>
+            <Brandmark compact />
+          </span>
 
           <button
             type="button"
-            className={`${styles.menuButton} ${open ? styles.isOpen : ""}`.trim()}
-            onClick={() => setOpen((v) => !v)}
+            className={`${styles.menuButton} ${showClose ? styles.isOpen : ""}`.trim()}
+            onClick={handleClick}
             aria-haspopup="dialog"
             aria-expanded={open}
-            aria-label={open ? "Fechar menu" : "Abrir menu de seções"}
+            aria-label={
+              video
+                ? "Fechar vídeo"
+                : pile
+                  ? "Fechar"
+                  : open
+                    ? "Fechar menu"
+                    : "Abrir menu de seções"
+            }
           >
             {/* Three SVG <line>s that morph between a hamburger (closed)
                 and an X (open). Each line has its own class so we can

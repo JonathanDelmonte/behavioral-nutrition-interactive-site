@@ -19,6 +19,37 @@
   /* Faint downward shadow gives the header a sense of physical layer above
      the page content without a heavy bar. */
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+  /* Dissolve smoothly when a video takes over the screen (see .videoMode). */
+  transition:
+    background 0.42s ease,
+    border-color 0.42s ease,
+    box-shadow 0.42s ease;
+}
+
+/* While the video lightbox is open the header melts away so only the X (the
+   morphed hamburger) floats over the darkened film. The bar itself stops
+   catching pointer events so a click on the bare top strip falls through to the
+   lightbox backdrop and closes the video — only the button stays live. */
+.videoMode {
+  background: transparent;
+  border-bottom-color: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+.videoMode .menuButton {
+  pointer-events: auto;
+  color: var(--color-offwhite);
+}
+.videoMode .brandWrap {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Wrapper so the brandmark can fade out in .videoMode without touching the
+   Brandmark component's own styles. */
+.brandWrap {
+  display: inline-flex;
+  transition: opacity 0.4s ease;
 }
 
 /* Full-bleed (no max-width) so the brandmark and the hamburger sit at
@@ -64,6 +95,7 @@
   border: none;
   cursor: pointer;
   color: var(--color-green-deep);
+  transition: color 0.42s ease;
 }
 
 .menuIcon {
