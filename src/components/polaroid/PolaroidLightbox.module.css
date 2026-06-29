@@ -1,0 +1,270 @@
+/* Fullscreen pile viewer (see PolaroidLightbox.tsx). Mirrors the VideoLightbox:
+   sits ABOVE the index overlay (z 200) but BELOW the sticky header (z 250) so
+   the header's hamburger morphs into an X over the darkened pile and stays the
+   close control. The page behind darkens + blurs; the pile grows in. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vh, 44px);
+  background: rgba(4, 22, 11, 0);
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.42s ease,
+    background 0.42s ease,
+    -webkit-backdrop-filter 0.42s ease,
+    backdrop-filter 0.42s ease,
+    visibility 0s linear 0.42s;
+}
+.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  background: rgba(4, 22, 11, 0.78);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition:
+    opacity 0.42s ease,
+    background 0.42s ease,
+    -webkit-backdrop-filter 0.42s ease,
+    backdrop-filter 0.42s ease,
+    visibility 0s;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* spacing pile↔path; the eyebrow gets its OWN larger gap below (it must clear
+     the pile's upward fan, which otherwise covers the name). */
+  gap: clamp(16px, 2.4vh, 28px);
+  transform: scale(0.92);
+  opacity: 0;
+  transition:
+    transform 0.46s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.42s ease;
+}
+.open .stage {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.eyebrow {
+  /* above the prints (same flat stacking context as the cards) AND held clear of
+     them, so the back prints' upward fan never covers the name. */
+  position: relative;
+  z-index: 50;
+  margin-bottom: clamp(32px, 5.5vh, 72px);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(16px, 1.9vw, 23px);
+  letter-spacing: 0.01em;
+  color: var(--color-gold-soft);
+}
+
+/* ---- The expanded pile (a larger sibling of the rail's bolo) ------------- */
+
+.pile {
+  position: relative;
+  /* fits the viewport leaving room for the eyebrow + the path below */
+  width: min(80vw, calc(56svh * 5 / 6));
+  aspect-ratio: 5 / 6;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  overflow: visible;
+  -webkit-tap-highlight-color: transparent;
+}
+.pile:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-gold-soft) 80%, transparent);
+  outline-offset: 10px;
+  border-radius: 10px;
+}
+
+.card {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 5.5% 5.5% 16%; /* polaroid frame, deeper at the bottom */
+  background: #fbfaf5;
+  border-radius: 8px;
+  box-shadow:
+    0 40px 80px -28px rgba(0, 0, 0, 0.6),
+    0 10px 26px -12px rgba(0, 0, 0, 0.5);
+  transform-origin: 50% 60%;
+  /* a touch wider fan than the rail so the back prints clearly peek the corners */
+  transform:
+    translate(calc(var(--d, 0) * 6.5%), calc(var(--d, 0) * -5.5%))
+    rotate(calc(-1.5deg + var(--d, 0) * 5.5deg))
+    scale(calc(1 - var(--d, 0) * 0.05));
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.cardPhoto {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #c4d1b8, #a3b896);
+}
+.cardPhoto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% var(--posy, 26%);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.printCaption {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 5.5%;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(11px, 1.1vw, 14px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 55%, transparent);
+  pointer-events: none;
+}
+
+.cardVeil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #06351a;
+  opacity: min(0.34, calc(var(--d, 0) * 0.17));
+  transition: opacity 0.7s ease;
+  pointer-events: none;
+}
+
+/* Top print lifts up-and-out, then arcs down to the back of the pile, dropping
+   below the others just past the peak (last frame mirrors the resting formula). */
+.flying {
+  animation: flyToBack 0.74s cubic-bezier(0.5, 0, 0.2, 1) both;
+}
+@keyframes flyToBack {
+  0% {
+    transform: translate(0, 0) rotate(-1.5deg) scale(1);
+    z-index: 40;
+  }
+  32% {
+    transform: translate(9%, -16%) rotate(7deg) scale(1.05);
+    z-index: 40;
+  }
+  56% {
+    z-index: 40;
+  }
+  57% {
+    z-index: 0;
+  }
+  100% {
+    transform:
+      translate(calc(var(--d, 0) * 6.5%), calc(var(--d, 0) * -5.5%))
+      rotate(calc(-1.5deg + var(--d, 0) * 5.5deg))
+      scale(calc(1 - var(--d, 0) * 0.05));
+    z-index: 0;
+  }
+}
+
+/* ---- The evolution path (line + one dot per print) ---------------------- */
+
+.progress {
+  width: min(80vw, calc(56svh * 5 / 6));
+  display: flex;
+  justify-content: center;
+}
+.track {
+  position: relative;
+  width: 80%;
+  height: 2px;
+  margin: 9px 0; /* room for the dots to sit centred on the line */
+  background: rgba(247, 246, 242, 0.22);
+  border-radius: 999px;
+}
+.fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: calc(var(--p, 0) * 100%);
+  background: var(--color-gold-soft);
+  border-radius: inherit;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dot {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--i, 0) * 100%);
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(247, 246, 242, 0.3);
+  cursor: pointer;
+  transform: translate(-50%, -50%) scale(1);
+  transition:
+    background 0.4s ease,
+    transform 0.4s ease;
+}
+.dotOn {
+  background: var(--color-gold-soft);
+}
+.dotCurrent {
+  transform: translate(-50%, -50%) scale(1.5);
+}
+.dot:hover {
+  transform: translate(-50%, -50%) scale(1.35);
+}
+.dotCurrent:hover {
+  transform: translate(-50%, -50%) scale(1.6);
+}
+.dot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-gold-soft) 45%, transparent);
+}
+
+@media (max-width: 760px) {
+  /* smaller on phones — driven by BOTH the width (vw) and the height (svh) so it
+     fits a short, narrow screen, and the back prints' rightward fan no longer
+     clips the viewport edge. */
+  .pile,
+  .progress {
+    width: min(66vw, calc(46svh * 5 / 6));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .open,
+  .stage,
+  .open .stage,
+  .card,
+  .cardVeil,
+  .fill,
+  .dot {
+    transition-duration: 0.01ms;
+  }
+  .flying {
+    animation: none;
+  }
+}
