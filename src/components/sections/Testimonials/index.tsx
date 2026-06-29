@@ -105,6 +105,14 @@ const REVIEW_COLUMNS = Array.from({ length: WALL_COLS }, (_, c) =>
   REVIEWS.filter((_, i) => i % WALL_COLS === c),
 );
 
+/** Per-card float rhythm: each review drifts on its OWN gentle vertical cycle
+ *  (an independent motion layered ON TOP of the collective rail pan), so the
+ *  wall breathes out of lockstep instead of waving in unison. Deliberately
+ *  irregular delays + slightly different durations keep the phases sliding
+ *  apart over time — calm, not mechanical. Indexed by a per-card seed. */
+const FLOAT_DELAYS = [-0.4, -3.1, -1.7, -4.8, -2.3, -5.6, -0.9, -3.8, -2.8];
+const FLOAT_DURS = [7.6, 8.4, 6.8, 7.9, 8.8, 7.1, 8.1, 6.6, 7.4];
+
 /** The pile of prints behind each case — a "bolo de polaroide" the visitor
  *  flips through. These are real, consented evolution shots; dates are invented
  *  test values, ordered oldest→newest so the pile reads as a timeline (the prints
@@ -505,9 +513,17 @@ function Quote({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Note({ review }: { review: Review }) {
+function Note({ review, seed }: { review: Review; seed: number }) {
   return (
-    <div className={styles.note}>
+    <div
+      className={styles.note}
+      style={
+        {
+          ["--float-delay"]: `${FLOAT_DELAYS[seed % FLOAT_DELAYS.length]}s`,
+          ["--float-dur"]: `${FLOAT_DURS[seed % FLOAT_DURS.length]}s`,
+        } as React.CSSProperties
+      }
+    >
       <span className={styles.noteHead}>
         <span className={styles.noteAvatar} aria-hidden="true">
           <AvatarGlyph />
@@ -780,7 +796,7 @@ export function TestimonialsSection() {
                 {REVIEW_COLUMNS.map((col, ci) => (
                   <div className={styles.notesCol} key={ci}>
                     {col.map((r, i) => (
-                      <Note key={i} review={r} />
+                      <Note key={i} review={r} seed={ci + i * WALL_COLS} />
                     ))}
                   </div>
                 ))}
