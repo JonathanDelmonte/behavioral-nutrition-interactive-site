@@ -568,10 +568,11 @@
   /* size to the wall's columns (the panel is a flex:0 0 auto piece), so a
      wider wall extends the rail rather than clipping */
   width: max-content;
-  /* top-aligned (not centered): the "avaliações" label stays pinned safely at
-     the top on every viewport, and the taller wall grows DOWNWARD into the
-     bottom fade instead of clipping the label on short screens */
-  align-self: flex-start;
+  /* Centered as a whole — the "avaliações" label + its card wall ride the band's
+     vertical center like every other piece on the rail. The wall is capped to the
+     band height (see .notesWall) so on short viewports it yields into its own
+     bottom fade rather than pushing the label out of the centered block. */
+  align-self: center;
 }
 .notesEyebrow {
   display: block;
@@ -591,6 +592,11 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  /* Never taller than the rail band (minus the eyebrow), so centering the panel
+     can't push the "avaliações" label above the pinned stage on short viewports;
+     instead the wall yields its lowest cards into the bottom fade below. */
+  max-height: calc(clamp(480px, 78vh, 660px) - 60px);
+  overflow: hidden;
   /* fade the top AND bottom edges into the green — the reference's immersive
      "the wall continues past the frame" feel, and it makes any vertical
      overflow on short viewports read as intentional rather than clipped */
