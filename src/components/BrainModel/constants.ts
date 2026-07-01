@@ -7,7 +7,12 @@ export const MODEL_PATH = `${BASE_PATH}/models/v7_sweetspot.glb`;
 // treatment as the GLB above: a raw "/hdri/..." resolves to the domain root and
 // 404s on GitHub Pages (which serves under "/<repo>/"), and a failed Environment
 // load throws and takes the whole 3D scene down with it (brain disappears).
-export const HDRI_PATH = `${BASE_PATH}/hdri/studio_small_03_1k.hdr`;
+// 512×256 downsample of studio_small_03_1k (original kept in art-source/hdri/,
+// regenerate with scripts/downsample-hdri.mjs): PMREM reduces any equirect to a
+// tiny prefiltered cube anyway, and this studio light is all soft boxes — the
+// 1k file spent 1.7 MB (the page's single heaviest asset) on detail the
+// renderer never resolved.
+export const HDRI_PATH = `${BASE_PATH}/hdri/studio_small_03_512.hdr`;
 // Draco decoder, self-hosted from /public (copied out of three's examples —
 // see scripts/copy-draco.mjs). It used to come from the gstatic CDN, which put
 // a third-party DNS+TLS handshake on the critical path of the brain's first
