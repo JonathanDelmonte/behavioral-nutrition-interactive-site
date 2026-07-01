@@ -756,4 +756,7 @@ export function rayUnitSphereHit(
   return out;
 }
 
-useGLTF.preload(MODEL_PATH, DRACO_DECODER_PATH);
+// NO useGLTF.preload here on purpose: a module-scope preload fires the moment
+// this chunk evaluates — BEFORE the boot primer has seeded THREE.Cache — which
+// would start the very duplicate GLB download the primer exists to prevent.
+// The load starts (from cache) as soon as usePrimeGate() lets <Scene> render.

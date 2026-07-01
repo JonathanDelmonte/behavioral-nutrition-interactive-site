@@ -8,6 +8,7 @@ import { Lighting } from "./Lighting";
 import { BrainGroup, rayUnitSphereHit } from "./BrainGroup";
 import { CameraTarget } from "./Debug";
 import { useBrainState } from "./BrainContext";
+import { usePrimeGate } from "./primeGate";
 import { ANIMATION, HDRI_PATH, type BrainPlacement } from "./constants";
 
 interface SceneProps {
@@ -27,6 +28,10 @@ interface SceneProps {
  * 3D object floating against a clean white page, not "viewed inside a 3D editor".
  */
 export function Scene({ scale, position, progressRef, placementRef }: SceneProps) {
+  // Suspend until the boot primer has seeded THREE.Cache with the GLB/HDRI/
+  // draco bytes — rendering any earlier would let the loaders below race the
+  // primer and re-download the same megabytes (see primeGate.ts).
+  usePrimeGate();
   // Shared with MobileTap so a phone tap raycasts against the brain composition
   // ONLY (not lights / camera target).
   const brainGroupRef = useRef<Group>(null!);

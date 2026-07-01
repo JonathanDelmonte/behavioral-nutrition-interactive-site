@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useGLTF } from "@react-three/drei";
 import {
@@ -22,6 +22,7 @@ import {
   HDRI_PATH,
   MODEL_PATH,
 } from "@/components/BrainModel/constants";
+import { usePrimeGate } from "@/components/BrainModel/primeGate";
 
 /**
  * Zero-gravity fruit field for the final CTA — the fruits that flew off the
@@ -751,9 +752,22 @@ export default function FruitField({ active, reduce, pointer }: FieldProps) {
       <directionalLight position={[-3, 4, 4]} intensity={1.15} color="#ffe9c0" />
       <directionalLight position={[3, -1.5, 2]} intensity={0.25} color="#ffffff" />
       <Suspense fallback={null}>
-        <Environment files={HDRI_PATH} />
-        <Field reduce={reduce} pointer={pointer} />
+        <Primed>
+          <Environment files={HDRI_PATH} />
+          <Field reduce={reduce} pointer={pointer} />
+        </Primed>
       </Suspense>
     </Canvas>
   );
+}
+
+/** Holds Environment/Field back until the boot primer has seeded THREE.Cache
+ *  with the shared GLB + HDRI. This canvas mounts at page load (frameloop off
+ *  until the section nears), so WITHOUT the gate its loaders would race the
+ *  primer and re-download the same files. Must WRAP the loading components:
+ *  React 18 keeps rendering the siblings of a suspended component, so a
+ *  suspending sibling wouldn't stop their fetches. */
+function Primed({ children }: { children: ReactNode }) {
+  usePrimeGate();
+  return <>{children}</>;
 }

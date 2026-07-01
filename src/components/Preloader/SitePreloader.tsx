@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MODEL_PATH, HDRI_PATH } from "@/components/BrainModel/constants";
+import {
+  onPrimerProgress,
+  startAssetPrimer,
+} from "@/lib/assetPrimer";
+import { loadYouTubeIframeAPI } from "@/components/video/youtube";
 import { markAppReady } from "./preloadSignal";
 import styles from "./SitePreloader.module.css";
 
@@ -9,21 +13,41 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const LOGO_SRC = `${BASE_PATH}/images/hero/logo.webp`;
 
 /**
- * The heavy first-screen assets the loading screen waits on (the client's pick):
- * the 3D brain mesh, its HDRI lighting, the logo, and the Hero→Identify vine
- * seam. Everything below the fold (the About photos/video, etc.) is intentionally
- * NOT here — it streams in as the visitor scrolls, so it never lengthens the boot.
+ * First-screen images the loading screen streams itself: the logo and the
+ * Hero→Identify vine seam. The HEAVY 3D assets (GLB, HDRI, draco decoder) are
+ * NOT fetched here anymore — they go through the shared asset primer
+ * (src/lib/assetPrimer.ts), which downloads them exactly once and hands the
+ * bytes to the three.js loaders. The old design fetched them here AND let the
+ * loaders re-download them, doubling ~3 MB at the worst possible moment.
  */
-const ASSETS = [
-  MODEL_PATH,
-  HDRI_PATH,
-  LOGO_SRC,
-  `${BASE_PATH}/images/hero/vine-divider.webp`,
+const LOCAL_ASSETS = [LOGO_SRC, `${BASE_PATH}/images/hero/vine-divider.webp`];
+
+/**
+ * Below-the-fold heavies warmed AFTER the reveal, while the visitor reads the
+ * Hero: the About spread and the testimonial polaroids (paths mirror
+ * sections/About and sections/Testimonials). Loaded one at a time at low
+ * priority so they never compete with anything interactive — by the time the
+ * visitor scrolls down, they're already in cache instead of popping in late.
+ */
+const WARM_IMAGES = [
+  `${BASE_PATH}/images/about/pond.webp`,
+  `${BASE_PATH}/images/about/vines.webp`,
+  `${BASE_PATH}/images/about/juliana.webp`,
+  `${BASE_PATH}/images/testimonials/mariana-1.webp`,
+  `${BASE_PATH}/images/testimonials/mariana-2.webp`,
+  `${BASE_PATH}/images/testimonials/mariana-3.webp`,
+  `${BASE_PATH}/images/testimonials/caue-1.webp`,
+  `${BASE_PATH}/images/testimonials/caue-2.webp`,
+  `${BASE_PATH}/images/testimonials/caue-3.webp`,
 ];
 
 const MIN_VISIBLE_MS = 600; // don't flash when assets are already cached
 const GRACE_AFTER_BYTES = 1200; // reveal even if brain:ready somehow never fires
 const HARD_CAP_MS = 9000; // never trap the visitor, even on a failed asset
+
+/** Share of the progress bar owned by the small local images vs the primer's
+ *  ~2 MB of 3D assets. Byte-weighted roughly (260 KB vs 2 MB). */
+const LOCAL_WEIGHT = 0.12;
 
 /**
  * Streams `urls`, reporting overall 0..1 progress by bytes — falling back to a
@@ -68,6 +92,31 @@ async function loadWithProgress(urls: string[], onProgress: (p: number) => void)
   onProgress(1);
 }
 
+/**
+ * Post-reveal cache warmer: below-fold images one at a time at low priority,
+ * then the YouTube IFrame API script — so the testimonial players (and the
+ * lightbox) boot instantly instead of cold-loading when the visitor arrives.
+ * Runs during idle time; a hidden tab just warms a little later.
+ */
+function warmBelowTheFold() {
+  let i = 0;
+  const next = () => {
+    if (i >= WARM_IMAGES.length) {
+      loadYouTubeIframeAPI().catch(() => {
+        /* offline — the tiles load it again on demand */
+      });
+      return;
+    }
+    const img = new Image();
+    img.fetchPriority = "low";
+    img.decoding = "async";
+    img.onload = next;
+    img.onerror = next;
+    img.src = WARM_IMAGES[i++];
+  };
+  next();
+}
+
 export function SitePreloader() {
   const [progress, setProgress] = useState(0);
   const [leaving, setLeaving] = useState(false);
@@ -80,18 +129,34 @@ export function SitePreloader() {
 
   // Readiness gate plumbing (refs so the shared `finish` always reads fresh).
   const doneRef = useRef(false);
-  const bytesDoneRef = useRef(false);
+  const localDoneRef = useRef(false);
+  const primerDoneRef = useRef(false);
+  const fontsReadyRef = useRef(false);
   const brainReadyRef = useRef(false);
   const minElapsedRef = useRef(false);
   const graceStartedRef = useRef(false);
   const graceElapsedRef = useRef(false);
 
+  // Two progress sources merged into one bar (refs so either callback can
+  // recompute the blend without racing React state).
+  const localFracRef = useRef(0);
+  const primerFracRef = useRef(0);
+
   useEffect(() => {
     let graceTimer: number | undefined;
 
+    const blend = () => {
+      setProgress(
+        localFracRef.current * LOCAL_WEIGHT +
+          primerFracRef.current * (1 - LOCAL_WEIGHT),
+      );
+    };
+
     const finish = () => {
       if (doneRef.current) return;
-      if (!minElapsedRef.current || !bytesDoneRef.current) return;
+      if (!minElapsedRef.current) return;
+      if (!localDoneRef.current || !primerDoneRef.current) return;
+      if (!fontsReadyRef.current) return;
       // Bytes are down; wait for the brain to actually paint (brain:ready) or a
       // short grace, so the Hero never reveals with a hole where the brain goes.
       if (!brainReadyRef.current && !graceElapsedRef.current) {
@@ -124,13 +189,43 @@ export function SitePreloader() {
 
     const capTimer = window.setTimeout(() => {
       minElapsedRef.current = true;
-      bytesDoneRef.current = true;
+      localDoneRef.current = true;
+      primerDoneRef.current = true;
+      fontsReadyRef.current = true;
       brainReadyRef.current = true;
       finish();
     }, HARD_CAP_MS);
 
-    loadWithProgress(ASSETS, setProgress).then(() => {
-      bytesDoneRef.current = true;
+    // The heavy 3D assets — one shared download, byte progress for the bar.
+    startAssetPrimer();
+    const unsubscribe = onPrimerProgress((p) => {
+      primerFracRef.current = p.settled
+        ? 1
+        : p.total > 0
+          ? Math.min(1, p.loaded / p.total)
+          : p.fraction;
+      blend();
+      if (p.settled && !primerDoneRef.current) {
+        primerDoneRef.current = true;
+        finish();
+      }
+    });
+
+    // The small first-screen images.
+    loadWithProgress(LOCAL_ASSETS, (p) => {
+      localFracRef.current = p;
+      blend();
+    }).then(() => {
+      localDoneRef.current = true;
+      finish();
+    });
+
+    // Fonts: they're tiny, local and preloaded by next/font, but revealing
+    // before they land let the swap reflow the page under the visitor (and
+    // shift the brain's slot measurements). document.fonts.ready resolves once
+    // the faces requested by the first paint are done.
+    document.fonts.ready.then(() => {
+      fontsReadyRef.current = true;
       finish();
     });
 
@@ -139,19 +234,31 @@ export function SitePreloader() {
       window.clearTimeout(minTimer);
       window.clearTimeout(capTimer);
       if (graceTimer != null) window.clearTimeout(graceTimer);
+      unsubscribe();
     };
   }, []);
 
   // Starting to leave: this render has dropped the scroll lock. Once it commits,
   // hand off so ScrollRestoration re-asserts the saved position. A fallback timer
-  // unmounts even if the opacity transitionend somehow doesn't fire.
+  // unmounts even if the opacity transitionend somehow doesn't fire. The idle
+  // callback warms the below-fold heavies now that the boot bytes are through.
   useEffect(() => {
     if (!leaving) return;
     const raf = requestAnimationFrame(() => markAppReady());
     const fallback = window.setTimeout(() => setMounted(false), 900);
+    let idleId: number | undefined;
+    let idleTimer: number | undefined;
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(warmBelowTheFold, { timeout: 4000 });
+    } else {
+      // Safari still lacks requestIdleCallback.
+      idleTimer = window.setTimeout(warmBelowTheFold, 1500);
+    }
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(fallback);
+      if (idleId != null) window.cancelIdleCallback?.(idleId);
+      if (idleTimer != null) window.clearTimeout(idleTimer);
     };
   }, [leaving]);
 

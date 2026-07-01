@@ -20,6 +20,26 @@ export const HDRI_PATH = `${BASE_PATH}/hdri/studio_small_03_512.hdr`;
 export const DRACO_DECODER_PATH = `${BASE_PATH}/draco/`;
 
 /**
+ * Everything the brain needs before it can paint, in the exact shape the
+ * three.js FileLoader cache wants it. The boot primer (src/lib/assetPrimer.ts)
+ * streams these ONCE with byte progress for the loading screen, and the 3D
+ * scenes seed THREE.Cache from the results (BrainModel/primeGate.ts) — so the
+ * GLTF/RGBE/DRACO loaders get instant cache hits instead of re-downloading
+ * the same megabytes a second time. `type` must mirror the responseType each
+ * loader asks FileLoader for (text for the draco JS wrapper, arraybuffer for
+ * the rest) — a mismatch would hand the loader the wrong data shape.
+ */
+export const PRIME_ASSETS: ReadonlyArray<{
+  url: string;
+  type: "arraybuffer" | "text";
+}> = [
+  { url: MODEL_PATH, type: "arraybuffer" },
+  { url: HDRI_PATH, type: "arraybuffer" },
+  { url: `${DRACO_DECODER_PATH}draco_wasm_wrapper.js`, type: "text" },
+  { url: `${DRACO_DECODER_PATH}draco_decoder.wasm`, type: "arraybuffer" },
+];
+
+/**
  * Camera for the brain Canvas. Exported as a single source of truth so a
  * page-side mount (BrainStage) can build an OFF-canvas mirror of the exact same
  * projection — that lets it map a viewport-pixel target rect into a world-space
