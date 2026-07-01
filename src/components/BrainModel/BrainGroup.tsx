@@ -351,15 +351,35 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
     // brain mass-on-a-spring behavior — momentum carries it slightly past the
     // target, then it eases back. Tuned just below critical damping so the
     // overshoot is barely perceptible but reads as "alive".
+    //
+    // The explicit integration is only CONDITIONALLY stable: with k=70/c=14 a
+    // single step much past ~150ms overshoots the target and GAINS energy, and
+    // successive long frames compound that into the brain rocketing off-screen,
+    // pitching over and scaling wildly (this spring writes position, rotation
+    // AND scale). Long steps are exactly what weak phones deliver — ~100ms
+    // frames while scrolling, GC/decode hitches far beyond that — and coming
+    // back from a backgrounded tab hands rAF a delta of SECONDS. So: integrate
+    // in substeps capped at MAX_H (unconditionally stable for these constants,
+    // same protection every other physics loop in the repo already has) and
+    // drop any time beyond MAX_FRAME, so after a stall the wobble resumes
+    // gently instead of fast-forwarding through the gap.
+    const MAX_H = 1 / 40;
+    const MAX_FRAME = 0.1;
+    const clampedDt = Math.min(dt, MAX_FRAME);
+    const steps = Math.max(1, Math.ceil(clampedDt / MAX_H));
+    const h = clampedDt / steps;
     const s = impactState.current;
     const k = ANIMATION.impact.stiffness;
     const c = ANIMATION.impact.damping;
     const springStep = (
       cur: number, vel: number, tgt: number,
     ): [number, number] => {
-      const force = -k * (cur - tgt) - c * vel;
-      const newVel = vel + force * dt;
-      return [cur + newVel * dt, newVel];
+      for (let i = 0; i < steps; i++) {
+        const force = -k * (cur - tgt) - c * vel;
+        vel += force * h;
+        cur += vel * h;
+      }
+      return [cur, vel];
     };
     [s.dx, s.dxV] = springStep(s.dx, s.dxV, dxTarget);
     [s.dy, s.dyV] = springStep(s.dy, s.dyV, dyTarget);
