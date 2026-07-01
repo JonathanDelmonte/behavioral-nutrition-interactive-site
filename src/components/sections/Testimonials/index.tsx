@@ -522,7 +522,7 @@ function Quote({ children }: { children: React.ReactNode }) {
 function Note({ review, seed }: { review: Review; seed: number }) {
   return (
     <div
-      className={styles.note}
+      className={styles.noteFloat}
       style={
         {
           ["--float-delay"]: `${FLOAT_DELAYS[seed % FLOAT_DELAYS.length]}s`,
@@ -530,18 +530,20 @@ function Note({ review, seed }: { review: Review; seed: number }) {
         } as React.CSSProperties
       }
     >
-      <span className={styles.noteHead}>
-        <span className={styles.noteAvatar} aria-hidden="true">
-          <AvatarGlyph />
+      <div className={styles.note}>
+        <span className={styles.noteHead}>
+          <span className={styles.noteAvatar} aria-hidden="true">
+            <AvatarGlyph />
+          </span>
+          <span className={styles.noteByline}>
+            <span className={styles.noteName}>{review.name}</span>
+            {review.handle ? (
+              <span className={styles.noteHandle}>{review.handle}</span>
+            ) : null}
+          </span>
         </span>
-        <span className={styles.noteByline}>
-          <span className={styles.noteName}>{review.name}</span>
-          {review.handle ? (
-            <span className={styles.noteHandle}>{review.handle}</span>
-          ) : null}
-        </span>
-      </span>
-      <p className={styles.noteText}>{review.text}</p>
+        <p className={styles.noteText}>{review.text}</p>
+      </div>
     </div>
   );
 }

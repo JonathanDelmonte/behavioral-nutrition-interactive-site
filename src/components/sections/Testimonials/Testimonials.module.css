@@ -610,21 +610,32 @@
   width: clamp(246px, 21vw, 288px);
 }
 
-/* Registered so the hover lift can TRANSITION smoothly even though it lives
-   inside the float keyframe's transform (a plain custom prop would snap). Where
-   @property isn't supported it falls back to the 0px initial and just snaps —
-   harmless. */
+/* Registered so the hover lift + press scale TRANSITION smoothly (an unregistered
+   custom prop would snap). CRUCIAL: these vars are read by .note's PLAIN transform,
+   never inside @keyframes — a registered var referenced inside a running keyframe
+   gets pinned to its initial value (Chrome), which silently killed the earlier
+   "fold it all into one keyframe" approach. So the float (keyframe, literal values)
+   lives on the .noteFloat WRAPPER and the interactive lift/press (plain, var-driven)
+   lives on .note; the two compose by nesting. */
 @property --note-lift {
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
 }
-/* The press scale, likewise folded into the float keyframe so a click dips the
-   card without clobbering the drift. Registered as a number so it can spring. */
 @property --note-press {
   syntax: "<number>";
   inherits: false;
   initial-value: 1;
+}
+
+/* Wrapper: the gentle, independent idle drift only. Delay + duration are set
+   per-card in React so the wall breathes out of lockstep. Literal keyframe
+   values (no var) so it animates reliably; it moves the whole card while .note
+   layers the lift/press on top. */
+.noteFloat {
+  animation: noteFloat var(--float-dur, 7.5s) ease-in-out var(--float-delay, 0s)
+    infinite;
+  will-change: transform;
 }
 
 .note {
@@ -646,17 +657,19 @@
   );
   border: 1px solid rgba(247, 246, 242, 0.1);
   box-shadow: inset 0 1px 0 rgba(247, 246, 242, 0.07);
-  /* Gentle, independent vertical drift — delay + duration are set per-card in
-     React so the wall breathes out of lockstep. The hover lift is folded into
-     the SAME transform via --note-lift (the keyframe's baseline), so the float
-     and the lift compose instead of clobbering each other. */
-  animation: noteFloat var(--float-dur, 7.5s) ease-in-out var(--float-delay, 0s)
-    infinite;
+  /* Hover lift + click press share ONE plain transform via these vars (so a
+     press while hovering keeps the lift AND dips). Drift comes from the wrapper. */
+  transform: translate3d(0, var(--note-lift, 0px), 0) scale(var(--note-press, 1));
+  /* NOTE the asymmetry: this base transition governs the RELEASE (returning to
+     rest), so --note-press blooms back slowly with overshoot. The press-IN is
+     overridden to be near-instant on :active below — otherwise a quick click
+     (which only holds :active ~100ms) never has time to dip before springing
+     back, and the whole effect reads as nothing happening. */
   transition:
-    --note-lift 0.45s cubic-bezier(0.2, 0.7, 0.2, 1),
+    --note-lift 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
     /* a touch of overshoot so the release BLOOMS back instead of just snapping
        up — the spring is what gives the click its charm */
-    --note-press 0.4s cubic-bezier(0.34, 1.45, 0.5, 1),
+    --note-press 0.52s cubic-bezier(0.34, 1.5, 0.5, 1),
     background 0.4s ease,
     border-color 0.4s ease;
 }
@@ -672,13 +685,20 @@
   z-index: 3;
 }
 /* The click reaction: the card presses IN (a soft scale dip + settles toward the
-   surface), the gold edge brightens, then on release the spring above lets it
-   bloom back up — elegant and tactile, not a flat shrink-and-grow. */
+   surface), the gold edge brightens, then on release the slow spring above lets
+   it bloom back up — elegant and tactile, not a flat shrink-and-grow. The
+   press-IN transition here is deliberately near-instant so the dip lands even on
+   a fast click; the slow bloom belongs to the base .note rule (the release). */
 .note:active {
-  --note-press: 0.955;
-  --note-lift: -1px;
+  --note-press: 0.95;
+  --note-lift: 0px;
   border-color: color-mix(in srgb, var(--color-gold-soft) 62%, transparent);
   z-index: 3;
+  transition:
+    --note-press 0.1s ease-out,
+    --note-lift 0.1s ease-out,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 .note::after {
   content: "”";
@@ -961,9 +981,13 @@
   .navArrow svg {
     animation: none;
   }
-  /* No idle float — the cards rest perfectly still. */
-  .note {
+  /* No idle float and no lift/press travel — the cards rest perfectly still
+     (the hover/press still warm the gold edge, just without motion). */
+  .noteFloat {
     animation: none;
+  }
+  .note {
+    transform: none;
   }
 }
 
@@ -984,16 +1008,10 @@
   50%      { transform: translateX(3px); }
 }
 
-/* The review cards' idle float: a ~6px peak-to-peak vertical drift around the
-   card's --note-lift baseline (0 at rest, -5px on hover). Subtle on purpose —
-   alive but calm, never a bounce. */
+/* The review cards' idle float: a ~6px peak-to-peak vertical drift on the
+   wrapper. Subtle on purpose — alive but calm, never a bounce. Literal values
+   only (see the note by @property --note-lift on why no var() goes in here). */
 @keyframes noteFloat {
-  0%, 100% {
-    transform: translate3d(0, calc(var(--note-lift, 0px) + 3px), 0)
-      scale(var(--note-press, 1));
-  }
-  50% {
-    transform: translate3d(0, calc(var(--note-lift, 0px) - 3px), 0)
-      scale(var(--note-press, 1));
-  }
+  0%, 100% { transform: translate3d(0, 3px, 0); }
+  50%      { transform: translate3d(0, -3px, 0); }
 }
