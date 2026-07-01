@@ -87,6 +87,14 @@ export function BrainStage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const lastInteractive = useRef(true);
+  // Whether the brain's footprint is anywhere near the viewport. When it isn't
+  // (reader deep in the sections below Identify), the R3F frameloop is paused
+  // entirely — a full-viewport render + composer pass every frame was the
+  // page's single biggest GPU cost, burning fps/battery behind content the
+  // brain isn't even part of. Ref mirrors the state so the per-frame loop only
+  // touches React on an actual transition.
+  const [stageActive, setStageActive] = useState(true);
+  const stageActiveRef = useRef(true);
 
   // Mutable mirrors of state for the scroll loop, whose effect closes over
   // [sortedSlots] only (so it isn't torn down/rebuilt on every resize tick).
@@ -221,6 +229,20 @@ export function BrainStage() {
 
       if (!nextFrame) return;
 
+      // Frameloop gate: keep rendering while the brain is within half a
+      // viewport of the screen (generous margin so the ground glow, the fruit
+      // fly-out and fast scrolling never catch a paused canvas), pause it once
+      // the footprint is clearly gone. Scrolling back re-arms it a whole
+      // half-viewport before anything is visible again.
+      const vh = window.innerHeight;
+      const nearViewport =
+        nextFrame.top + nextFrame.height > -vh / 2 &&
+        nextFrame.top < vh * 1.5;
+      if (stageActiveRef.current !== nearViewport) {
+        stageActiveRef.current = nearViewport;
+        setStageActive(nearViewport);
+      }
+
       // Desktop only: drive a world placement so the canvas can be full-viewport.
       if (oversizeRef.current) writePlacement(nextFrame);
 
@@ -329,6 +351,24 @@ export function BrainStage() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  // Hand React the SAME element between renders unless a real input changed.
+  // setFrame fires every animation frame during travel (the ground glow tracks
+  // the brain), and without this each of those re-renders reconciled the whole
+  // R3F tree inside <Canvas> — pure CPU overhead stacked on top of the descent,
+  // exactly when weak devices are already struggling. The refs are stable, so
+  // the element only changes on breakpoint/visibility transitions.
+  const brainEl = useMemo(
+    () => (
+      <BrainModel
+        scale={scale}
+        active={stageActive}
+        progressRef={progressRef}
+        placementRef={oversize ? placementRef : undefined}
+      />
+    ),
+    [scale, oversize, stageActive],
+  );
+
   if (!frame) return null;
 
   // Ground glow under the brain — its own frame-sized box, so it stays anchored
@@ -372,11 +412,7 @@ export function BrainStage() {
         style={stageStyle}
       >
         <div ref={canvasWrapRef} className={styles.canvas}>
-          <BrainModel
-            scale={scale}
-            progressRef={progressRef}
-            placementRef={oversize ? placementRef : undefined}
-          />
+          {brainEl}
         </div>
       </div>
     </>

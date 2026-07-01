@@ -1,5 +1,6 @@
 "use client";
 
+import { PerformanceMonitor } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import {
   Bloom,
@@ -7,7 +8,7 @@ import {
   EffectComposer,
   HueSaturation,
 } from "@react-three/postprocessing";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { BrainStateProvider, type BrainIntensity } from "./BrainContext";
 import { Scene } from "./Scene";
@@ -45,9 +46,47 @@ export interface BrainModelProps {
   placementRef?: { current: BrainPlacement | null };
   /** Optional CSS class for the wrapping <div>. Defaults to filling its parent. */
   className?: string;
+  /**
+   * Render gate. While false the Canvas frameloop is fully paused ("never") —
+   * no scene render, no composer passes, no useFrame work. The host flips this
+   * off when the brain is far outside the viewport (deep page sections), where
+   * a full-viewport render every frame was pure waste. Defaults to true.
+   */
+  active?: boolean;
 }
 
 const DEFAULT_INTENSITY: BrainIntensity = { idle: 1, magnetism: 1, hover: 1 };
+
+/**
+ * Progressive quality tiers for weak GPUs (older phones, budget laptops).
+ * Tier 0 is the exact previous fixed configuration — strong devices never leave
+ * it and render pixel-identical to before. When PerformanceMonitor reports a
+ * sustained low frame rate the tier ratchets DOWN (never back up, so it can't
+ * oscillate), cutting the two dominant fill-rate costs: device-pixel ratio
+ * (pixel count scales with its square) and the composer's MSAA buffer.
+ * `dprCap` is applied as dpr=[1, cap], so a dpr-1 desktop is never upscaled.
+ */
+const QUALITY_TIERS: { dprCap: number; multisampling: number }[] = [
+  { dprCap: 2, multisampling: 8 },
+  { dprCap: 1.5, multisampling: 2 },
+  { dprCap: 1, multisampling: 0 },
+];
+
+/**
+ * Mounts the fps watchdog only after the scene has settled: it lives inside
+ * the <Suspense> (assets loaded) and further arms itself a few seconds later,
+ * so the shader-compile / first-paint jank of a NORMAL load never counts as
+ * "this device is slow" and degrades a perfectly capable machine.
+ */
+function AdaptiveQuality({ onDecline }: { onDecline: () => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setArmed(true), 3000);
+    return () => clearTimeout(id);
+  }, []);
+  if (!armed) return null;
+  return <PerformanceMonitor onDecline={onDecline} />;
+}
 
 /**
  * Fires `brain:ready` once — and sets a window flag for late listeners. Because
@@ -78,14 +117,18 @@ export function BrainModel({
   progressRef,
   placementRef,
   className,
+  active = true,
 }: BrainModelProps) {
   const merged: BrainIntensity = { ...DEFAULT_INTENSITY, ...intensity };
+  const [tier, setTier] = useState(0);
+  const quality = QUALITY_TIERS[tier];
 
   return (
     <div className={className ?? "w-full h-full"}>
       <Canvas
         shadows
-        dpr={[1, 2]}
+        frameloop={active ? "always" : "never"}
+        dpr={[1, quality.dprCap]}
         camera={{
           position: CAMERA.position,
           fov: CAMERA.fov,
@@ -95,6 +138,7 @@ export function BrainModel({
         gl={{
           antialias: true,
           alpha: true,
+          powerPreference: "high-performance",
           toneMapping: ACESFilmicToneMapping,
           toneMappingExposure: 1.18,
           outputColorSpace: SRGBColorSpace,
@@ -117,13 +161,18 @@ export function BrainModel({
           <ErrorBoundary>
             <Suspense fallback={<LoaderCube />}>
               <ReadySignal />
+              <AdaptiveQuality
+                onDecline={() =>
+                  setTier((t) => Math.min(QUALITY_TIERS.length - 1, t + 1))
+                }
+              />
               <Scene
                 scale={scale}
                 position={position}
                 progressRef={progressRef}
                 placementRef={placementRef}
               />
-              <EffectComposer>
+              <EffectComposer multisampling={quality.multisampling}>
                 <HueSaturation hue={0} saturation={0.4} />
                 <BrightnessContrast brightness={0.04} contrast={0.2} />
                 <Bloom
