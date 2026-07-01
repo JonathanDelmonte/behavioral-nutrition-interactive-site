@@ -597,18 +597,26 @@ export function AboutSection() {
         </h2>
         <div className={styles.prose}>
           <div className={styles.figure} ref={figureRef}>
+            {/* lazy: this spread is sections below the fold, and its two
+                heaviest files (~1.4 MB) used to download during boot, competing
+                with the brain's assets. The preloader warms them right after
+                the reveal, so by scroll-time they come straight from cache. */}
             <img
               className={styles.vines}
               src={VINES}
               alt=""
               aria-hidden="true"
               draggable={false}
+              loading="lazy"
+              decoding="async"
             />
             <div className={styles.portrait} ref={portraitRef}>
               <img
                 src={PORTRAIT}
                 alt="Juliana Delmonte, nutricionista, sorrindo"
                 draggable={false}
+                loading="lazy"
+                decoding="async"
               />
             </div>
           </div>

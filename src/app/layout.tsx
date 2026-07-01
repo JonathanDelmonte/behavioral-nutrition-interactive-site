@@ -27,6 +27,16 @@ export default function RootLayout({
       className={`${fontSans.variable} ${fontSerif.variable} ${fontScript.variable} ${fontQuestion.variable}`}
     >
       <body>
+        {/* Warm the connections the YouTube embeds will need (React hoists
+            these into <head>). The testimonial loops + lightbox pull the
+            player from www.youtube.com and its thumbnails/telemetry from the
+            others — preconnecting shaves the DNS+TLS round-trips off the
+            first player boot. The media streams themselves come from
+            per-session googlevideo hosts that can't be preconnected. */}
+        <link rel="preconnect" href="https://www.youtube.com" />
+        <link rel="preconnect" href="https://i.ytimg.com" />
+        <link rel="preconnect" href="https://www.google.com" />
+        <link rel="dns-prefetch" href="https://static.doubleclick.net" />
         {/* VideoLightboxProvider wraps the header AND the page so both share one
             video-viewer state: the Testimonials tiles open it, and the header's
             hamburger reads it to morph into an X that closes the playing video. */}

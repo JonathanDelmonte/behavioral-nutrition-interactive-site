@@ -338,10 +338,16 @@ function VideoTile({
   // needs to come back.
   const [revealed, setRevealed] = useState(false);
 
-  // Lazy-mount the loop the first time the tile nears the viewport, then stop
-  // observing — once it's playing it just keeps going. Skip entirely for
-  // reduced-motion (the poster stays as a still; the click still opens the
-  // lightbox).
+  // Lazy-mount the loop the first time the SECTION nears the viewport
+  // vertically, then stop observing — once it's playing it just keeps going.
+  // Observing the tile itself fired far too late: the tile sits viewports away
+  // HORIZONTALLY inside the scrolljacked rail, so it only intersected once the
+  // visitor had already panned next to it — and then sat through the player's
+  // multi-second cold boot. Keying off the section (with a generous vertical
+  // margin) starts that boot while the visitor is still a section or two
+  // above, so the loop is already playing when the rail reaches it. Skip
+  // entirely for reduced-motion (the poster stays as a still; the click still
+  // opens the lightbox).
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -354,9 +360,9 @@ function VideoTile({
           io.disconnect();
         }
       },
-      { rootMargin: "400px" },
+      { rootMargin: "175% 0px" },
     );
-    io.observe(el);
+    io.observe(el.closest("section") ?? el);
     return () => io.disconnect();
   }, []);
 
@@ -739,6 +745,7 @@ export function TestimonialsSection() {
               src={VINE_DIVIDER}
               alt=""
               draggable={false}
+              loading="lazy"
             />
           ))}
         </div>
