@@ -8,8 +8,11 @@ export const MODEL_PATH = `${BASE_PATH}/models/v7_sweetspot.glb`;
 // 404s on GitHub Pages (which serves under "/<repo>/"), and a failed Environment
 // load throws and takes the whole 3D scene down with it (brain disappears).
 export const HDRI_PATH = `${BASE_PATH}/hdri/studio_small_03_1k.hdr`;
-export const DRACO_DECODER_PATH =
-  "https://www.gstatic.com/draco/versioned/decoders/1.5.6/";
+// Draco decoder, self-hosted from /public (copied out of three's examples —
+// see scripts/copy-draco.mjs). It used to come from the gstatic CDN, which put
+// a third-party DNS+TLS handshake on the critical path of the brain's first
+// paint; same-origin lets the boot primer below stream it alongside the GLB.
+export const DRACO_DECODER_PATH = `${BASE_PATH}/draco/`;
 
 /**
  * Camera for the brain Canvas. Exported as a single source of truth so a
