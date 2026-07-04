@@ -95,6 +95,20 @@ export function BrainStage() {
   // touches React on an actual transition.
   const [stageActive, setStageActive] = useState(true);
   const stageActiveRef = useRef(true);
+  // True while the header's ÍNDICE overlay veils the page (see Header.tsx).
+  // Folded into the frameloop gate below: nobody can see the brain behind the
+  // near-opaque sumário, and rendering it anyway competes with the overlay's
+  // fade for GPU time — reported as hitches/hangs when opening the menu.
+  const overlayVeilRef = useRef(false);
+  useEffect(() => {
+    const onOverlay = (e: Event) => {
+      overlayVeilRef.current = Boolean(
+        (e as CustomEvent<{ open?: boolean }>).detail?.open,
+      );
+    };
+    window.addEventListener("index-overlay", onOverlay);
+    return () => window.removeEventListener("index-overlay", onOverlay);
+  }, []);
 
   // Mutable mirrors of state for the scroll loop, whose effect closes over
   // [sortedSlots] only (so it isn't torn down/rebuilt on every resize tick).
@@ -232,15 +246,17 @@ export function BrainStage() {
       // Frameloop gate: keep rendering while the brain is within half a
       // viewport of the screen (generous margin so the ground glow, the fruit
       // fly-out and fast scrolling never catch a paused canvas), pause it once
-      // the footprint is clearly gone. Scrolling back re-arms it a whole
-      // half-viewport before anything is visible again.
+      // the footprint is clearly gone — or while the ÍNDICE overlay covers
+      // the page. Scrolling back (or closing the menu) re-arms it before
+      // anything is visible again.
       const vh = window.innerHeight;
       const nearViewport =
         nextFrame.top + nextFrame.height > -vh / 2 &&
         nextFrame.top < vh * 1.5;
-      if (stageActiveRef.current !== nearViewport) {
-        stageActiveRef.current = nearViewport;
-        setStageActive(nearViewport);
+      const stageOn = nearViewport && !overlayVeilRef.current;
+      if (stageActiveRef.current !== stageOn) {
+        stageActiveRef.current = stageOn;
+        setStageActive(stageOn);
       }
 
       // Desktop only: drive a world placement so the canvas can be full-viewport.

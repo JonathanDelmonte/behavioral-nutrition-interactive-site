@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./Header.module.css";
 import { Brandmark } from "@/components/brand/Brandmark";
 import { IndexOverlay } from "./IndexOverlay";
@@ -33,6 +33,17 @@ export function Header() {
   const { active: pile, close: closePile } = usePolaroidLightbox();
   const overlayOpen = video !== null || pile !== null;
   const showClose = open || overlayOpen;
+
+  // Tell the page-global BrainStage when the sumário veils the page, so it can
+  // pause the 3D canvas: the brain is invisible behind the (near-)opaque
+  // overlay, but kept rendering it competes with the overlay's own fade for
+  // GPU time — on some machines badly enough to hitch or even hang the tab.
+  // Scoped to the ÍNDICE overlay only: the video/polaroid lightboxes darken
+  // rather than cover, and they live in sections where the brain canvas is
+  // already parked off-screen (and therefore paused).
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("index-overlay", { detail: { open } }));
+  }, [open]);
 
   const handleClick = () => {
     if (video) {
