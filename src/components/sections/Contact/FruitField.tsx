@@ -49,16 +49,16 @@ import { usePrimeGate } from "@/components/BrainModel/primeGate";
  *      as the front passes (same interaction vocabulary as the brain's click
  *      ripple in the Hero), velocity-capped so nothing flies off.
  *
- * THE RING owns the field: fruits live in a soft annulus framing the copy,
- * drifting slowly around it. A depth-aware radial spring keeps them there —
- * firmly expelling anything that wanders into the central keep-out, gently
- * reeling escapees home from the edge over a couple of seconds (capped accel,
- * never a snap), and never letting one settle in the middle. The band feathers
- * OUTWARD (toward the screen edge), so the ring reads as a soft scatter, not a
- * drawn circle. A short-range tangential repulsion gives every fruit angular
- * personal space, so an arc the hand empties refills itself — the ring re-evens
- * instead of going bald where the cursor lingered. Tumble is capped and decays
- * to a calm idle rate.
+ * HOME ANCHORS own the field: every fruit remembers its birth spot and a
+ * gentle spring (dead-band + capped accel) reels it back there over a few
+ * seconds after any disturbance — approximately, never a pinned snap. Homes
+ * are scattered across a wide elliptical band around the copy, so the layout
+ * avoids the center WITHOUT reading as a drawn circle: there is no shared
+ * orbit around the screen center and no angular re-evening (both used to iron
+ * the field into a visible ring). Idle life is a slow private wander around
+ * each anchor. The central keep-out stays firm — a soft expulsion spring plus
+ * a hard wall guarantee nothing ever slides under the text. Tumble is capped
+ * and decays to a calm idle rate.
  *
  * The pointer arrives via a ref written by the section (the canvas itself is
  * pointer-events: none, so it can never swallow clicks). `active` gates the
@@ -100,8 +100,8 @@ const MAX_SPEED = 1.0; // hard ceiling on any fruit's speed
    within a few frames, and a big steer toward the hand's travel so a sweep drags
    a fluid wake along with it. The accel cap still forbids an instant snap. */
 const HAND_R = 2.8; // influence radius (world units) — reaches across the gap
-const HAND_FORCE = 5.0; // u/s² at the very center — builds motion fast
-const HAND_ACCEL_CAP = 4.5; // max |Δv|/s the hand can impose (the inertia)
+const HAND_FORCE = 5.6; // u/s² at the very center — builds motion fast
+const HAND_ACCEL_CAP = 5.2; // max |Δv|/s the hand can impose (the inertia)
 const HAND_RAMP = 4.5; // 1/s — influence fades in when the pointer (re)appears
 const DRIFT_BIAS = 0.7; // fraction of the push steered toward the hand's motion
 const HAND_DEPTH = 2.4; // |z| beyond which the hand stops touching fruit
@@ -111,24 +111,33 @@ const HAND_DEPTH = 2.4; // |z| beyond which the hand stops touching fruit
 const SEP_PAD = 1.12; // breathing room: fruits want ~12% gap between radii
 const SEP_FORCE = 1.5;
 
-/* RING SPREAD: fruits also repel each other ALONG the loop (tangentially), so
-   after the hand blows a hole in one arc the neighbours drift in to refill it —
-   the ring re-evens itself instead of leaving the hovered spot bare. Gentle and
-   short-range (a soft "personal space" in angle), it relaxes toward even
-   spacing over a couple of seconds — never a snapping lattice. */
-const SPREAD_FORCE = 0.16; // tangential push — gentle: refills big gaps without
-//                            ironing the ring into an even, "drawn" outline
-const SPREAD_RANGE = 0.7; // rad — angular reach of the repulsion (~40°)
+/* HOME — every fruit remembers where it was born. After the hand or a click
+   shoves it, a gentle spring reels it back toward its own spawn spot: a
+   dead-band lets it wander freely nearby (never pinned), and the capped accel
+   makes the return a slow drift over a few seconds — never a snap. Because
+   each home is a unique scattered point (not a shared loop), the field always
+   settles back into the SAME loose scatter instead of ironing itself into a
+   readable ring — and a hole the hand blows open refills itself, since its
+   residents drift back. */
+const HOME_K = 0.55; // 1/s² — pull stiffness beyond the free-wander zone
+const HOME_CAP = 0.6; // max homeward accel — soft magnet, returns in ~2–4 s
+const HOME_FREE = 0.45; // world units of free wander before the pull begins
 
-/* THE RING — the field's gravity. Fruits live in a soft annulus between TWO
-   CONCENTRIC ELLIPSES: the inner keep-out (the copy's island) and an outer
-   ellipse. BOTH are ellipses on purpose — the outer edge must NOT track the
-   rectangular screen box, or fruit pile into the corners and the "ring" turns
-   into a square. A radial spring with a wide dead-band owns motion: the inner
-   ellipse firmly EXPELS anything that drifts toward the copy, the outer ellipse
-   GENTLY reels escapees back over a couple of seconds (capped accel = a soft
-   magnet, never a snap). The band is wide, so fruit scatter across it at varied
-   radii — a soft oval cloud, felt rather than a hard-drawn circle. */
+/* Ambient wander — the idle life. Each fruit's cruise velocity is a slow,
+   private drift on two incommensurate sines, so the field breathes in place
+   around its anchors. (The old shared tangential orbit around the screen
+   center is gone — everything circling the middle was the loudest "this is a
+   ring" cue.) */
+
+/* THE BAND — where homes may live. Two CONCENTRIC ELLIPSES: the inner
+   keep-out (the copy's island) and an outer ellipse. BOTH are ellipses on
+   purpose — the outer edge must NOT track the rectangular screen box, or
+   fruit pile into the corners. Spawn scatters homes across the whole wide
+   band at varied radii, so the result is a soft oval cloud, felt rather than
+   a hard-drawn circle. At runtime the springs only act at the extremes: the
+   inner ellipse firmly EXPELS anything shoved toward the copy, the outer one
+   gently nudges escapees back on-screen (the home spring does the real
+   reeling). */
 const EXCL_AX = 0.32; // inner keep-out semi-axis, fraction of viewport width
 const EXCL_BY = 0.22; // inner keep-out semi-axis, fraction of viewport height — the
 //                       copy is SHORT, so this is small: a tight guard around the
@@ -141,18 +150,18 @@ const RING_HI = 1.0; // band outer edge — full span; the gentle outer spring s
 //                      lets a few stragglers drift a touch beyond (dispersed OUT)
 const RING_IN_K = 3.4; // 1/s² — central expulsion stiffness (firm; guards the copy)
 const RING_IN_CAP = 2.6; // max outward accel — firm but not violent
-const RING_OUT_K = 1.4; // 1/s² — homeward pull stiffness (gentle)
-const RING_OUT_CAP = 0.55; // max inward accel — the soft, slow magnet home
+const RING_OUT_K = 1.4; // 1/s² — outer-edge nudge stiffness (gentle safety)
+const RING_OUT_CAP = 0.55; // max inward accel — just keeps stragglers on-screen
 
 /* The click pressure ring — a real thump (the viscous medium swallows small
    impulses, so the front must hit clearly; MAX_SPEED still bounds it). */
-const WAVE_SPEED = 2.6; // world units/s — slow enough to read as a wave, not a snap
+const WAVE_SPEED = 3.0; // world units/s — still a wave, but it answers promptly
 const WAVE_WIDTH = 0.9;
-const WAVE_IMPULSE = 11; // dt-scaled at the front — a soft thump that reads cleanly
+const WAVE_IMPULSE = 14; // dt-scaled at the front — a clear, felt thump
 const WAVE_LIFE_S = 1.6;
-const CLICK_CAP = 0.62; // a click never flings a fruit faster than the ORIGINAL
-//                         field ceiling, so the ripple stays as soft as it was
-//                         before the hand got its bigger MAX_SPEED above.
+const CLICK_CAP = 0.85; // ceiling on click-flung speed — a franker kick than
+//                         before, still well under the field's MAX_SPEED, and
+//                         the home spring brings everything back anyway.
 
 /* Tumble. */
 const SPIN_CAP = 1.5; // rad/s per axis
@@ -187,11 +196,15 @@ interface FruitSim {
   r: number;
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
-  /** Cruise the velocity relaxes back to. bx/by are recomputed every frame as
-   *  the tangential drift AROUND the ring; bz is a slow idle z-bob. */
+  /** Cruise the velocity relaxes back to. bx/by are recomputed every frame
+   *  from the private wander sines; bz is a slow idle z-bob. */
   bx: number; by: number; bz: number;
-  /** Signed tangential speed — this fruit's share of the slow ring orbit. */
-  orbit: number;
+  /** Home anchor — the spawn spot the fruit drifts back toward. */
+  hx: number; hy: number; hz: number;
+  /** Private wander: cruise amplitude (u/s), frequencies (rad/s), phases. */
+  amp: number;
+  fqA: number; fqB: number;
+  phA: number; phB: number;
   /** Tumble rates (rad/s) and the spin-kick jitter axis. */
   wx: number; wy: number; wz: number;
   kx: number; ky: number; kz: number;
@@ -350,10 +363,12 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const visual = Math.max(0.2, base) * (0.85 + rng() * 0.4);
       const scale = visual / t.sizeW;
 
-      // STRATIFIED RING SPAWN: angles are evenly distributed (with jitter) and
-      // each fruit is born in the elliptical band between the inner keep-out and
-      // the OUTER ELLIPSE (never the screen rectangle — that's what squared the
-      // ring). Full occupancy, no birth clumps, headline clear, nothing inside.
+      // STRATIFIED SCATTER SPAWN: angles are evenly distributed (with a wide
+      // jitter, so spacing never reads metronomic) and each fruit is born in
+      // the elliptical band between the inner keep-out and the OUTER ELLIPSE
+      // (never the screen rectangle — that squares the cloud). Full coverage,
+      // no birth clumps, headline clear, nothing inside. This spawn spot IS
+      // the fruit's home anchor for the rest of the session.
       const z = -2.7 + rng() * 3.4;
       const dist = CAM_Z - z;
       const kz = dist / CAM_Z;
@@ -362,7 +377,7 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const eaOut = vw * RING_AX * kz;
       const ebOut = vh * RING_BY * kz;
 
-      const ang = ((j + 0.5) / n) * Math.PI * 2 + (rng() - 0.5) * 0.5;
+      const ang = ((j + 0.5) / n) * Math.PI * 2 + (rng() - 0.5) * 0.7;
       const ca = Math.cos(ang);
       const sa = Math.sin(ang);
       const rIn = 1 / Math.sqrt((ca / eaIn) ** 2 + (sa / ebIn) ** 2);
@@ -375,8 +390,12 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const x = ca * rad;
       const y = sa * rad;
 
-      // slow tangential drift around the ring (signed per fruit, ±)
-      const orbit = (0.035 + rng() * 0.045) * (rng() < 0.5 ? -1 : 1);
+      // private idle wander — slow, per-fruit, incommensurate frequencies
+      const amp = 0.035 + rng() * 0.03;
+      const fqA = 0.12 + rng() * 0.22;
+      const fqB = 0.12 + rng() * 0.22;
+      const phA = rng() * Math.PI * 2;
+      const phB = rng() * Math.PI * 2;
       const kLen = Math.hypot(rng() - 0.5, rng() - 0.5, rng() - 0.5) || 1;
 
       return {
@@ -384,13 +403,14 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
         scale,
         r: visual / 2,
         x, y, z,
-        vx: -sa * orbit,
-        vy: ca * orbit,
+        vx: Math.cos(phA) * amp,
+        vy: Math.sin(phB) * amp,
         vz: (rng() - 0.5) * 0.03,
-        bx: -sa * orbit,
-        by: ca * orbit,
+        bx: Math.cos(phA) * amp,
+        by: Math.sin(phB) * amp,
         bz: (rng() - 0.5) * 0.03,
-        orbit,
+        hx: x, hy: y, hz: z,
+        amp, fqA, fqB, phA, phB,
         wx: (rng() - 0.5) * 0.5,
         wy: (rng() - 0.5) * 0.5,
         wz: (rng() - 0.5) * 0.5,
@@ -407,11 +427,16 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
   /** Hand state: smoothed velocity (only its DIRECTION is used, for the sweep
    *  bias) and a presence ramp so influence fades in/out instead of popping. */
   const hand = useRef({ px: 0, py: 0, vx: 0, vy: 0, t: -1, ramp: 0 });
+  /** Sim clock for the wander sines — accumulates clamped dt, so frameloop
+   *  pauses (off-screen) never fast-forward the idle drift. */
+  const simT = useRef(0);
 
   useFrame((_state, dt0) => {
     if (reduce) return;
     const dt = Math.min(dt0, 1 / 30);
     if (dt <= 0) return;
+    simT.current += dt;
+    const tt = simT.current;
     const now = performance.now();
     const p = pointer.current;
 
@@ -476,34 +501,6 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
           A.x -= nx * ease; A.y -= ny * ease; A.z -= nz * ease;
           B.x += nx * ease; B.y += ny * ease; B.z += nz * ease;
         }
-      }
-    }
-
-    // ---- ring spread: fruits keep angular "personal space" so a hovered-out
-    // arc refills itself. A short-range tangential repulsion in PROJECTED ring
-    // angle: near-in-angle pairs push apart along the loop, balanced pairs
-    // cancel, so only the imbalance beside a gap produces net drift — the ring
-    // relaxes back to even spacing instead of leaving the bare spot bare.
-    const ringAng = sims.map((s) => Math.atan2(s.y, s.x));
-    for (let i = 0; i < sims.length; i++) {
-      const A = sims[i];
-      const ai = ringAng[i];
-      const sinI = Math.sin(ai);
-      const cosI = Math.cos(ai);
-      for (let j = i + 1; j < sims.length; j++) {
-        let dA = ai - ringAng[j];
-        if (dA > Math.PI) dA -= 2 * Math.PI;
-        else if (dA < -Math.PI) dA += 2 * Math.PI;
-        const adA = Math.abs(dA);
-        if (adA >= SPREAD_RANGE || adA < 1e-4) continue;
-        const w = (1 - adA / SPREAD_RANGE) ** 2;
-        const f = SPREAD_FORCE * w * dt * (dA > 0 ? 1 : -1);
-        // push i toward +tangent (increase its angle), j toward −tangent
-        A.vx += -sinI * f;
-        A.vy += cosI * f;
-        const B = sims[j];
-        B.vx -= -Math.sin(ringAng[j]) * f;
-        B.vy -= Math.cos(ringAng[j]) * f;
       }
     }
 
@@ -573,8 +570,8 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
           s.wx += s.kx * f * 1.4;
           s.wy += s.ky * f * 1.4;
           s.wz += s.kz * f * 1.4;
-          // Hold the click ripple to the original (gentle) ceiling, independent
-          // of the hand's larger MAX_SPEED — restores the click that read better.
+          // Hold the click ripple to its own ceiling, under the field's
+          // MAX_SPEED — a clear kick, and the home spring settles it back.
           const csp = Math.hypot(s.vx, s.vy);
           if (csp > CLICK_CAP) {
             const ck = CLICK_CAP / csp;
@@ -584,12 +581,11 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
         }
       }
 
-      // ---- THE RING: radial spring toward the home annulus -------------------
-      // Below the band → firmly EXPELLED outward (nothing floats in the middle);
-      // above it → GENTLY reeled back home. Both accels are capped, so the
-      // central keep-out is firm while the homeward magnet stays soft — a far
-      // escapee drifts back over a couple of seconds, never a snap. Inside the
-      // band there's no radial force at all: free float around the loop.
+      // ---- band extremes: guard cushion + outer safety ------------------------
+      // The soft springs only act at the edges of the band now — the inner
+      // ellipse EXPELS anything shoved toward the copy (firm; backed by the
+      // hard wall below), the outer one gently nudges far escapees back on-
+      // screen. Everything in between is free: the HOME spring owns returns.
       const distR = CAM_Z - s.z;
       const kzR = distR / CAM_Z;
       const eaIn = vw * EXCL_AX * kzR;
@@ -600,26 +596,40 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const ux = s.x / radR;
       const uy = s.y / radR;
       // Both bounds are ELLIPSES at this fruit's angle — never the screen
-      // rectangle, so the band stays oval and the corners stay empty.
+      // rectangle, so the cloud stays oval and the corners stay empty.
       const rIn = 1 / Math.hypot(ux / eaIn, uy / ebIn);
       const rOut = 1 / Math.hypot(ux / eaOut, uy / ebOut);
       const gapR = Math.max(0.001, rOut - rIn);
       const lo = rIn + gapR * RING_LO;
-      const hi = rIn + gapR * RING_HI;
       if (radR < lo) {
         const a = Math.min((lo - radR) * RING_IN_K, RING_IN_CAP);
         s.vx += ux * a * dt;
         s.vy += uy * a * dt;
-      } else if (radR > hi) {
-        const a = Math.min((radR - hi) * RING_OUT_K, RING_OUT_CAP);
+      } else if (radR > rOut) {
+        const a = Math.min((radR - rOut) * RING_OUT_K, RING_OUT_CAP);
         s.vx -= ux * a * dt;
         s.vy -= uy * a * dt;
       }
 
-      // The cruise the velocity relaxes toward IS the tangential orbit, so a
-      // settled fruit glides slowly AROUND the ring — never across the middle.
-      s.bx = -uy * s.orbit;
-      s.by = ux * s.orbit;
+      // ---- HOME: the soft magnet back to this fruit's own spawn spot ---------
+      // Dead-band so the idle wander is free near home; beyond it, a capped
+      // accel reels the fruit back over a few seconds — "roughly there", never
+      // a pinned snap. This is what makes a click read as disturb-and-settle.
+      const hdx = s.hx - s.x;
+      const hdy = s.hy - s.y;
+      const hdz = s.hz - s.z;
+      const hd = Math.hypot(hdx, hdy, hdz);
+      if (hd > HOME_FREE) {
+        const a = Math.min((hd - HOME_FREE) * HOME_K, HOME_CAP);
+        s.vx += (hdx / hd) * a * dt;
+        s.vy += (hdy / hd) * a * dt;
+        s.vz += (hdz / hd) * a * dt * 0.6;
+      }
+
+      // The cruise the velocity relaxes toward is the private wander — slow
+      // sines around the anchor, no shared direction with any other fruit.
+      s.bx = Math.cos(tt * s.fqA + s.phA) * s.amp;
+      s.by = Math.sin(tt * s.fqB + s.phB) * s.amp;
 
       // ---- thick medium: relax to cruise + hard speed cap --------------------
       const relax = Math.min(1, DRAG * dt);
@@ -680,10 +690,10 @@ function Field({ reduce, pointer }: Omit<FieldProps, "active">) {
       const bx = Math.max(0.4, halfW - s.r);
       const by = Math.max(0.4, halfH - s.r);
 
-      // The ring spring already keeps fruit in frame; this is a hard safety so
-      // a strong shove can't park anything off-screen. (x/y cruise is the
-      // tangential orbit, rebuilt each frame — nothing to flip here; only z
-      // keeps a bouncing idle bob.)
+      // The home spring already reels fruit back in frame; this is a hard
+      // safety so a strong shove can't park anything off-screen. (x/y cruise
+      // is the wander sines, rebuilt each frame — nothing to flip here; only
+      // z keeps a bouncing idle bob.)
       if (s.x > bx) s.vx -= (s.x - bx) * 6 * dt;
       else if (s.x < -bx) s.vx -= (s.x + bx) * 6 * dt;
       if (s.y > by) s.vy -= (s.y - by) * 6 * dt;
