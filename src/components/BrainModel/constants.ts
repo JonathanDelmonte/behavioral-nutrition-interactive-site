@@ -104,9 +104,15 @@ export const ANIMATION = {
   /** Fruit "exodus" during the descent: as travel progress rises, each fruit
    *  flies radially outward and fades, leaving the bare brain on arrival. */
   exodus: {
-    /** Outward travel distance at full exodus, in normalized units (brain
-     *  radius ≈ 1). ~2.6 pushes fruit well past the canvas edge on arrival. */
-    distance: 2.6,
+    /** Total outward travel at full exodus, in normalized units (brain radius
+     *  ≈ 1). Sized so the flight genuinely CROSSES the viewport instead of
+     *  stopping short: side-flying fruit clear the canvas edges (~3–4 units at
+     *  hero scale) and camera-side fruit reach and sweep PAST the camera
+     *  itself (~5–6 units), giving the "flew right by me" 3D moment. The whole
+     *  trip is one continuous accelerating curve — the old 2.6 value stopped
+     *  ON screen and needed a discontinuous 120× "banish" kick to finish the
+     *  job, which read as an elastic yank (see Fruit.tsx). */
+    distance: 8,
     /** Travel-progress point by which ALL fruit have fully left. Mapping the
      *  exodus onto [0, completeBy] (instead of [0, 1]) means every fruit is gone
      *  by the time travel progress reaches this value.
@@ -132,6 +138,22 @@ export const ANIMATION = {
     /** Fraction of the (rescaled) exodus each individual fruit takes to fully
      *  leave once its start time is reached. */
     duration: 0.5,
+    /** Fraction of each fruit's own flight where the dissolve BEGINS. Up to
+     *  this point the fruit crosses the screen fully solid — fading from the
+     *  start (the old behavior) made the visible part of the flight ghostly
+     *  and read as "stopping" long before the edge. 0.75 ≈ the point where
+     *  side-flying fruit are already reaching the canvas edge. */
+    fadeStart: 0.75,
+    /** ...and where it COMPLETES. Deliberately short of 1 so a scroll that
+     *  stalls a hair before the window closes still ends with every fruit
+     *  invisible — this (plus the visibility cut in Fruit.tsx) replaces the
+     *  banish kick as the "nothing lingers" guarantee. */
+    fadeEnd: 0.97,
+    /** Slow per-fruit tumble over the flight, in full turns — each fruit
+     *  picks a value in [min, max] from its phase hash. Rotation parallax is
+     *  what sells "flying through space" over "sliding along a rail"; kept
+     *  gentle on purpose. */
+    tumbleTurns: { min: 0.3, max: 0.75 },
   },
   microWobble: {
     amplitude: 0.006,

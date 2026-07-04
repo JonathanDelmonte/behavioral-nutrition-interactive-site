@@ -114,7 +114,7 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
   // Fruit "exodus latch" (belt-and-suspenders alongside <ScrollRestoration/>).
   // Once the fruit have fully flown off during a descent, we remember it for the
   // session (sessionStorage). If a reload restores the scroll a touch short of
-  // the parked spot, this holds the fruit fully GONE (flung off-canvas) instead
+  // the parked spot, this holds the fruit fully GONE (faded out, far off-canvas) instead
   // of letting them reappear frozen mid-flight scattered around the brain. It is
   // disarmed on the first real scroll input, so live scrolling (incl. the fruit
   // flying back in when you scroll up) is never affected.

@@ -2,15 +2,15 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
-import { Group, type Material, MathUtils, Vector3 } from "three";
+import { Group, type Material, MathUtils, Quaternion, Vector3 } from "three";
 import { ANIMATION } from "./constants";
 import { useBrainState } from "./BrainContext";
 import type { NodeRender } from "./BrainGroup";
 
 interface FruitProps {
   render: NodeRender;
-  /** Deterministic per-fruit hash (0..2π). Used as jitter seed so fruits
-   *  desynchronize subtly during the hover-fall phase. */
+  /** Deterministic per-fruit hash (0..2π). Seeds this fruit's exodus tumble
+   *  (axis + turn count) so each fruit spins its own way during the fly-out. */
   phase: number;
   /** Index of this fruit among all fruits — used to stagger the exodus so
    *  fruit leave in a wave instead of all at once. */
@@ -28,7 +28,7 @@ interface FruitProps {
  * Net effect: cursor acts like a soft vacuum cleaner — a cone of influence with
  * the peak directly under the cursor and a smooth skirt around it.
  */
-export function Fruit({ render, index, total }: FruitProps) {
+export function Fruit({ render, phase, index, total }: FruitProps) {
   const groupRef = useRef<Group>(null!);
   const {
     intensity,
@@ -48,6 +48,29 @@ export function Fruit({ render, index, total }: FruitProps) {
 
   // Re-used scratch vector so we don't allocate per frame.
   const tmp = useMemo(() => new Vector3(), []);
+
+  // Base orientation + per-fruit tumble for the exodus flight. Axis and turn
+  // count derive deterministically from `phase`, so renders stay stable across
+  // runs and scrubbing the scroll back replays the exact same flight.
+  const baseQuat = useMemo(
+    () => new Quaternion(...render.worldQuaternion),
+    [render],
+  );
+  const tumbleQuat = useMemo(() => new Quaternion(), []);
+  const tumbleAxis = useMemo(() => {
+    const v = new Vector3(
+      Math.sin(phase),
+      Math.cos(phase * 2.3),
+      Math.sin(phase * 3.7 + 1.1),
+    );
+    // normalize() on a near-zero vector would produce NaNs — these frequencies
+    // can't all zero out together, but guard anyway.
+    return v.lengthSq() > 1e-4 ? v.normalize() : v.set(0, 1, 0);
+  }, [phase]);
+  const tumbleTurns = useMemo(() => {
+    const { min, max } = ANIMATION.exodus.tumbleTurns;
+    return min + (max - min) * (0.5 + 0.5 * Math.sin(phase * 7.31));
+  }, [phase]);
 
   // Flatten this fruit's materials once so the exodus fade can drive their
   // opacity directly. Each fruit's materials are independent clones (the
@@ -166,23 +189,43 @@ export function Fruit({ render, index, total }: FruitProps) {
     let exodusLift = 0;
     if (e > start) {
       const local = Math.min(1, (e - start) / ANIMATION.exodus.duration);
-      const eased = local * local;
-      const op = 1 - eased;
+
+      // ONE continuous accelerating flight (cubic ease-in) for the whole trip:
+      // a slow drift off the brain that keeps gaining speed until the fruit
+      // has fully crossed the viewport — or swept past the camera, since
+      // `distance` now reaches beyond it. (A previous version stopped the
+      // fly-out at ~2.6 units and bolted on a 120× "banish" term once opacity
+      // dropped below 0.5; that second force switching on mid-flight read as
+      // an elastic yank. A single C¹-continuous curve can't yank.)
+      const flight = local * local * local;
+      exodusLift = flight * ANIMATION.exodus.distance;
+
+      // Dissolve only over the LAST stretch (fadeStart→fadeEnd of the window):
+      // the visible screen-crossing stays solid, and by fadeEnd — deliberately
+      // short of 1 — the fruit is invisible even if the scroll stalls a hair
+      // before the window closes. The visibility cut spares the renderer from
+      // drawing fully-faded fruit at all.
+      const f = MathUtils.clamp(
+        (local - ANIMATION.exodus.fadeStart) /
+          (ANIMATION.exodus.fadeEnd - ANIMATION.exodus.fadeStart),
+        0,
+        1,
+      );
+      const op = 1 - f * f * (3 - 2 * f);
       for (const m of materials) if (m.opacity !== op) m.opacity = op;
-      // Normal fly-out distance PLUS a "banish" term that accelerates the fruit
-      // FAR off-canvas as it fades past the halfway point. This guarantees the
-      // faint tail of the fade — and any fruit left stalled near the end of its
-      // exodus (e.g. if travel progress freezes just short of 1) — ends up WELL
-      // outside the viewport instead of lingering as a small dot near the brain.
-      // It is ~0 while the fruit is still clearly visible (opacity ≥ 0.5) and
-      // ramps up hard as opacity → 0, so the visible part of the fly-out reads
-      // the same as before.
-      const fade = Math.max(0, (0.5 - op) / 0.5);
-      exodusLift =
-        eased * ANIMATION.exodus.distance +
-        fade * fade * (ANIMATION.exodus.distance * 120);
+      g.visible = op > 0.001;
+
+      // Gentle per-fruit tumble across the flight — rotation parallax is what
+      // sells "flying through 3D space" instead of "sliding along a rail".
+      tumbleQuat.setFromAxisAngle(
+        tumbleAxis,
+        local * tumbleTurns * Math.PI * 2,
+      );
+      g.quaternion.copy(baseQuat).multiply(tumbleQuat);
     } else {
       for (const m of materials) if (m.opacity !== 1) m.opacity = 1;
+      if (!g.visible) g.visible = true;
+      g.quaternion.copy(baseQuat);
     }
 
     // Hover + pulse lifts are authored in normalized units (× intensity), and
