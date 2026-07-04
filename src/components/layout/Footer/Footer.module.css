@@ -168,28 +168,217 @@ a.row:focus-visible .rowText::after {
 }
 
 /* The watermark: tone-on-tone with the background — present for whoever
-   looks, invisible to whoever doesn't. Hover wakes it just a notch (still
-   inside the green family, a quiet chrome glint). */
+   looks, invisible to whoever doesn't (agency ask: hidden at rest). Hover
+   runs a liquid-chrome pass: each letter's specular duplicate flashes
+   white-cyan (Zirtuno's ocean) and cools into the site's gold, one letter
+   behind the other. Cyan is never a resting state — it only travels.
+   Pressing stirs the liquid: the mark turns half over with inertia, holds
+   its chrome while pressed, and a cyan splash ring settles into a gold
+   echo. Reduced motion keeps plain color crossfades, no rings, no spin. */
 .devmark {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  /* Slightly enlarged hover zone; the negative margin keeps layout intact. */
+  padding: 4px;
+  margin: -4px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-size: 10px;
+  white-space: nowrap;
   color: #0e4220;
   cursor: default;
-  transition: color 0.7s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Real text for screen readers; the per-letter spans are aria-hidden. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One glint letter. Base transition (no delay) also serves unhover: the
+   whole signature sinks back into the green together, calmly. */
+.ch {
+  position: relative;
+  display: inline-block;
+  transition: color 0.55s ease;
+}
+/* Specular duplicate of the glyph — the surface the chrome flash lives on.
+   Invisible at rest; only the motion block below ever animates it. */
+.ch::before {
+  content: attr(data-ch);
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  color: #a5ecff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.markWrap {
+  position: relative;
+  display: inline-block;
+  margin: 0 6px;
+  vertical-align: -3px;
 }
 .devmark svg {
   height: 13px;
   width: auto;
   display: block;
   fill: currentColor;
-  transition: fill 0.7s ease;
 }
-.devmark:hover {
-  color: #1c5e33;
+.markBase {
+  transition: color 0.55s ease;
+}
+/* Chrome ghost of the mark: flashes during the hover wave, and is held
+   visible while the credit is pressed — the liquid showing its metal. */
+.markGhost {
+  position: absolute;
+  inset: 0;
+  color: #5fdcf8;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.devmark:hover .ch,
+.devmark:hover .markBase {
+  color: var(--color-gold-soft);
+}
+
+/* Press: the signature firms to deep gold at once — ink pressed in — and
+   the mark reveals its chrome for as long as the press holds. */
+.devmark:active .ch,
+.devmark:active .markBase {
+  color: var(--color-gold);
+  transition-duration: 0.12s;
+  transition-delay: 0s;
+  transition-timing-function: ease;
+}
+.devmark:active .markGhost {
+  opacity: 0.92;
+  transition-duration: 0.1s;
+}
+
+/* Splash rings, stamped from the mark on press: a cyan splash and a wider
+   gold echo. Invisible at rest; animated only in the motion block. */
+.ringSplash,
+.ringSettle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.ringSplash {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 1px solid #55d9f4;
+}
+.ringSettle {
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  border: 1px solid var(--color-gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ch {
+    transition:
+      color 0.55s ease,
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Travelling glint: the overshoot bezier pushes each letter's color past
+     its target gold for a breath (the glint) before it settles; 22ms of
+     delay per letter turns that into one light pass across the text. */
+  .devmark:hover .ch {
+    transform: translateY(-1px);
+    transition-duration: 0.45s;
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition-delay: calc(var(--i) * 22ms);
+  }
+  /* The chrome pass rides the same 22ms clock: each specular flashes
+     white-hot and cools into ocean cyan as it hands off to the gold. */
+  .devmark:hover .ch::before {
+    animation: chrome-glint 0.55s ease-out;
+    animation-delay: calc(var(--i) * 22ms);
+  }
+  .devmark:hover .markBase {
+    /* The mark's slot in the letter sequence (6 × 22ms). */
+    transition-delay: 132ms;
+  }
+  .devmark:hover .markGhost {
+    animation: chrome-glint 0.55s ease-out;
+    animation-delay: 132ms;
+  }
+
+  /* The mark is liquid: every press turns it half over, with enough
+     overshoot to read as inertia. Hover blooms it slightly. */
+  .markWrap {
+    transform: rotate(var(--spin, 0deg));
+    transition: transform 0.65s cubic-bezier(0.3, 1.25, 0.4, 1);
+  }
+  .devmark:hover .markWrap {
+    transform: rotate(var(--spin, 0deg)) scale(1.07);
+    transition-delay: 132ms;
+  }
+  .devmark:active .markWrap {
+    transform: rotate(var(--spin, 0deg));
+    transition-delay: 0s;
+  }
+
+  /* Press: unified dip of the whole credit; letters drop their hover lift
+     so the stamp reads as one piece. */
+  .devmark {
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .devmark:active {
+    transform: translateY(0.5px) scale(0.985);
+    transition-duration: 0.12s;
+  }
+  .devmark:active .ch {
+    transform: none;
+  }
+
+  .ringSplash {
+    animation: seal-ring 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .ringSettle {
+    animation: seal-ring 0.9s cubic-bezier(0.22, 1, 0.36, 1) 90ms;
+  }
+}
+
+/* Literal values only in here (site rule: var() freezes in @keyframes). */
+@keyframes chrome-glint {
+  0% {
+    opacity: 0;
+    color: #eefcff;
+  }
+  28% {
+    opacity: 0.95;
+    color: #a5ecff;
+  }
+  100% {
+    opacity: 0;
+    color: #2cc8ea;
+  }
+}
+@keyframes seal-ring {
+  from {
+    transform: scale(0.28);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
 }
 
 /* ---- REVEALS (site grammar) ----------------------------------------------------- */
