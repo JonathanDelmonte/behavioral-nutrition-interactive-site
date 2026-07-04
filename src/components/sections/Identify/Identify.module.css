@@ -292,8 +292,10 @@
   position: absolute;
   left: 6%;
   top: 50%;
-  transform: translate(0, -50%);
-  transform-origin: left center;
+  /* The -50% centering lives on the independent `translate` property (not in
+     the enter/leave keyframes' transform) so the same keyframes serve desktop
+     AND the phone layout, where the bubble is in-flow (translate: none). */
+  translate: 0 -50%;
   width: 90%;
   opacity: 0;
   pointer-events: none;
@@ -333,7 +335,8 @@
    the brain, using the exact same material as .bubbleShape (soft-gold hairline,
    translucent fill, blur, inset glow) just smaller. Each morphs with `blob` and
    bobs gently with `tailFloat`, and they fade in staggered on load. Decorative
-   only; spans the brain↔bubble gap, so it's hidden in the stacked mobile layout. */
+   only; on desktop it spans the brain↔bubble gap horizontally, on phones it
+   climbs from the balloon's top toward the brain (see the media query below). */
 .thoughtTail {
   position: absolute;
   inset: 0;
@@ -577,6 +580,11 @@
   }
 
   .stage {
+    /* svh, not vh: on phones 100vh is the LARGE viewport, so with the browser's
+       URL bar visible the stage bottom (where the balloon sits) hid behind it.
+       The small unit guarantees the whole act fits the worst-case visible
+       screen; with the bar collapsed there's simply a little more green below. */
+    height: calc(100svh - var(--header-h));
     /* Two stacked zones that never collide at any viewport height: the headline
        (row 1, in normal flow) pins to the top; the brain + bubble block (row 2)
        is centered in the space BELOW it. Centering the block inside that
@@ -647,37 +655,59 @@
     align-self: safe center;
     grid-template-columns: 1fr;
     justify-items: center;
-    gap: clamp(10px, 2.5vh, 22px);
+    /* The gap is the dot-trail's home: the three tail blobs climb from the
+       balloon's top edge toward the brain through this space (see .tailDot
+       below), so it stays wide enough for the arc to breathe. */
+    gap: clamp(26px, 4.5vh, 38px);
     /* Recentre as the headline leaves: while it's up the block stays parked in
-       row 2 (no overlap); as it dissolves the block rises by half the headline's
-       height, landing the brain+bubble as ONE unit on the stage's true center
-       instead of stranded low with the bubble way down the screen. --mid-rise is
-       set from JS (= headline height / 2, exact at any width; 0px on desktop
-       where the headline is display:none, so this is a phone-only no-op). The
-       lift tracks scroll frame-by-frame via --intro-gone, so it eases up in step
-       with the user's scroll rather than snapping. */
+       row 2 (no overlap); as it dissolves the block rises to the stage's TRUE
+       center, landing the brain+bubble as ONE unit mid-screen instead of
+       stranded low with the bubble way down the screen. --mid-rise is set from
+       JS (the measured layout-spot → stage-center distance, exact for any
+       headline wrap or balloon height; ~0px on desktop where the stage already
+       centers the block, so this is a phone-only no-op). The lift tracks scroll
+       frame-by-frame via --intro-gone, so it eases up in step with the user's
+       scroll rather than snapping. */
     translate: 0 calc(var(--intro-gone, 0) * var(--mid-rise, 0px) * -1);
   }
   .brainSlot {
-    /* Width-driven, but also capped by viewport height (svh) — mirrors the
-       desktop slot — so the brain shrinks on short screens instead of staying
-       large and crowding the copy. On a normal-height phone the 58vw term wins
-       and the size is unchanged; the 32svh term only bites once the viewport
-       gets short. The aura rings (::before/::after, inset in %) scale with it. */
-    max-width: clamp(170px, min(58vw, 32svh), 280px);
+    /* Height-BUDGETED: the brain gets whatever room is left once the REAL
+       balloon height is spent — 100svh minus the header, minus the tallest
+       thought's balloon (--balloon-h, measured by ThoughtTrack.tsx; 300px
+       no-JS fallback), minus ~120px for the stage paddings + the dot-trail
+       gap. On a roomy phone the 58vw term still wins (the approved size,
+       unchanged); as the screen gets shorter the budget term takes over and
+       the brain scales down FIRST, so brain + dots + balloon always fit the
+       visible viewport as one composition. The aura rings (::before/::after,
+       inset in %) scale with it. */
+    max-width: clamp(120px, min(58vw, calc(100svh - var(--header-h) - var(--balloon-h, 300px) - 120px)), 280px);
     justify-self: center;
   }
   .bubbles {
     justify-self: center;
-    /* svh term shrinks the bubble on short screens so the brain + bubble block
-       still fits under the headline (keeps the same size on normal phones). */
-    width: min(100%, 330px, 32svh);
+    /* HONEST box: all five thoughts stack in the same grid cell, so the box's
+       height is the tallest balloon's real height — the old square
+       (aspect-ratio) box let the absolutely-centered balloon overflow it
+       invisibly, which is what cut the balloon at the screen bottom on shorter
+       phones. Sizing to the tallest thought (not the active one) keeps the
+       composition still while the five thoughts cycle. */
+    display: grid;
+    grid-template-columns: 100%;
+    align-items: center;
+    width: min(100%, 330px);
     max-width: none;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: auto;
     transition: opacity .5s ease, translate .5s ease;
   }
   .bubble {
-    left: 0;
+    /* In-flow (grid-stacked) on phones — each bubble contributes height, and
+       the shared enter/leave keyframes still work because the -50% centering
+       lives on `translate`, dropped here. */
+    position: relative;
+    grid-area: 1 / 1;
+    left: auto;
+    top: auto;
+    translate: none;
     width: 100%;
   }
   .bubbleShape {
@@ -706,36 +736,16 @@
   /* Three dots trail from the brain (above) down to the bubble on a gentle arc
      that BOWS to the RIGHT — a thought-tail curving toward the balloon, not a
      straight drop (matches the author's red-curve sketch). Clear small → medium
-     → large step (10 → 15 → 22px), growing toward the balloon. The whole trail
-     sits LOW in the open green — clear of the brain above (the smallest used to
-     crowd the cerebellum) and stopping just short of the balloon's rim below
-     (its visible top is ~+10% of this box). The vertical EDGE-to-edge gaps are
-     equal (~3%): because the dots grow, equal *centre* spacing would make the
-     visible gaps shrink toward the bottom, so the tops are stepped by size+gap
-     (−16 → −9 → 0%) to keep the gaps the eye sees even. The middle dot is nudged
+     → large step (10 → 15 → 22px), growing toward the balloon. The box's top IS
+     the balloon's real top now (honest grid box above), so the offsets are
+     plain px above it: the largest dot kisses the balloon's rim, the smallest
+     climbs into the brain↔balloon gap toward the cerebellum. No more overflow
+     "rescue" slide — the balloon can't outgrow its box anymore, so the trail
+     simply lives where it's put, at every screen size. The middle dot is nudged
      right of the small↔large chord so the trail reads as a right-facing arc. */
-  .tailDot:nth-child(1) { width: 22px; height: 22px; left: 59%; top: 0%; }
-  .tailDot:nth-child(2) { width: 15px; height: 15px; left: 62%; top: -9%; }
-  .tailDot:nth-child(3) { width: 10px; height: 10px; left: 57%; top: -16%; }
-
-  /* RESPONSIVE rescue (replaces the old hard height breakpoint). On short phones
-     the balloon outgrows its svh-capped box and bleeds upward over the dots — and
-     because the box also gets NARROWER, the text wraps taller, so the overflow
-     grows fast as the screen shrinks. Instead of snapping the dots to a fixed
-     "short" spot (which looked stranded just below the breakpoint), we slide the
-     whole trail up-and-right CONTINUOUSLY, by an amount tied to how far THIS
-     thought's balloon actually overflows. JS publishes that overflow as
-     --tail-overflow (px, per active thought; 0 when the balloon fits → the arc
-     above stays put, hugging the balloon). The map is steep-then-capped: a little
-     overflow already nudges the dots clear of the oval's wide centre, then it
-     saturates so they never fly off past the brain. Moving the shared parent (not
-     each dot) preserves the arc and never fights the dots' own float/pop. */
-  .thoughtTail {
-    --tx: min(45px, calc(var(--tail-overflow, 0px) * 3.5));
-    --ty: min(32px, calc(var(--tail-overflow, 0px) * 1.6));
-    transform: translate(var(--tx), calc(-1 * var(--ty)));
-    transition: transform .5s cubic-bezier(.2, .7, .2, 1);
-  }
+  .tailDot:nth-child(1) { width: 22px; height: 22px; left: 57%; top: -14px; }
+  .tailDot:nth-child(2) { width: 15px; height: 15px; left: 64%; top: -30px; }
+  .tailDot:nth-child(3) { width: 10px; height: 10px; left: 59%; top: -44px; }
 
   /* ---- finale: the closing line + CTA form in the bubble's place ---- */
   .stageFooter {
@@ -784,6 +794,21 @@
   /* Mark count is grid-driven (a narrower grid on phones), so no hiding. */
 }
 
+/* Very short phone viewports (narrow landscape / split-screen): even with the
+   brain at its floor, the full-size balloon would outgrow the stage — ease the
+   balloon's type and padding down so the pair still composes, and tuck the dot
+   trail into the smaller gap. Kept AFTER the main phone block so it wins. */
+@media (max-width: 760px) and (max-height: 520px) {
+  .stageMid { gap: 18px; }
+  .bubbleShape { padding: 32px 22px; }
+  .quote { font-size: 15px; }
+  .echo { margin-top: 10px; }
+  .stageIntro .title { font-size: 22px; }
+  .tailDot:nth-child(1) { top: -10px; }
+  .tailDot:nth-child(2) { top: -22px; }
+  .tailDot:nth-child(3) { top: -32px; }
+}
+
 /* ---- keyframes --------------------------------------------------------- */
 
 @keyframes rise {
@@ -825,24 +850,24 @@
 @keyframes bubbleForm {
   from {
     opacity: 0;
-    transform: translate(0, -50%) scale(.86);
+    transform: scale(.86);
     filter: blur(8px);
   }
   to {
     opacity: 1;
-    transform: translate(0, -50%) scale(1);
+    transform: scale(1);
     filter: blur(0);
   }
 }
 @keyframes bubbleLeave {
   from {
     opacity: 1;
-    transform: translate(0, -50%);
+    transform: none;
     filter: blur(0);
   }
   to {
     opacity: 0;
-    transform: translate(0, -50%) translateY(-26px) scale(.96);
+    transform: translateY(-26px) scale(.96);
     filter: blur(5px);
   }
 }
@@ -887,11 +912,6 @@
     animation: none;
     opacity: 1;
     scale: none;
-  }
-  /* The trail still gets positioned (transform via --tail-overflow) so it clears
-     the balloon on short screens — just don't animate the slide. */
-  .thoughtTail {
-    transition: none;
   }
   .qmark {
     animation: none;

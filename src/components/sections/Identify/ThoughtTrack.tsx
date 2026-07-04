@@ -70,34 +70,37 @@ export function ThoughtTrack() {
     let raf: number | null = null;
     let lastIdx = -2; // sentinel: no think-pulse on the very first sync
 
-    // Publish half the (phone-only) headline height as --mid-rise so the CSS can
-    // lift the brain+bubble block to the stage's true center once the headline
-    // dissolves. Measured (not hardcoded) so it's exact however the title wraps
-    // at a given width; on desktop the headline is display:none → 0, a no-op.
-    const intro = stage.querySelector<HTMLElement>(`.${styles.stageIntro}`);
-
-    // Phone-only "tail rescue": how far the ACTIVE thought's balloon bleeds above
-    // its (svh-capped) box. The CSS slides the dot trail up-and-right by an amount
-    // mapped from this, so the dots clear the overflowing oval continuously instead
-    // of snapping at a hard height breakpoint. Per-thought (taller quotes overflow
-    // more) and 0 when the balloon fits — then the trail just hugs the balloon.
+    // Phone sizing inputs, both published as custom props (no-ops on desktop):
+    //  - --balloon-h: the tallest thought's real balloon height. The phone CSS
+    //    budgets the brain slot against it (100svh − header − balloon − fixed
+    //    chrome), so brain + dot trail + balloon always fit the visible screen.
+    //  - --mid-rise: how far the brain+bubble block must rise, once the phone
+    //    headline dissolves, to land on the stage's TRUE center. Measured as
+    //    layout-spot − centered-spot, so it's exact for any headline wrap or
+    //    balloon height (desktop already lays the block out centered → ~0).
+    const mid = stage.querySelector<HTMLElement>(`.${styles.stageMid}`);
     const bubbles = stage.querySelector<HTMLElement>("[data-bubbles]");
-    let shapeHeights: number[] = [];
-    const applyTail = (idx: number) => {
-      if (!bubbles) return;
-      const h = shapeHeights[Math.max(0, idx)] ?? 0;
-      const overflow = Math.max(0, (h - bubbles.clientHeight) / 2);
-      bubbles.style.setProperty("--tail-overflow", `${overflow.toFixed(1)}px`);
-    };
 
     const measure = () => {
-      const h = intro ? intro.offsetHeight : 0;
-      stage.style.setProperty("--mid-rise", `${(h / 2).toFixed(1)}px`);
       if (bubbles) {
-        shapeHeights = [
-          ...bubbles.querySelectorAll<HTMLElement>("[data-bubbleshape]"),
-        ].map((el) => el.offsetHeight);
-        applyTail(lastIdx);
+        const tallest = Math.max(
+          0,
+          ...[
+            ...bubbles.querySelectorAll<HTMLElement>("[data-bubbleshape]"),
+          ].map((el) => el.offsetHeight),
+        );
+        if (tallest > 0) {
+          stage.style.setProperty("--balloon-h", `${Math.ceil(tallest)}px`);
+        }
+      }
+      if (mid) {
+        // Read AFTER --balloon-h lands: offsetTop/offsetHeight flush layout, so
+        // the lift reflects the freshly-budgeted brain size. The 8px floor keeps
+        // the block from riding above the stage top when it can't fully fit
+        // (overflow then spills downward, matching `safe center`).
+        const ideal = Math.max(8, (stage.clientHeight - mid.offsetHeight) / 2);
+        const lift = Math.max(0, mid.offsetTop - ideal);
+        stage.style.setProperty("--mid-rise", `${lift.toFixed(1)}px`);
       }
     };
 
@@ -121,9 +124,6 @@ export function ThoughtTrack() {
       if (idx !== lastIdx) {
         const prev = lastIdx;
         lastIdx = idx;
-        // Re-point the tail's overflow lift at the arriving thought's balloon
-        // (set before React remounts the tail, so it appears already placed).
-        applyTail(idx);
         setPair({ active: idx, prev });
         // The brain "thinks" each arriving bubble — a soft pulse through the
         // same channel the click uses (see ThinkPulse in BrainModel/Scene).
