@@ -490,11 +490,18 @@
   .heroCta.heroCta { font-size: 11px; }
 
   .display   { font-size: clamp(48px, 14vw, 84px); }
-  /* Real phones (vs DevTools mobile emulation) have dynamic address bars,
-     safe-areas, and OS-level text scaling that make the headline above feel
-     closer to the brain than the emulator suggests. Easing the negative pull
-     here gives the brain a little extra breathing room on actual devices
-     without affecting desktop. */
-  .brainWrap { width: 90vw; height: 90vw; margin-top: 6px; }
+  /* Cap the brain height against the SMALL viewport, mirroring the desktop
+     `60svh` cap the mobile override used to drop. iOS Safari's bottom toolbar
+     shrinks the visible area — which the DevTools emulator never shows — so a
+     plain 90vw brain landed its base a few px BELOW that toolbar and got
+     clipped. And because the canvas is fixed and TRAVELS on scroll (it doesn't
+     scroll up with the page — it flies toward Identify), you can't scroll to
+     reveal the hidden base: it just "disappears" under the address bar.
+     100svh already reflects the toolbar-shown height, so sizing against it
+     guarantees the base clears the bar. The ~400px reserves the stack above
+     the brain (header + copy + CTA ≈ 390px) plus a small gap; the calc only
+     wins on short / real-phone viewports, so tall phones and the desktop
+     emulator keep the full 90vw — unchanged there. */
+  .brainWrap { width: 90vw; height: min(90vw, calc(100svh - 400px)); margin-top: 6px; }
 }
 
