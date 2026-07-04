@@ -65,11 +65,19 @@ const DEFAULT_INTENSITY: BrainIntensity = { idle: 1, magnetism: 1, hover: 1 };
  * oscillate), cutting the two dominant fill-rate costs: device-pixel ratio
  * (pixel count scales with its square) and the composer's MSAA buffer.
  * `dprCap` is applied as dpr=[1, cap], so a dpr-1 desktop is never upscaled.
+ *
+ * The floor stays SHARP on purpose (1.5× dpr, MSAA still on): the earlier
+ * floor of dpr 1 / MSAA 0 read as visibly blurry + jagged on phones. Even so
+ * this floor is ~7× lighter than tier 0 in raw buffer bandwidth (dpr² ×
+ * samples), and the tier is also mirrored onto <html data-gpu-tier> (effect
+ * inside BrainModel) so CSS can shed the page's OTHER big GPU cost —
+ * Identify's backdrop-blur bubbles, re-blurred every frame over this very
+ * canvas — which buys back far more than the extra sharpness spends.
  */
 const QUALITY_TIERS: { dprCap: number; multisampling: number }[] = [
   { dprCap: 2, multisampling: 8 },
+  { dprCap: 1.75, multisampling: 4 },
   { dprCap: 1.5, multisampling: 2 },
-  { dprCap: 1, multisampling: 0 },
 ];
 
 /**
@@ -122,6 +130,15 @@ export function BrainModel({
   const merged: BrainIntensity = { ...DEFAULT_INTENSITY, ...intensity };
   const [tier, setTier] = useState(0);
   const quality = QUALITY_TIERS[tier];
+
+  // Mirror the tier onto <html data-gpu-tier="…"> so plain CSS joins the
+  // degradation (see Identify.module.css: at the lowest tier the glassy
+  // bubbles drop their backdrop blurs and blur() swap animations, which are
+  // re-rasterized every frame over this canvas and dominate the section's
+  // GPU cost on weak devices).
+  useEffect(() => {
+    document.documentElement.dataset.gpuTier = String(tier);
+  }, [tier]);
 
   return (
     <div className={className ?? "w-full h-full"}>
