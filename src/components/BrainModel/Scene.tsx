@@ -89,6 +89,15 @@ function ThinkPulse() {
       const active = pulses.current.filter(
         (p) => now - p.startTime < ANIMATION.pulse.lifetime,
       );
+      // Scrubbing the thought track fast fires several think events per
+      // second, and their stacked pulses made the brain jitter erratically.
+      // One soft pulse reads as "thinking" — drop new arrivals while any
+      // pulse is still this fresh, so rapid up-and-down scrolling produces a
+      // calm rhythm instead of a compound shudder.
+      if (active.some((p) => now - p.startTime < 0.35)) {
+        pulses.current = active;
+        return;
+      }
       // Origin on the up-right of the brain's surface — where the thought
       // tail leaves toward the bubble — so the recoil reads as "emitting".
       dir
