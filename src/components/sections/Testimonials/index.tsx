@@ -34,6 +34,11 @@ const VINE_DIVIDER_TILES = Array.from({ length: 6 }, (_, i) => i);
  *     own speed, so the rail reads as layers, not a flat strip.
  *   - VELOCITY TILT: scroll speed leans the prints like paper dragged across
  *     a table; a spring settles them upright when the scroll rests.
+ *   - SNAKE FINALE: past the rail's end the review wall dissolves in three
+ *     overlapping acts — the right column rises out as a solid block, the
+ *     middle pours downward, the left sweeps up, their starts offset by a
+ *     beat so mid-phase all three fly at once — framed by a short hold on
+ *     both ends. Short, eased, scroll-scrubbed, reversible.
  *   - Ghost script names behind each case, paper-note reviews that straighten
  *     on hover, a breathing play ring.
  *
@@ -52,6 +57,8 @@ type Review = { name: string; handle?: string; text: string };
 // staggers like a real review board instead of a tidy grid. Only SOME carry an
 // Instagram handle (the others preferred not to share one) — rendered as a
 // soft, gradient-tinted @ that sinks into the green instead of shouting.
+// There are deliberately MORE reviews than the masked wall shows at once —
+// that hidden overflow is what the scroll-driven snake phase reveals.
 const REVIEWS: Review[] = [
   {
     name: "Rafael L.",
@@ -93,9 +100,36 @@ const REVIEWS: Review[] = [
     name: "Priscila N.",
     text: "Não é mágica, é entender o porquê. E quando você entende, não tem mais como voltar atrás.",
   },
+  {
+    name: "André G.",
+    handle: "@andregui",
+    text: "Perdi 14kg sem abrir mão do churrasco de domingo. É outra relação com a comida.",
+  },
+  {
+    name: "Beatriz M.",
+    text: "O acompanhamento mais humano que já tive.",
+  },
+  {
+    name: "Paula D.",
+    text: "Cheguei desconfiada, achando que seria só mais uma dieta impressa. Saí com um processo que coube na minha rotina de plantões.",
+  },
+  {
+    name: "Fernanda C.",
+    handle: "@fernandac",
+    text: "Sempre achei que fosse falta de força de vontade. Era falta de olhar pra causa certa.",
+  },
+  {
+    name: "Marcos P.",
+    text: "Parei de descontar o estresse do trabalho na comida. Minha família notou antes de mim.",
+  },
+  {
+    name: "Vinícius R.",
+    text: "Três meses e o efeito sanfona parou de fazer sentido.",
+  },
 ];
 
-/** Number of wall columns (reference look: 3 columns, 3 cards each). The
+/** Number of wall columns (reference look: 3 columns, 5 cards each — taller
+ *  than the masked window on purpose; the snake phase reveals the rest). The
  *  horizontal rail's scroll distance is derived from row.scrollWidth, so a
  *  wider wall simply extends the rail — no scrolljack changes needed. */
 const WALL_COLS = 3;
@@ -105,13 +139,38 @@ const REVIEW_COLUMNS = Array.from({ length: WALL_COLS }, (_, c) =>
   REVIEWS.filter((_, i) => i % WALL_COLS === c),
 );
 
-/** Per-card float rhythm: each review drifts on its OWN gentle vertical cycle
- *  (an independent motion layered ON TOP of the collective rail pan), so the
- *  wall breathes out of lockstep instead of waving in unison. Deliberately
- *  irregular delays + slightly different durations keep the phases sliding
- *  apart over time — calm, not mechanical. Indexed by a per-card seed. */
-const FLOAT_DELAYS = [-0.4, -3.1, -1.7, -4.8, -2.3, -5.6, -0.9, -3.8, -2.8];
-const FLOAT_DURS = [7.6, 8.4, 6.8, 7.9, 8.8, 7.1, 8.1, 6.6, 7.4];
+/** Per-card float rhythm: each review drifts on its OWN gentle cycle (layered
+ *  ON TOP of the rail pan and the snake's column slide). The phases are
+ *  COLUMN-FIRST by design: cards in the same column start nearly together
+ *  (small per-row offset) so vertical neighbours drift as a loose group
+ *  instead of scissoring into each other's gap, while whole columns sit far
+ *  apart in phase so the wall never waves in unison. Slightly different
+ *  durations let the phases slide apart slowly — alive, never mechanical.
+ *  (Delay = -(col·2.7s + row·1.15s + jitter), assembled in <Note/>.) */
+const FLOAT_DURS = [8.4, 9.2, 8.8, 9.6, 8.1, 9.0, 8.6, 9.4, 8.2];
+const FLOAT_JITTER = [0, 0.35, 0.6, 0.2, 0.5, 0.1, 0.45, 0.25, 0.55];
+
+/** The snake phase (phase 2 of the pin): the three columns exit as SOLID
+ *  BLOCKS through the masked horizon — the right rises, the middle pours
+ *  down, the left sweeps up — with overlapping, slightly offset starts (the
+ *  right leads, the others join moments later; mid-phase all three fly at
+ *  once). Each block is eased as one and carries only a whisper of internal
+ *  shear (SNAKE_STAG) plus a per-block lean, so it reads solid — never the
+ *  elastic, gappy cascade the client vetoed. The phase opens and closes on
+ *  a HOLD (the finished wall gets a beat before it starts dissolving; the
+ *  emptied window a beat before the unpin), and nothing moves after the
+ *  last block clears — the cross-column "guest" cards are GONE: their lone
+ *  late flights read as glitches, not as a serpent's thread (client-vetoed
+ *  twice). Scroll-scrubbed — rewinds on the way back up. */
+const SNAKE_LEN = 2.4; // phase scroll length = window height × this (clamped)
+const SNAKE_ACT_R: [number, number] = [0.1, 0.62]; // right block (up)
+const SNAKE_ACT_M: [number, number] = [0.18, 0.72]; // middle block (down)
+const SNAKE_ACT_L: [number, number] = [0.28, 0.97]; // left block (up)
+const SNAKE_STAG = 0.05; // whisper of per-card shear inside a block
+const SNAKE_PAD = 32; // hidden margin past the window edges
+/** Per-column flight lean, degrees at full exit — the block tilts as ONE
+ *  (per-card alternating tilt read cartoonish on a solid block). */
+const SNAKE_LEAN = [0.5, -0.45, 0.55];
 
 /** The pile of prints behind each case — a "bolo de polaroide" the visitor
  *  flips through. These are real, consented evolution shots; dates are invented
@@ -519,30 +578,42 @@ function Quote({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Note({ review, seed }: { review: Review; seed: number }) {
+function Note({ review, col, row }: { review: Review; col: number; row: number }) {
+  // Column-first phase design (see FLOAT_DURS): near-phase within a column,
+  // far apart across columns, a dash of jitter so nothing reads as a grid.
+  const seed = col + row * WALL_COLS;
+  const delay = -(
+    col * 2.7 +
+    row * 1.15 +
+    FLOAT_JITTER[seed % FLOAT_JITTER.length]
+  );
   return (
-    <div
-      className={styles.noteFloat}
-      style={
-        {
-          ["--float-delay"]: `${FLOAT_DELAYS[seed % FLOAT_DELAYS.length]}s`,
-          ["--float-dur"]: `${FLOAT_DURS[seed % FLOAT_DURS.length]}s`,
-        } as React.CSSProperties
-      }
-    >
-      <div className={styles.note}>
-        <span className={styles.noteHead}>
-          <span className={styles.noteAvatar} aria-hidden="true">
-            <AvatarGlyph />
+    // The slot is the snake acts' handle on this card (JS-owned transform);
+    // the float wrapper and the interactive card nest inside untouched.
+    <div className={styles.noteSlot} data-wall-card>
+      <div
+        className={`${styles.noteFloat} ${(col + row) % 2 ? styles.floatB : ""}`.trim()}
+        style={
+          {
+            ["--float-delay"]: `${delay.toFixed(2)}s`,
+            ["--float-dur"]: `${FLOAT_DURS[seed % FLOAT_DURS.length]}s`,
+          } as React.CSSProperties
+        }
+      >
+        <div className={styles.note}>
+          <span className={styles.noteHead}>
+            <span className={styles.noteAvatar} aria-hidden="true">
+              <AvatarGlyph />
+            </span>
+            <span className={styles.noteByline}>
+              <span className={styles.noteName}>{review.name}</span>
+              {review.handle ? (
+                <span className={styles.noteHandle}>{review.handle}</span>
+              ) : null}
+            </span>
           </span>
-          <span className={styles.noteByline}>
-            <span className={styles.noteName}>{review.name}</span>
-            {review.handle ? (
-              <span className={styles.noteHandle}>{review.handle}</span>
-            ) : null}
-          </span>
-        </span>
-        <p className={styles.noteText}>{review.text}</p>
+          <p className={styles.noteText}>{review.text}</p>
+        </div>
       </div>
     </div>
   );
@@ -580,11 +651,33 @@ export function TestimonialsSection() {
       lastF: number;
     }
 
+    /** One review card during the snake acts (its slot is JS-transformed). */
+    interface WallCard {
+      node: HTMLElement;
+      col: number;
+      /** Shear rank within its block (0 = leads by a whisper). */
+      order: number;
+      /** Cards in its column (the shear's denominator). */
+      count: number;
+      /** Exit travel (px) — the whole COLUMN's, so the block stays solid. */
+      travel: number;
+      /** Flight lean, degrees at full exit (shared by the whole block). */
+      tilt: number;
+      last: string;
+    }
+
     let dist = 0;
+    /** Extra pinned scroll past the rail's end that drives the snake. */
+    let snakeDist = 0;
     let raf: number | null = null;
     let pieces: Piece[] = [];
+    let wallCards: WallCard[] = [];
     let lastTx = 0;
     let vel = 0;
+
+    /** Cinematic ease for the snake's per-card flights (soft in and out). */
+    const easeInOut = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     /** Untranslated offset of a node relative to the row (offsetLeft chains
      *  ignore transforms, so this is stable however far the rail has panned). */
@@ -598,10 +691,15 @@ export function TestimonialsSection() {
       return l;
     };
 
+
     const clearPieces = () => {
       pieces.forEach((pc) => {
         pc.node.style.transform = "";
         pc.node.style.removeProperty("--f");
+      });
+      wallCards.forEach((c) => {
+        c.node.style.transform = "";
+        c.last = "";
       });
     };
 
@@ -609,8 +707,12 @@ export function TestimonialsSection() {
       if (!isJacked() || dist <= 0) return;
       const rect = track.getBoundingClientRect();
       const max = track.offsetHeight - window.innerHeight;
-      const p = max > 0 ? Math.max(0, Math.min(1, -rect.top / max)) : 0;
-      const tx = -p * dist;
+      const scrolled = Math.max(0, Math.min(max, -rect.top));
+      // Phase 1 — the lateral pan: scroll maps 1:1 onto rail travel until the
+      // wall has fully panned in. The track is taller than that travel by
+      // snakeDist (see measure), so past this point the stage stays pinned
+      // with the rail parked — the page "locks" visually while phase 2 runs.
+      const tx = -Math.min(scrolled, dist);
       row.style.transform = `translate3d(${tx.toFixed(2)}px,0,0)`;
 
       // Velocity → the paper lean (springs back as vel decays).
@@ -661,6 +763,32 @@ export function TestimonialsSection() {
           pc.lastF = fr;
         }
       }
+
+      // Phase 2 — the serpent's three overlapping ACTS (right up, middle
+      // down, left up): each column a SOLID block eased through the masked
+      // horizon, starts offset by a beat, the whole thing framed by a hold
+      // on both ends. Scroll-scrubbed — it rewinds on the way back up.
+      if (wallCards.length > 0 && snakeDist > 0) {
+        const p = Math.max(0, Math.min(1, (scrolled - dist) / snakeDist));
+        const span = 1 - SNAKE_STAG;
+        for (const c of wallCards) {
+          const act =
+            c.col === 2 ? SNAKE_ACT_R : c.col === 1 ? SNAKE_ACT_M : SNAKE_ACT_L;
+          const a = Math.max(
+            0,
+            Math.min(1, (p - act[0]) / (act[1] - act[0])),
+          );
+          const start = (c.order / Math.max(1, c.count - 1)) * SNAKE_STAG;
+          const e = easeInOut(Math.max(0, Math.min(1, (a - start) / span)));
+          const dy = (c.col === 1 ? c.travel : -c.travel) * e;
+          const rot = c.tilt * e;
+          const t = `translate3d(0,${dy.toFixed(1)}px,0) rotate(${rot.toFixed(2)}deg)`;
+          if (t !== c.last) {
+            c.node.style.transform = t;
+            c.last = t;
+          }
+        }
+      }
     };
 
     const measure = () => {
@@ -669,6 +797,7 @@ export function TestimonialsSection() {
         row.style.transform = "";
         clearPieces();
         dist = 0;
+        snakeDist = 0;
         return;
       }
       // A stale scrollLeft survives mode switches (the reduced-motion fallback
@@ -677,7 +806,52 @@ export function TestimonialsSection() {
       // and back breaks the rail" bug. Always rail from a clean origin.
       stage.scrollLeft = 0;
       dist = Math.max(0, row.scrollWidth - stage.clientWidth);
-      track.style.height = `${dist + window.innerHeight}px`;
+
+      // Wall geometry for the snake acts: each card's slot (position within
+      // the masked window + cascade order), the column x offsets for the
+      // guest hops, and the phase length — a fixed multiple of the window
+      // height (short and punchy), NOT the content's full length.
+      const wallWin = row.querySelector<HTMLElement>("[data-wall]");
+      const colNodes = Array.from(
+        row.querySelectorAll<HTMLElement>("[data-wall-col]"),
+      );
+      if (wallWin && colNodes.length === WALL_COLS) {
+        const winH = wallWin.clientHeight;
+        wallCards = [];
+        colNodes.forEach((colNode, ci) => {
+          const slots = Array.from(
+            colNode.querySelectorAll<HTMLElement>("[data-wall-card]"),
+          );
+          // The BLOCK's travel: rising columns clear their full content past
+          // the window's top; the descending middle clears the window's
+          // height past its bottom. Shared by every card, so the column
+          // flies as one solid piece.
+          const travel =
+            ci === 1 ? winH + SNAKE_PAD : colNode.offsetHeight + SNAKE_PAD;
+          slots.forEach((node, r) => {
+            wallCards.push({
+              node,
+              col: ci,
+              // The whisper of shear leads from the exit edge: top card
+              // first on rising columns, bottom card first on the
+              // descending middle — the leader eases away from, never
+              // into, its neighbour.
+              order: ci === 1 ? slots.length - 1 - r : r,
+              count: slots.length,
+              travel,
+              tilt: SNAKE_LEAN[ci],
+              last: "",
+            });
+          });
+        });
+        snakeDist = Math.round(
+          Math.min(Math.max(winH * SNAKE_LEN, 850), 1750),
+        );
+      } else {
+        wallCards = [];
+        snakeDist = 0;
+      }
+      track.style.height = `${dist + snakeDist + window.innerHeight}px`;
 
       pieces = Array.from(row.querySelectorAll<HTMLElement>("[data-piece]")).map(
         (node) => ({
@@ -718,6 +892,11 @@ export function TestimonialsSection() {
     const t2 = window.setTimeout(measure, 1000);
     const ro = new ResizeObserver(measure);
     ro.observe(row);
+    // Column heights shift as fonts land, but the row's own box doesn't (the
+    // wall is height-capped) — watch the columns too or travel goes stale.
+    row
+      .querySelectorAll<HTMLElement>("[data-wall-col]")
+      .forEach((node) => ro.observe(node));
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", measure);
     return () => {
@@ -808,11 +987,11 @@ export function TestimonialsSection() {
               data-scale="0.03"
             >
               <span className={styles.notesEyebrow}>avaliações</span>
-              <div className={styles.notesWall}>
+              <div className={styles.notesWall} data-wall>
                 {REVIEW_COLUMNS.map((col, ci) => (
-                  <div className={styles.notesCol} key={ci}>
+                  <div className={styles.notesCol} data-wall-col key={ci}>
                     {col.map((r, i) => (
-                      <Note key={i} review={r} seed={ci + i * WALL_COLS} />
+                      <Note key={i} review={r} col={ci} row={i} />
                     ))}
                   </div>
                 ))}

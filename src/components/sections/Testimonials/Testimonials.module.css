@@ -584,14 +584,23 @@
 }
 
 /* The wall: explicit columns (a horizontal row of vertical stacks) so it
-   reads like the reference — ~4 columns, ≤3 cards each, heights staggering
+   reads like the reference — 3 columns, 5 cards each, heights staggering
    per column. The whole wall is wide, so it extends the horizontal rail to
-   the right (more sideways scroll — intended). A soft top fade lets the first
-   row emerge from the green (the reference's signature). */
+   the right (more sideways scroll — intended). The columns hold MORE cards
+   than the masked window shows: the hidden ones get their reveal during the
+   snake acts (index.tsx), which sweep the wall card by card through the
+   top/bottom fades once the rail parks. */
 .notesWall {
   display: flex;
   align-items: flex-start;
   gap: 14px;
+  /* Horizontal breathing INSIDE the clip box: the wall clips/masks its own
+     box (the vertical horizon fades), and edge cards grow ~4px past the
+     columns under the hover zoom — without this pad the zoom got sliced off.
+     The negative margin hands the room back, so the wall's visual footprint
+     (and the eyebrow alignment) doesn't move. */
+  padding: 0 14px;
+  margin: 0 -14px;
   /* Never taller than the rail band (minus the eyebrow), so centering the panel
      can't push the "avaliações" label above the pinned stage on short viewports;
      instead the wall yields its lowest cards into the bottom fade below. */
@@ -606,21 +615,36 @@
 .notesCol {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  /* roomy enough that two out-of-phase floats (±4.4px each) plus the hover
+     zoom can never close a gap to touching */
+  gap: 18px;
   width: clamp(246px, 21vw, 288px);
 }
 
-/* Registered so the hover lift + press scale TRANSITION smoothly (an unregistered
+/* Per-card slot — the snake acts (index.tsx) own this node's transform, same
+   contract as .piece: NEVER transition or transform .noteSlot from CSS. The
+   float wrapper and the interactive card live inside, untouched. */
+.noteSlot {
+  will-change: transform;
+}
+/* The hovered card must win any overlap while it zooms. The slot (not the
+   float wrapper) carries the z: both animate transforms, so each is its own
+   stacking context — only the slot competes with sibling cards. */
+.noteSlot:hover {
+  z-index: 3;
+}
+
+/* Registered so the hover zoom + press scale TRANSITION smoothly (an unregistered
    custom prop would snap). CRUCIAL: these vars are read by .note's PLAIN transform,
    never inside @keyframes — a registered var referenced inside a running keyframe
    gets pinned to its initial value (Chrome), which silently killed the earlier
    "fold it all into one keyframe" approach. So the float (keyframe, literal values)
-   lives on the .noteFloat WRAPPER and the interactive lift/press (plain, var-driven)
+   lives on the .noteFloat WRAPPER and the interactive zoom/press (plain, var-driven)
    lives on .note; the two compose by nesting. */
-@property --note-lift {
-  syntax: "<length>";
+@property --note-zoom {
+  syntax: "<number>";
   inherits: false;
-  initial-value: 0px;
+  initial-value: 1;
 }
 @property --note-press {
   syntax: "<number>";
@@ -628,14 +652,19 @@
   initial-value: 1;
 }
 
-/* Wrapper: the gentle, independent idle drift only. Delay + duration are set
-   per-card in React so the wall breathes out of lockstep. Literal keyframe
-   values (no var) so it animates reliably; it moves the whole card while .note
-   layers the lift/press on top. */
+/* Wrapper: the gentle, independent idle drift only — a vertical bob plus a
+   whisper of tilt, like paper resting on water. Delay + duration are set
+   per-card in React (column-phased: vertical neighbours drift as a group
+   instead of scissoring into each other). Literal keyframe values (no var) so
+   it animates reliably; it moves the whole card while .note layers the
+   zoom/press on top. .floatB mirrors the tilt for checkerboard variety. */
 .noteFloat {
-  animation: noteFloat var(--float-dur, 7.5s) ease-in-out var(--float-delay, 0s)
-    infinite;
+  animation: var(--float-dur, 8.8s) ease-in-out var(--float-delay, 0s) infinite
+    noteFloatA;
   will-change: transform;
+}
+.floatB {
+  animation-name: noteFloatB;
 }
 
 .note {
@@ -657,31 +686,40 @@
   );
   border: 1px solid rgba(247, 246, 242, 0.1);
   box-shadow: inset 0 1px 0 rgba(247, 246, 242, 0.07);
-  /* Hover lift + click press share ONE plain transform via these vars (so a
-     press while hovering keeps the lift AND dips). Drift comes from the wrapper. */
-  transform: translate3d(0, var(--note-lift, 0px), 0) scale(var(--note-press, 1));
+  /* Hover zoom + click press share ONE plain transform via these vars (so a
+     press while hovering keeps the zoom AND dips). Drift comes from the wrapper.
+     The hover grows IN PLACE (no upward lift) on purpose: the old -5px lift
+     stacked on the float and shoved the card into its upstairs neighbour. */
+  transform: scale(calc(var(--note-press, 1) * var(--note-zoom, 1)));
   /* NOTE the asymmetry: this base transition governs the RELEASE (returning to
      rest), so --note-press blooms back slowly with overshoot. The press-IN is
      overridden to be near-instant on :active below — otherwise a quick click
      (which only holds :active ~100ms) never has time to dip before springing
      back, and the whole effect reads as nothing happening. */
   transition:
-    --note-lift 0.5s cubic-bezier(0.2, 0.7, 0.2, 1),
+    --note-zoom 0.5s cubic-bezier(0.22, 1, 0.36, 1),
     /* a touch of overshoot so the release BLOOMS back instead of just snapping
        up — the spring is what gives the click its charm */
     --note-press 0.52s cubic-bezier(0.34, 1.5, 0.5, 1),
     background 0.4s ease,
-    border-color 0.4s ease;
+    border-color 0.4s ease,
+    box-shadow 0.45s ease;
 }
-/* A card lifts and warms under the cursor (the float keeps running beneath it). */
+/* Under the cursor the card comes FORWARD — a calm zoom, warmer glass, a gold
+   edge and a real drop shadow (depth, not displacement). The float keeps
+   drifting beneath it, which now composes safely: centered growth can't crowd
+   the neighbour above the way the old lift did. */
 .note:hover {
-  --note-lift: -5px;
+  --note-zoom: 1.028;
   background: linear-gradient(
     180deg,
-    rgba(247, 246, 242, 0.13),
-    rgba(247, 246, 242, 0.06)
+    rgba(247, 246, 242, 0.15),
+    rgba(247, 246, 242, 0.07)
   );
-  border-color: color-mix(in srgb, var(--color-gold-soft) 45%, transparent);
+  border-color: color-mix(in srgb, var(--color-gold-soft) 52%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(247, 246, 242, 0.09),
+    0 18px 36px -22px rgba(3, 30, 14, 0.65);
   z-index: 3;
 }
 /* The click reaction: the card presses IN (a soft scale dip + settles toward the
@@ -690,13 +728,11 @@
    press-IN transition here is deliberately near-instant so the dip lands even on
    a fast click; the slow bloom belongs to the base .note rule (the release). */
 .note:active {
-  --note-press: 0.95;
-  --note-lift: 0px;
+  --note-press: 0.955;
   border-color: color-mix(in srgb, var(--color-gold-soft) 62%, transparent);
   z-index: 3;
   transition:
     --note-press 0.1s ease-out,
-    --note-lift 0.1s ease-out,
     background 0.2s ease,
     border-color 0.2s ease;
 }
@@ -883,44 +919,73 @@
        viewport center on tall phones instead of sitting high. */
   }
   .notesCol {
-    width: clamp(196px, 58vw, 232px);
+    /* Narrower than before (58vw → 48vw): three roughly half-screen columns
+       read as a WALL again instead of near-fullscreen cards — the "poluído"
+       feel on small phones. The floor keeps text breathing on ~320px screens. */
+    width: clamp(172px, 48vw, 212px);
     gap: 12px;
   }
   .notesWall {
-    gap: 11px;
-    /* same band-height cap as desktop, in the mobile band's units */
-    max-height: calc(clamp(420px, 62svh, 540px) - 44px);
+    gap: 10px;
+    /* On the shorter mobile band the top horizon fade (9% of the band ≈ 34–45px)
+       landed right on the first row's avatars/names, washing them out — the top
+       row read as loose text with no card. Push the wall's content below a
+       FIXED-px fade with the same padding + negative-margin trick the wall uses
+       horizontally, now vertical: the negative margin hands the room back so the
+       footprint (and the eyebrow gap) don't move, but the fade now falls on empty
+       padding instead of the first row. At rest the top row is fully opaque; the
+       snake still exits up through this horizon (the columns' travel is unchanged
+       — padding on the wall doesn't touch the .notesCol heights the JS measures). */
+    padding-top: 48px;
+    margin-top: -48px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 40px, #000 94%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 40px, #000 94%, transparent 100%);
+    /* same band-height cap as desktop, in the mobile band's units — plus 48px to
+       offset the padding-top under border-box (the cap is a border-box height, so
+       without this the padding would eat 48px of visible cards on capped short
+       viewports). The negative margin absorbs the extra in flow, so the panel's
+       height — and the eyebrow's place in the centered band — are unchanged. */
+    max-height: calc(clamp(420px, 62svh, 540px) - 44px + 48px);
   }
   .notesEyebrow {
     margin-bottom: 12px;
     font-size: 13px;
   }
+  /* Phones ride the shorter float travel — the 12px column gap has less
+     headroom than desktop's 18px. Order matters: .floatB AFTER .noteFloat so
+     the mirrored tilt survives the override. */
+  .noteFloat {
+    animation-name: noteFloatAM;
+  }
+  .floatB {
+    animation-name: noteFloatBM;
+  }
   .note {
-    padding: 14px 15px;
-    border-radius: 14px;
+    padding: 12px 14px;
+    border-radius: 13px;
   }
   .note::after {
     top: 6px;
-    right: 13px;
-    font-size: 27px;
+    right: 12px;
+    font-size: 23px;
   }
   .noteHead {
-    margin-bottom: 9px;
-    gap: 9px;
+    margin-bottom: 8px;
+    gap: 8px;
   }
   .noteAvatar {
-    width: 26px;
-    height: 26px;
+    width: 23px;
+    height: 23px;
   }
   .noteName {
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .noteHandle {
-    font-size: 10px;
+    font-size: 9.5px;
   }
   .noteText {
-    font-size: 12.5px;
-    line-height: 1.55;
+    font-size: 12px;
+    line-height: 1.52;
   }
   .intro {
     width: 82vw;
@@ -981,13 +1046,17 @@
   .navArrow svg {
     animation: none;
   }
-  /* No idle float and no lift/press travel — the cards rest perfectly still
-     (the hover/press still warm the gold edge, just without motion). */
+  /* No idle float, no zoom/press travel, no snake — the cards rest perfectly
+     still (hover/press still warm the gold edge, just without motion). The JS
+     already skips the column transforms when reduced; this is belt-and-braces. */
   .noteFloat {
     animation: none;
   }
   .note {
     transform: none;
+  }
+  .noteSlot {
+    transform: none !important;
   }
 }
 
@@ -1008,10 +1077,24 @@
   50%      { transform: translateX(3px); }
 }
 
-/* The review cards' idle float: a ~6px peak-to-peak vertical drift on the
-   wrapper. Subtle on purpose — alive but calm, never a bounce. Literal values
-   only (see the note by @property --note-lift on why no var() goes in here). */
-@keyframes noteFloat {
-  0%, 100% { transform: translate3d(0, 3px, 0); }
-  50%      { transform: translate3d(0, -3px, 0); }
+/* The review cards' idle float: ~9px peak-to-peak of vertical drift plus a
+   whisper of tilt — paper resting on water, present but never a bounce. A and
+   B mirror the tilt so neighbours sway apart (assigned checkerboard in React);
+   the *M variants are the phones' shorter travel (12px gaps). Literal values
+   only (see the note by @property --note-zoom on why no var() goes in here). */
+@keyframes noteFloatA {
+  0%, 100% { transform: translate3d(0, 4.4px, 0) rotate(-0.3deg); }
+  50%      { transform: translate3d(0, -4.4px, 0) rotate(0.34deg); }
+}
+@keyframes noteFloatB {
+  0%, 100% { transform: translate3d(0, 4.4px, 0) rotate(0.32deg); }
+  50%      { transform: translate3d(0, -4.4px, 0) rotate(-0.26deg); }
+}
+@keyframes noteFloatAM {
+  0%, 100% { transform: translate3d(0, 3.2px, 0) rotate(-0.22deg); }
+  50%      { transform: translate3d(0, -3.2px, 0) rotate(0.26deg); }
+}
+@keyframes noteFloatBM {
+  0%, 100% { transform: translate3d(0, 3.2px, 0) rotate(0.24deg); }
+  50%      { transform: translate3d(0, -3.2px, 0) rotate(-0.2deg); }
 }
