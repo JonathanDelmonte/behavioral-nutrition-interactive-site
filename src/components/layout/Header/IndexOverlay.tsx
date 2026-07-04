@@ -82,36 +82,52 @@ interface Props {
  *   - pressing Escape
  *   - clicking the backdrop (outside the content column)
  */
+/** Keyboard scroll keys suppressed while the overlay is open (see below —
+ *  the background is no longer overflow-locked). Space is " " in `e.key`. */
+const SCROLL_KEYS = new Set([
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
+
 export function IndexOverlay({ open, onClose }: Props) {
   // Close on Escape — global listener active only while the overlay is open.
+  //
+  // The same listener also blocks keyboard scrolling of the page behind.
+  // Background scroll containment used to be `overflow: hidden` on <html>,
+  // but toggling overflow on the ROOT scroller invalidates layout and
+  // layerization for the ENTIRE 20k-px document — on every open AND close.
+  // On slower machines (and under open/close spam) that showed up as the tab
+  // freezing for seconds before the menu appeared. Wheel and touch scrolling
+  // are instead contained by the overlay itself — it is a full-viewport
+  // scroll container with `overscroll-behavior: contain` (IndexOverlay
+  // .module.css), so those gestures never chain through to the page — and
+  // keyboard scrolling (which targets the root scroller when focus sits on
+  // <body>) is suppressed here. Interactive targets are left alone so
+  // Space/Enter still activate the header's × button and the links.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (
+        SCROLL_KEYS.has(e.key) &&
+        !(e.target as HTMLElement | null)?.closest(
+          "a, button, input, textarea, select",
+        )
+      ) {
+        e.preventDefault();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-
-  // Lock background scroll while the overlay is open so the page behind
-  // doesn't jump or scroll-spy under the user's finger. <html> is this page's
-  // scroll container (not <body>), so the lock has to land there — setting
-  // overflow:hidden on <body> leaves the document scrollable. The scrollbar
-  // disappears with the lock, but `scrollbar-gutter: stable` on <html>
-  // (globals.css) keeps its gutter reserved, so the page width stays put and
-  // the full-bleed sticky header doesn't slide sideways while the menu opens.
-  useEffect(() => {
-    if (!open) return;
-
-    const { documentElement } = document;
-    const prevOverflow = documentElement.style.overflow;
-
-    documentElement.style.overflow = "hidden";
-
-    return () => {
-      documentElement.style.overflow = prevOverflow;
-    };
-  }, [open]);
 
   // Holds the cancel fn of an in-flight glide so a second tap (or unmount)
   // can abort it cleanly instead of two glides fighting over the scroll.
@@ -131,12 +147,11 @@ export function IndexOverlay({ open, onClose }: Props) {
     }
     e.preventDefault();
 
-    // Start the overlay fading out, then release the scroll lock the open
-    // effect put on <html>. The effect's own cleanup unlocks on the next
-    // commit too, but doing it here first removes the one-frame race where
-    // overflow:hidden would swallow our programmatic scroll.
+    // Start the overlay fading out; the CSS opacity fade (0.25s) lifts the
+    // veil while the glide below is already moving. There is no scroll lock
+    // to release anymore (see the keydown effect above), so the programmatic
+    // glide is never at risk of being swallowed by overflow:hidden.
     onClose();
-    document.documentElement.style.overflow = "";
     cancelGlide.current?.();
 
     // Land the section just below the sticky header (its real, resolved
