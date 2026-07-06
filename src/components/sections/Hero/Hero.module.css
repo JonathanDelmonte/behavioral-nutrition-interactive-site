@@ -481,27 +481,56 @@
   .l5 { top: 170px;    left: -30px;   width: 105px; opacity: .07; }
   .l6 { top: 280px; bottom: auto; right: -30px; width: 130px; opacity: .10; }
 
-  .row  { flex-direction: column; gap: 18px; }
-  /* Pin lead + CTA back to their original mobile sizing: the desktop rules above
-     are viewport-HEIGHT responsive (svh), which on a short phone viewport would
-     otherwise shrink them. Phones keep the established sizes — lead at its px
-     box (not the desktop em) and the 11px pill. */
-  .lead { text-align: center; max-width: 320px; font-size: clamp(11px, 0.85vw, 13px); }
-  .heroCta.heroCta { font-size: 11px; }
+  /* --- SHORT-PHONE height response ---
+     Real iPhones in Safari lose ~180-290px of height to the browser chrome
+     (svh ≈ 530-700), which the DevTools emulator never shows. The old mobile
+     block pinned every text size to a fixed px, so on those short viewports
+     the ONLY thing that absorbed the missing height was the brain
+     (100svh - 400px → ~130-290px): giant type + giant pill + tiny brain,
+     exactly inverted prominence.
 
-  .display   { font-size: clamp(48px, 14vw, 84px); }
-  /* Cap the brain height against the SMALL viewport, mirroring the desktop
-     `60svh` cap the mobile override used to drop. iOS Safari's bottom toolbar
-     shrinks the visible area — which the DevTools emulator never shows — so a
-     plain 90vw brain landed its base a few px BELOW that toolbar and got
-     clipped. And because the canvas is fixed and TRAVELS on scroll (it doesn't
-     scroll up with the page — it flies toward Identify), you can't scroll to
-     reveal the hidden base: it just "disappears" under the address bar.
-     100svh already reflects the toolbar-shown height, so sizing against it
-     guarantees the base clears the bar. The ~400px reserves the stack above
-     the brain (header + copy + CTA ≈ 390px) plus a small gap; the calc only
-     wins on short / real-phone viewports, so tall phones and the desktop
-     emulator keep the full 90vw — unchanged there. */
-  .brainWrap { width: 90vw; height: min(90vw, calc(100svh - 400px)); margin-top: 6px; }
+     Fix: the same svh-eases the desktop block uses, tuned for phones. Every
+     term below resolves to its old fixed value at svh ≥ ~840 (S20U emulator
+     915, tall Androids) — tall phones are byte-for-byte unchanged — and eases
+     down as the viewport shortens, freeing height that .brainWrap's budget
+     (below) hands back to the brain. Floors keep everything readable on the
+     shortest real case (zoomed-display iPhones, svh ≈ 530). */
+  .stage   { padding-top: clamp(10px, 2.6svh, 20px); }
+  .eyebrow { margin-bottom: clamp(8px, 1.8svh, 14px); }
+  /* Desktop .headline resolves to its 28px floor at phone widths; ease it to
+     23px as height runs out so it stops shouting over the display line. */
+  .headline { font-size: clamp(23px, 3.6svh, 28px); }
+  /* Width term unchanged (14vw = the established mobile size); the svh term
+     only wins below ~836px tall, easing the display to a 40px floor. */
+  .display  { font-size: clamp(40px, min(14vw, 6.9svh), 84px); }
+
+  .row  {
+    flex-direction: column;
+    gap: clamp(12px, 2.2svh, 18px);
+    margin-top: clamp(14px, 3.4svh, 28px);
+  }
+  /* Lead keeps its fixed 11px: it's already the smallest text on screen and
+     shrinking body copy costs readability without buying real height. */
+  .lead { text-align: center; max-width: 320px; font-size: clamp(11px, 0.85vw, 13px); }
+  /* Padding/gap are in em (see the desktop rule), so the whole pill scales as
+     one piece: 11px → ~55px tall at the cap, 9px → ~45px at the floor — still
+     comfortably above the 44px touch-target minimum. */
+  .heroCta.heroCta { font-size: clamp(9px, 1.45svh, 11px); }
+
+  /* Brain height budget. iOS Safari's bottom toolbar shrinks the visible area
+     and the canvas is fixed + TRAVELS on scroll (it flies toward Identify
+     instead of scrolling with the page), so a base below 100svh just
+     "disappears" under the toolbar — the height must fit the SMALL viewport.
+     The old reserve was a constant 400px (the stack above the brain at its
+     fixed sizes); now that the stack itself eases with svh, the reserve must
+     follow it. 80svh - 224px is a linear fit of (measured stack + ~20px
+     toolbar clearance) across the svh-ease range:
+       • svh 528 (zoomed-display iPhone): stack ≈ 307 → brain 198 (was 128)
+       • svh 660 (iPhone w/ Safari bars):  stack ≈ 336 → brain 304 (was 260)
+       • svh ≥ ~732: the fit exceeds 90vw, so min() hands back the full-width
+         brain — the S20U emulator (915) and tall phones are unchanged.
+     If any stack term above changes, re-derive the fit (sum the rendered
+     heights at two svh points and solve the line through them). */
+  .brainWrap { width: 90vw; height: min(90vw, calc(80svh - 224px)); margin-top: 6px; }
 }
 
