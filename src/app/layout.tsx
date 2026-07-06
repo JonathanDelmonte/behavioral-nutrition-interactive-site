@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { fontSans, fontSerif, fontScript, fontQuestion } from "@/styles/fonts";
+import { PRIME_ASSETS } from "@/components/BrainModel/constants";
 import { Header } from "@/components/layout/Header/Header";
 import { SitePreloader } from "@/components/Preloader/SitePreloader";
 import { VideoLightboxProvider } from "@/components/video/VideoLightbox";
@@ -37,6 +38,17 @@ export default function RootLayout({
         <link rel="preconnect" href="https://i.ytimg.com" />
         <link rel="preconnect" href="https://www.google.com" />
         <link rel="dns-prefetch" href="https://static.doubleclick.net" />
+        {/* Start the heavy 3D downloads (GLB, HDRI, draco) with the HTML
+            itself. The boot primer's fetch() calls only begin at hydration —
+            after the main JS has downloaded and parsed — so on slow
+            connections the whole HTML→hydration window was wasted; these
+            preloads let the bytes stream through it, and the primer then
+            resumes from the browser's preload cache instead of from zero.
+            as="fetch" with NO crossorigin matches the primer's plain
+            same-origin fetch(); a mismatch would download twice. */}
+        {PRIME_ASSETS.map(({ url }) => (
+          <link key={url} rel="preload" href={url} as="fetch" />
+        ))}
         {/* VideoLightboxProvider wraps the header AND the page so both share one
             video-viewer state: the Testimonials tiles open it, and the header's
             hamburger reads it to morph into an X that closes the playing video. */}
