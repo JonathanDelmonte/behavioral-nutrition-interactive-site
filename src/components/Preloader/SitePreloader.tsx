@@ -42,8 +42,19 @@ const WARM_IMAGES = [
 ];
 
 const MIN_VISIBLE_MS = 600; // don't flash when assets are already cached
-const GRACE_AFTER_BYTES = 1200; // reveal even if brain:ready somehow never fires
+/** With every byte down, the brain still has real work left — draco decode,
+ *  PMREM, shader compile — which on weak devices takes seconds. This is how
+ *  long we wait for brain:ready before revealing anyway. The old 1.2 s was
+ *  routinely shorter than that tail, so slower devices got the Hero WITHOUT
+ *  the brain (it popped in later, unannounced). 4 s covers the tail on real
+ *  weak hardware; a device that can't paint within it is likely broken
+ *  (WebGL unavailable), where waiting longer wouldn't help either. */
+const GRACE_AFTER_BYTES = 4000;
 const HARD_CAP_MS = 9000; // never trap the visitor, even on a failed asset
+/** One extra window past the cap when the 3D bytes are STILL streaming (dead
+ *  -slow network, bar visibly moving) — cutting off then would guarantee a
+ *  brainless reveal. After it, we reveal no matter what. */
+const CAP_EXTENSION_MS = 6000;
 
 /** Share of the progress bar owned by the small local images vs the primer's
  *  ~2 MB of 3D assets. Byte-weighted roughly (260 KB vs 2 MB). */
@@ -187,13 +198,32 @@ export function SitePreloader() {
       finish();
     }, MIN_VISIBLE_MS);
 
-    const capTimer = window.setTimeout(() => {
+    // Hard cap: something is wrong (a failed or dead-slow asset). Stop waiting
+    // for bytes/fonts — but DON'T fake brain:ready like the old cap did: the
+    // grace window in finish() still gives the brain its bounded chance to
+    // paint first, so the cap can no longer reveal a Hero with an invisible
+    // brain unless the device truly cannot render one at all.
+    let capExtensionTimer: number | undefined;
+    const forceRemaining = () => {
       minElapsedRef.current = true;
       localDoneRef.current = true;
       primerDoneRef.current = true;
       fontsReadyRef.current = true;
-      brainReadyRef.current = true;
       finish();
+    };
+    const capTimer = window.setTimeout(() => {
+      if (!primerDoneRef.current) {
+        // The 3D bytes are still streaming — give them one bounded extension
+        // (revealing now would guarantee the brain is missing). Everything
+        // small stops being waited on immediately.
+        minElapsedRef.current = true;
+        localDoneRef.current = true;
+        fontsReadyRef.current = true;
+        capExtensionTimer = window.setTimeout(forceRemaining, CAP_EXTENSION_MS);
+        finish();
+        return;
+      }
+      forceRemaining();
     }, HARD_CAP_MS);
 
     // The heavy 3D assets — one shared download, byte progress for the bar.
@@ -233,6 +263,7 @@ export function SitePreloader() {
       window.removeEventListener("brain:ready", onBrainReady);
       window.clearTimeout(minTimer);
       window.clearTimeout(capTimer);
+      if (capExtensionTimer != null) window.clearTimeout(capExtensionTimer);
       if (graceTimer != null) window.clearTimeout(graceTimer);
       unsubscribe();
     };
