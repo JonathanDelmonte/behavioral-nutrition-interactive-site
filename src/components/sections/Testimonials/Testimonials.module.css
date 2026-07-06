@@ -880,7 +880,14 @@
     height: 100dvh;
   }
   .row {
-    height: clamp(420px, 62svh, 540px);
+    /* Same band as before (62svh between a 420px floor and 540px cap), PLUS a
+       short-phone ceiling: on SE-class heights the 420px floor overflowed the
+       stage and shoved the band's top ~30px under the sticky header. 100svh −
+       120px reserves the header (60px on phones) and a matching bottom breath;
+       taller phones never hit it. Declared as --band-h so .notesWall's cap
+       below shrinks in step (they MUST stay in sync). */
+    --band-h: min(max(420px, 62svh), 540px, 100svh - 120px);
+    height: var(--band-h);
     padding: 0 20px;
     /* wider rail gaps on phones so the deck no longer sits right against the
        video (the deck also fans a little to the right, eating into the gap). */
@@ -944,12 +951,13 @@
     margin-top: -48px;
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 40px, #000 94%, transparent 100%);
     mask-image: linear-gradient(to bottom, transparent 0, #000 40px, #000 94%, transparent 100%);
-    /* same band-height cap as desktop, in the mobile band's units — plus 48px to
-       offset the padding-top under border-box (the cap is a border-box height, so
-       without this the padding would eat 48px of visible cards on capped short
-       viewports). The negative margin absorbs the extra in flow, so the panel's
-       height — and the eyebrow's place in the centered band — are unchanged. */
-    max-height: calc(clamp(420px, 62svh, 540px) - 44px + 48px);
+    /* same band-height cap as desktop, in the mobile band's units (--band-h,
+       set on .row above) — plus 48px to offset the padding-top under
+       border-box (the cap is a border-box height, so without this the padding
+       would eat 48px of visible cards on capped short viewports). The
+       negative margin absorbs the extra in flow, so the panel's height — and
+       the eyebrow's place in the centered band — are unchanged. */
+    max-height: calc(var(--band-h, clamp(420px, 62svh, 540px)) - 44px + 48px);
   }
   .notesEyebrow {
     margin-bottom: 12px;
@@ -1018,6 +1026,16 @@
   }
   .navDots {
     flex-direction: row;
+  }
+}
+
+/* SE-class heights: the pile plus its under-controls (~378px) outgrows the
+   short-phone band cap (100svh − 120px, see .row), poking the prints back
+   under the sticky header. A smaller pile floor keeps the whole stacked
+   carousel inside the band; every taller phone keeps the bigger prints. */
+@media (max-width: 600px) and (max-height: 500px) {
+  .stack {
+    width: clamp(200px, 60vw, 332px);
   }
 }
 
