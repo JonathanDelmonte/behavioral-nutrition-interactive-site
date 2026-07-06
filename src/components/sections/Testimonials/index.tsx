@@ -38,7 +38,15 @@ const VINE_DIVIDER_TILES = Array.from({ length: 6 }, (_, i) => i);
  *     overlapping acts — the right column rises out as a solid block, the
  *     middle pours downward, the left sweeps up, their starts offset by a
  *     beat so mid-phase all three fly at once — framed by a short hold on
- *     both ends. Short, eased, scroll-scrubbed, reversible.
+ *     both ends. Short, eased, scroll-scrubbed, reversible. EVERY layout
+ *     releases the pin MID-FLIGHT (SNAKE_PIN_*, ~half the timeline): the
+ *     whole second half of the animation rides the stage's exit, so the
+ *     next section arrives while the cards are still visibly flying
+ *     (client: the page must be rolling DURING the animation — "do meio
+ *     pro final" — and an emptied green window must never be held on
+ *     screen). The lone "avaliações" eyebrow fades out alongside. The
+ *     timeline also cuts right after the last VISIBLE column's act
+ *     (off-screen columns compress their flight into it).
  *   - Ghost script names behind each case, paper-note reviews that straighten
  *     on hover, a breathing play ring.
  *
@@ -130,8 +138,8 @@ const REVIEWS: Review[] = [
 
 /** Number of wall columns (reference look: 3 columns, 5 cards each — taller
  *  than the masked window on purpose; the snake phase reveals the rest). The
- *  horizontal rail's scroll distance is derived from row.scrollWidth, so a
- *  wider wall simply extends the rail — no scrolljack changes needed. */
+ *  horizontal rail's scroll distance is derived from the row's LAYOUT width,
+ *  so a wider wall simply extends the rail — no scrolljack changes needed. */
 const WALL_COLS = 3;
 /** Round-robin into columns so the varied card heights stagger across the
  *  wall (a tall review never piles up in one column). */
@@ -162,7 +170,18 @@ const FLOAT_JITTER = [0, 0.35, 0.6, 0.2, 0.5, 0.1, 0.45, 0.25, 0.55];
  *  last block clears — the cross-column "guest" cards are GONE: their lone
  *  late flights read as glitches, not as a serpent's thread (client-vetoed
  *  twice). Scroll-scrubbed — rewinds on the way back up. */
-const SNAKE_LEN = 2.4; // phase scroll length = window height × this (clamped)
+const SNAKE_LEN = 2.4; // timeline length = wall-window height × this (clamped)
+/** Share of the snake timeline that stays PINNED; the remainder plays over
+ *  the stage's exit. Released MID-FLIGHT on purpose (client, twice): the
+ *  page must already be rolling while the cards are still visibly flying —
+ *  "não é no início, é mais do meio pro final" — so the whole second half
+ *  of the animation crosses the next section's arrival and no stretch of
+ *  scroll ever shows a held green window. Waiting for the window to empty
+ *  (first pass: 0.68/0.8) read as "the scroll only happens after the
+ *  animation" — vetoed. Measured at release: desktop still shows ~6 of its
+ *  12 window cards mid-flight; phones ~3–4 of 8. */
+const SNAKE_PIN_PHONE = 0.58;
+const SNAKE_PIN_DESKTOP = 0.52;
 const SNAKE_ACT_R: [number, number] = [0.1, 0.62]; // right block (up)
 const SNAKE_ACT_M: [number, number] = [0.18, 0.72]; // middle block (down)
 const SNAKE_ACT_L: [number, number] = [0.28, 0.97]; // left block (up)
@@ -663,12 +682,33 @@ export function TestimonialsSection() {
       travel: number;
       /** Flight lean, degrees at full exit (shared by the whole block). */
       tilt: number;
+      /** This column's act window, already fitted to snakeCut (see measure). */
+      act: [number, number];
       last: string;
     }
 
     let dist = 0;
-    /** Extra pinned scroll past the rail's end that drives the snake. */
+    /** Scroll length of the snake in px. Desktop: EXTRA pinned scroll past
+     *  the rail's end (the track is taller by this much). Phones (overlap
+     *  mode): a share of the stage's exit — no extra track height at all. */
     let snakeDist = 0;
+    /** Where the act timeline ends (1 on desktop). Phones park a window
+     *  NARROWER than the wall: acts past the last VISIBLE column's end played
+     *  to an empty stage — a whole viewport of dead green scroll before the
+     *  unpin. measure() cuts the timeline just past that last visible act,
+     *  so the phase is over the beat after the window empties. */
+    let snakeCut = 1;
+    /** Share of the timeline that stays pinned (SNAKE_PIN_*, per layout —
+     *  set in measure). The pin must not outlive the show: the page rolls
+     *  again as the animation reaches its end, never holding an emptied
+     *  window. The track only extends by this share; the acts are driven by
+     *  the RAW track offset (-rect.top keeps growing through the unpinned
+     *  exit), so the flight's tail plays over the next section's arrival.
+     *  Scrubbed both ways. */
+    let pinFrac = 1;
+    /** The "avaliações" eyebrow — it bows out with the last flight (see
+     *  update) instead of sitting alone over the emptied window. */
+    let eyebrow: { node: HTMLElement; last: string } | null = null;
     let raf: number | null = null;
     let pieces: Piece[] = [];
     let wallCards: WallCard[] = [];
@@ -701,6 +741,11 @@ export function TestimonialsSection() {
         c.node.style.transform = "";
         c.last = "";
       });
+      if (eyebrow) {
+        eyebrow.node.style.opacity = "";
+        eyebrow.node.style.transform = "";
+        eyebrow.last = "";
+      }
     };
 
     const update = () => {
@@ -769,11 +814,32 @@ export function TestimonialsSection() {
       // horizon, starts offset by a beat, the whole thing framed by a hold
       // on both ends. Scroll-scrubbed — it rewinds on the way back up.
       if (wallCards.length > 0 && snakeDist > 0) {
-        const p = Math.max(0, Math.min(1, (scrolled - dist) / snakeDist));
+        // p runs 0→snakeCut across the phase: the act table is authored for
+        // the full desktop timeline (cut = 1); a narrower parked window ends
+        // it early (see measure). Driven by the RAW track offset — it keeps
+        // growing while the unpinned stage exits (the pin covers only
+        // pinFrac of the phase), so the flight's tail plays over the page's
+        // own motion instead of over a frozen screen.
+        const phase = Math.max(0, Math.min(1, (-rect.top - dist) / snakeDist));
+        const p = phase * snakeCut;
+        // The lone "avaliações" label bows out with the last flight — fully
+        // gone a breath BEFORE the pin releases, so it never sits alone
+        // over the emptied window (client). Eased, scrubbed, reversible.
+        if (eyebrow) {
+          const f = easeInOut(
+            Math.max(0, Math.min(1, (phase - (pinFrac - 0.22)) / 0.2)),
+          );
+          const key = f.toFixed(3);
+          if (key !== eyebrow.last) {
+            eyebrow.node.style.opacity = f === 0 ? "" : (1 - f).toFixed(3);
+            eyebrow.node.style.transform =
+              f === 0 ? "" : `translate3d(0,${(-12 * f).toFixed(1)}px,0)`;
+            eyebrow.last = key;
+          }
+        }
         const span = 1 - SNAKE_STAG;
         for (const c of wallCards) {
-          const act =
-            c.col === 2 ? SNAKE_ACT_R : c.col === 1 ? SNAKE_ACT_M : SNAKE_ACT_L;
+          const act = c.act;
           const a = Math.max(
             0,
             Math.min(1, (p - act[0]) / (act[1] - act[0])),
@@ -798,6 +864,8 @@ export function TestimonialsSection() {
         clearPieces();
         dist = 0;
         snakeDist = 0;
+        snakeCut = 1;
+        pinFrac = 1;
         return;
       }
       // A stale scrollLeft survives mode switches (the reduced-motion fallback
@@ -805,7 +873,18 @@ export function TestimonialsSection() {
       // would offset the rail on top of the translate — the "resize to phone
       // and back breaks the rail" bug. Always rail from a clean origin.
       stage.scrollLeft = 0;
-      dist = Math.max(0, row.scrollWidth - stage.clientWidth);
+      // dist must come from LAYOUT, not row.scrollWidth: scrollable overflow
+      // tracks the pieces' TRANSFORMED bounds, and at measure time (page top)
+      // the far pieces carry a large positive parallax shift — the wall alone
+      // sat ~100px right of its box, so the rail over-panned past its own end
+      // and parked on a dead green band (a third of a phone's screen).
+      // offsetLeft chains ignore transforms; sum the real right edge instead.
+      let edge = 0;
+      for (const child of Array.from(row.children) as HTMLElement[]) {
+        edge = Math.max(edge, leftInRow(child) + child.offsetWidth);
+      }
+      edge += parseFloat(getComputedStyle(row).paddingRight) || 0;
+      dist = Math.max(0, Math.round(edge - stage.clientWidth));
 
       // Wall geometry for the snake acts: each card's slot (position within
       // the masked window + cascade order), the column x offsets for the
@@ -817,17 +896,47 @@ export function TestimonialsSection() {
       );
       if (wallWin && colNodes.length === WALL_COLS) {
         const winH = wallWin.clientHeight;
+        // The acts, indexed by column (left, middle, right). Which of them
+        // can the PARKED window actually show? On phones the wall is wider
+        // than the screen — the left column (sometimes most of the middle)
+        // sits wholly off-screen at tx = -dist, so its act played to nobody
+        // while the pin held an empty stage. Close the timeline just past
+        // the last visible act (same closing beat as desktop's 0.97→1).
+        const acts: [number, number][] = [SNAKE_ACT_L, SNAKE_ACT_M, SNAKE_ACT_R];
+        let lastVisible = 0;
+        colNodes.forEach((colNode, ci) => {
+          const x = leftInRow(colNode) - dist;
+          if (x < stage.clientWidth - 12 && x + colNode.offsetWidth > 12) {
+            lastVisible = Math.max(lastVisible, acts[ci][1]);
+          }
+        });
+        snakeCut = Math.min(1, (lastVisible || 1) + 0.03);
         wallCards = [];
         colNodes.forEach((colNode, ci) => {
           const slots = Array.from(
             colNode.querySelectorAll<HTMLElement>("[data-wall-card]"),
           );
+          // An off-screen column still has to FINISH inside the cut timeline
+          // (compressed, faster — nobody sees it), or its half-exited cards
+          // would freeze peeking back into the wall's masked edge.
+          const base = acts[ci];
+          const act: [number, number] =
+            base[1] > snakeCut
+              ? [Math.min(base[0], snakeCut - 0.2), snakeCut]
+              : base;
           // The BLOCK's travel: rising columns clear their full content past
           // the window's top; the descending middle clears the window's
           // height past its bottom. Shared by every card, so the column
-          // flies as one solid piece.
+          // flies as one solid piece. A rising column starts BELOW the box's
+          // top by its offset inside the wall (the mobile wall pads its top
+          // 48px for the horizon fade) — without that term the block parked
+          // its last card's tail inside the masked window. offsetTop chains
+          // ignore transforms, so the difference is stable mid-flight too.
+          const colTop = colNode.offsetTop - wallWin.offsetTop;
           const travel =
-            ci === 1 ? winH + SNAKE_PAD : colNode.offsetHeight + SNAKE_PAD;
+            ci === 1
+              ? winH + SNAKE_PAD
+              : colTop + colNode.offsetHeight + SNAKE_PAD;
           slots.forEach((node, r) => {
             wallCards.push({
               node,
@@ -840,18 +949,36 @@ export function TestimonialsSection() {
               count: slots.length,
               travel,
               tilt: SNAKE_LEAN[ci],
+              act,
               last: "",
             });
           });
         });
+        // ONE timeline length for every width (scaled by the cut so each
+        // act keeps its px-per-beat — it ends sooner, never idles). Layouts
+        // differ only in how much of it stays PINNED (track height below).
+        pinFrac = window.matchMedia("(max-width: 760px)").matches
+          ? SNAKE_PIN_PHONE
+          : SNAKE_PIN_DESKTOP;
         snakeDist = Math.round(
-          Math.min(Math.max(winH * SNAKE_LEN, 850), 1750),
+          Math.min(Math.max(winH * SNAKE_LEN, 850), 1750) * snakeCut,
         );
+        const eyeNode = row.querySelector<HTMLElement>("[data-wall-eyebrow]");
+        eyebrow = eyeNode ? { node: eyeNode, last: eyebrow?.last ?? "" } : null;
       } else {
         wallCards = [];
         snakeDist = 0;
+        snakeCut = 1;
+        pinFrac = 1;
+        eyebrow = null;
       }
-      track.style.height = `${dist + snakeDist + window.innerHeight}px`;
+      // The pin covers only pinFrac of the timeline (per layout): the page
+      // frees right as the flight enters its tail, so the next section is
+      // already arriving while the last cards slip out — and an emptied
+      // window is never held on screen.
+      track.style.height = `${
+        dist + Math.round(snakeDist * pinFrac) + window.innerHeight
+      }px`;
 
       pieces = Array.from(row.querySelectorAll<HTMLElement>("[data-piece]")).map(
         (node) => ({
@@ -986,7 +1113,9 @@ export function TestimonialsSection() {
               data-tilt="0.6"
               data-scale="0.03"
             >
-              <span className={styles.notesEyebrow}>avaliações</span>
+              <span className={styles.notesEyebrow} data-wall-eyebrow>
+                avaliações
+              </span>
               <div className={styles.notesWall} data-wall>
                 {REVIEW_COLUMNS.map((col, ci) => (
                   <div className={styles.notesCol} data-wall-col key={ci}>

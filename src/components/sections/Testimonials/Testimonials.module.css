@@ -581,6 +581,10 @@
   font-style: italic;
   font-size: clamp(14px, 1.2vw, 17px);
   color: var(--color-gold-soft);
+  /* opacity/transform during the snake's tail are owned by the JS loop
+     (same contract as .noteSlot): never transition or animate them here —
+     it bows out with the last flight instead of sitting alone. */
+  will-change: opacity, transform;
 }
 
 /* The wall: explicit columns (a horizontal row of vertical stacks) so it
@@ -1056,6 +1060,10 @@
     transform: none;
   }
   .noteSlot {
+    transform: none !important;
+  }
+  .notesEyebrow {
+    opacity: 1 !important;
     transform: none !important;
   }
 }
