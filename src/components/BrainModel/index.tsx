@@ -1,14 +1,14 @@
 "use client";
 
-import { PerformanceMonitor } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { PerformanceMonitor, Preload } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   Bloom,
   BrightnessContrast,
   EffectComposer,
   HueSaturation,
 } from "@react-three/postprocessing";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ACESFilmicToneMapping, SRGBColorSpace } from "three";
 import { BrainStateProvider, type BrainIntensity } from "./BrainContext";
 import { Scene } from "./Scene";
@@ -97,20 +97,42 @@ function AdaptiveQuality({ onDecline }: { onDecline: () => void }) {
 }
 
 /**
- * Fires `brain:ready` once — and sets a window flag for late listeners. Because
- * it lives INSIDE the <Suspense> below (next to <Scene/>, which suspends on both
- * the GLB and the HDRI), it only mounts after the brain is fully loaded and
- * about to paint. The boot preloader waits for this so it never reveals the Hero
- * with an empty hole where the brain should be.
+ * Fires `brain:ready` once — and sets a window flag for late listeners. It
+ * lives INSIDE the <Suspense> below (next to <Scene/>), so it can only run
+ * after the GLB + HDRI are decoded; <Preload all/> (same boundary) has then
+ * already force-compiled every shader and uploaded every texture during the
+ * same commit. The event itself waits one further frame: it dispatches only
+ * AFTER the first real render has been presented. The old signal fired when
+ * the brain was merely "about to start rendering" — and on weak GPUs the
+ * first-render compile stall sat exactly in that gap, so the boot preloader
+ * revealed the Hero while the canvas was still blank (the "invisible brain").
+ *
+ * If the frameloop is paused (`active=false`: a reload restored the scroll
+ * deep into the page, brain far off-screen) no frame will ever render — fire
+ * immediately instead, since there is nothing visible to wait for and the
+ * preloader must not be held hostage.
  */
 function ReadySignal() {
-  useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      (window as unknown as { __brainReady?: boolean }).__brainReady = true;
-      window.dispatchEvent(new Event("brain:ready"));
-    });
-    return () => cancelAnimationFrame(id);
+  const frameloop = useThree((s) => s.frameloop);
+  const fired = useRef(false);
+
+  const fire = useCallback(() => {
+    if (fired.current) return;
+    fired.current = true;
+    (window as unknown as { __brainReady?: boolean }).__brainReady = true;
+    window.dispatchEvent(new Event("brain:ready"));
   }, []);
+
+  useFrame(() => {
+    // Registered DURING a frame R3F is about to render, so the callback lands
+    // on the NEXT animation frame — after this first frame was presented.
+    if (!fired.current) requestAnimationFrame(fire);
+  });
+
+  useEffect(() => {
+    if (frameloop === "never") fire();
+  }, [frameloop, fire]);
+
   return null;
 }
 
@@ -118,6 +140,11 @@ function ReadySignal() {
  * Fully self-contained 3D brain. Pass scale/position/intensity from the caller —
  * no assumptions about page layout, header, or background color are made here.
  */
+/** How long to wait for the browser's own `webglcontextrestored` before
+ *  rebuilding the context ourselves, and how many rebuilds to attempt. */
+const CONTEXT_RESTORE_WAIT_MS = 3000;
+const MAX_CONTEXT_REBUILDS = 3;
+
 export function BrainModel({
   scale = 1,
   position = [0, 0, 0],
@@ -131,6 +158,49 @@ export function BrainModel({
   const [tier, setTier] = useState(0);
   const quality = QUALITY_TIERS[tier];
 
+  // WebGL context-loss belt. three.js preventDefault()s `webglcontextlost`,
+  // which asks the browser to restore the context — and when the restore
+  // arrives, three rebuilds its GL state and the loader-cached geometry/
+  // textures re-upload transparently. But memory-pressured mobile browsers
+  // sometimes never fire the restore, which left a permanently blank canvas
+  // ("the brain vanished until a manual reload"). If no restore lands within
+  // CONTEXT_RESTORE_WAIT_MS, bump the <Canvas> key for a brand-new context —
+  // everything rebuilds from the in-memory caches, nothing re-downloads.
+  const [glEpoch, setGlEpoch] = useState(0);
+  const ctxRebuilds = useRef(0);
+  const ctxLossTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(ctxLossTimer.current), []);
+  const watchContextLoss = useCallback((canvasEl: HTMLCanvasElement) => {
+    canvasEl.addEventListener("webglcontextlost", () => {
+      if (ctxRebuilds.current >= MAX_CONTEXT_REBUILDS) return;
+      window.clearTimeout(ctxLossTimer.current);
+      ctxLossTimer.current = window.setTimeout(() => {
+        ctxRebuilds.current += 1;
+        setGlEpoch((e) => e + 1);
+      }, CONTEXT_RESTORE_WAIT_MS);
+    });
+    canvasEl.addEventListener("webglcontextrestored", () => {
+      window.clearTimeout(ctxLossTimer.current);
+    });
+  }, []);
+
+  // Soft reveal: the wrap starts transparent and fades in once the brain has
+  // actually painted (brain:ready). Normally that completes while the boot
+  // overlay still covers the page, so nothing visibly changes — but when the
+  // brain is LATE (the preloader's hard cap fired on a dying network, or an
+  // error retry finally succeeded), it eases into the already-revealed Hero
+  // instead of popping in fully formed between two frames.
+  const [painted, setPainted] = useState(false);
+  useEffect(() => {
+    if ((window as unknown as { __brainReady?: boolean }).__brainReady) {
+      setPainted(true);
+      return;
+    }
+    const onReady = () => setPainted(true);
+    window.addEventListener("brain:ready", onReady);
+    return () => window.removeEventListener("brain:ready", onReady);
+  }, []);
+
   // Mirror the tier onto <html data-gpu-tier="…"> so plain CSS joins the
   // degradation (see Identify.module.css: at the lowest tier the glassy
   // bubbles drop their backdrop blurs and blur() swap animations, which are
@@ -141,10 +211,15 @@ export function BrainModel({
   }, [tier]);
 
   return (
-    <div className={className ?? "w-full h-full"}>
+    <div
+      className={className ?? "w-full h-full"}
+      style={{ opacity: painted ? 1 : 0, transition: "opacity 0.45s ease" }}
+    >
       <Canvas
+        key={glEpoch}
         shadows
         frameloop={active ? "always" : "never"}
+        onCreated={({ gl }) => watchContextLoss(gl.domElement)}
         dpr={[1, quality.dprCap]}
         camera={{
           position: CAMERA.position,
@@ -177,6 +252,12 @@ export function BrainModel({
         <BrainStateProvider intensity={merged}>
           <ErrorBoundary>
             <Suspense fallback={<LoaderCube />}>
+              {/* Force-compile every shader + upload every texture in the
+                  same commit the Suspense resolves (still under the boot
+                  overlay), so the first visible frame doesn't stall on the
+                  compile — that stall is what used to reveal a brainless
+                  Hero on weak GPUs. */}
+              <Preload all />
               <ReadySignal />
               <AdaptiveQuality
                 onDecline={() =>
