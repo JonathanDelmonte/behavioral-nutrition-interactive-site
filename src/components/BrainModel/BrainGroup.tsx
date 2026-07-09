@@ -218,7 +218,7 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
       seedPart: seed,
       fruits: fruitsLocal,
     };
-  }, [nodes, scene]);
+  }, [nodes, scene, normScaleRef]);
 
   useMouseMagnetism(outerRef, {
     maxRotationX: ANIMATION.magnetism.maxRotationX,
@@ -332,11 +332,20 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
         const ramp = rampR * rampR * (3 - 2 * rampR);
         const temporal = gamma * ramp * (pulse.strength ?? 1);
 
-        // Click direction in world (unit vector from origin to click point).
-        const len = Math.hypot(pulse.origin.x, pulse.origin.y, pulse.origin.z) || 1;
-        const ox = pulse.origin.x / len;
-        const oy = pulse.origin.y / len;
-        const oz = pulse.origin.z / len;
+        // Click direction seen from the brain's LIVE world center. Origins
+        // are absolute world points on the brain surface (the shared
+        // convention across desktop click / mobile tap / think pulse), and
+        // the brain sits off the world origin on the full-viewport canvas —
+        // normalizing the raw origin would skew the push toward wherever the
+        // brain happens to be parked on screen.
+        const bp = brainWorldPos.current;
+        const dx = pulse.origin.x - bp.x;
+        const dy = pulse.origin.y - bp.y;
+        const dz = pulse.origin.z - bp.z;
+        const len = Math.hypot(dx, dy, dz) || 1;
+        const ox = dx / len;
+        const oy = dy / len;
+        const oz = dz / len;
 
         dxTarget -= ox * temporal * dispAmp;
         dyTarget -= oy * temporal * dispAmp;
@@ -440,9 +449,21 @@ export function BrainGroup({ progressRef }: BrainGroupProps = {}) {
           );
 
           // Same fix as hover: project the cursor's ray to the brain's actual
-          // (scaled) surface, not the unit sphere or the larger aura collider.
+          // (scaled) surface, solved around the brain's LIVE world center —
+          // the canvas is full-viewport and the brain sits off the world
+          // origin (Hero right-of-center, Identify left column), so an
+          // origin-centered sphere would land the pulse offset from the
+          // brain. pulse.origin is therefore always an ABSOLUTE world point
+          // on the surface (same convention as the mobile tap and the think
+          // pulse); the impact spring re-derives the push direction by
+          // subtracting brainWorldPos.
           const projected = new Vector3();
-          rayUnitSphereHit(e.ray, projected, brainWorldScale.current);
+          rayUnitSphereHit(
+            e.ray,
+            projected,
+            brainWorldScale.current,
+            brainWorldPos.current,
+          );
 
           // Reject the new click only if there's an ACTIVE pulse close to the
           // new point — close enough that the two ripples would visually

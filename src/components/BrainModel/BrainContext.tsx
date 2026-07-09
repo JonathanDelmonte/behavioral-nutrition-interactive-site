@@ -51,6 +51,12 @@ interface BrainStateValue {
 }
 
 export interface Pulse {
+  /** ABSOLUTE world-space point on the brain's surface. Every producer
+   *  (desktop click, mobile tap, think pulse) solves its point around the
+   *  brain's live world center (brainWorldPos) — NOT the world origin, since
+   *  the full-viewport canvas parks the brain off-origin. Consumers: Fruit
+   *  measures world distance to it directly; the impact spring re-derives
+   *  the push direction by subtracting brainWorldPos. */
   origin: Vector3;
   /** performance.now() / 1000 when the click happened. The per-fruit math
    *  derives all internal ripple timings from this single timestamp. */

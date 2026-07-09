@@ -78,7 +78,7 @@ export function Scene({ scale, position, progressRef, placementRef }: SceneProps
  * is touched, and with no event fired the brain behaves exactly as before.
  */
 function ThinkPulse() {
-  const { pulses, brainWorldScale } = useBrainState();
+  const { pulses, brainWorldScale, brainWorldPos } = useBrainState();
 
   useEffect(() => {
     const dir = new Vector3();
@@ -100,16 +100,21 @@ function ThinkPulse() {
       }
       // Origin on the up-right of the brain's surface — where the thought
       // tail leaves toward the bubble — so the recoil reads as "emitting".
+      // Anchored on the brain's LIVE world center: pulse.origin is always an
+      // ABSOLUTE world point (the shared convention with the desktop click
+      // and mobile tap), and the brain sits off the world origin on the
+      // full-viewport canvas.
       dir
         .set(0.55, 0.8, 0.25)
         .normalize()
-        .multiplyScalar(brainWorldScale.current);
+        .multiplyScalar(brainWorldScale.current)
+        .add(brainWorldPos.current);
       active.push({ origin: dir.clone(), startTime: now, strength });
       pulses.current = active;
     };
     window.addEventListener("brain:think", onThink);
     return () => window.removeEventListener("brain:think", onThink);
-  }, [pulses, brainWorldScale]);
+  }, [pulses, brainWorldScale, brainWorldPos]);
 
   return null;
 }
@@ -136,7 +141,15 @@ function MobileTap({ targetRef }: { targetRef: MutableRefObject<Group> }) {
     const origin = new Vector3();
 
     const onClick = (e: MouseEvent) => {
-      if (!window.matchMedia("(max-width: 760px)").matches) return;
+      // Same condition as the pointer-events mute in BrainStage.module.css —
+      // wherever the canvas can't hit-test (phones, plus coarse-pointer
+      // landscape-short viewports), the tap pulse arrives through here.
+      if (
+        !window.matchMedia(
+          "(max-width: 760px), ((orientation: landscape) and (max-height: 520px) and (pointer: coarse))",
+        ).matches
+      )
+        return;
       const target = targetRef.current;
       if (!target) return;
       const rect = canvasEl.getBoundingClientRect();

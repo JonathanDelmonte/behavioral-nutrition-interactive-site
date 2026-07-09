@@ -76,7 +76,13 @@
   pointer-events: none !important;
 }
 
-@media (max-width: 760px) {
+/* Landscape phones are WIDER than 760px, so without the second branch they'd
+   fall into the desktop policy and the full-viewport canvas would capture the
+   touch-scroll (the exact bug the phone block cures). The coarse-pointer term
+   keeps short desktop WINDOWS (mouse) on the desktop hover/click behavior;
+   MobileTap in Scene.tsx mirrors this same condition for the tap pulse. */
+@media (max-width: 760px),
+  ((orientation: landscape) and (max-height: 520px) and (pointer: coarse)) {
   /* On phones the full-viewport canvas must NOT capture touch, or it eats the
      scroll gesture — R3F holds the pointer on touch-down and even
      touch-action:pan-y didn't release it. Force the whole subtree pass-through
@@ -89,6 +95,9 @@
   .canvas * {
     pointer-events: none !important;
   }
+}
+
+@media (max-width: 760px) {
   /* Mobile frame has no vertical bleed, so the shadow sits right at the
      bottom of the brain's visual footprint. */
   .shadow {
