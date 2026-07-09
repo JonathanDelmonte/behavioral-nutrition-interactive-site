@@ -34,6 +34,10 @@ jobs:
       - name: Build (static export)
         env:
           BUILD_FOR_GH_PAGES: "1"
+          # STAGING: emite <meta name="robots" content="noindex"> (layout.tsx)
+          # para a URL temporária de testes no github.io não ser indexada pelo
+          # Google. REMOVER esta linha no lançamento com o domínio definitivo.
+          NEXT_PUBLIC_NOINDEX: "1"
         run: npm run build
 
       - name: Disable Jekyll on Pages

@@ -6,8 +6,15 @@ export const CONTACT = {
   email: "julianaadelmonte@gmail.com",
   instagram: "@nutrijuliana_delmonte",
   instagramUrl: "https://www.instagram.com/nutrijuliana_delmonte",
+  // Maps URL API (documented, stable) com o endereço por extenso — o link
+  // antigo era um URL de sessão copiado do navegador (client=opera-gx, lqi
+  // "energy power jf" com categoria de loja de suplementos), que arriscava
+  // abrir a listagem ERRADA no Google Maps.
   mapsUrl:
-    "https://maps.google.com/maps?vet=10CAAQoqAOahcKEwiQ3IGlpYaVAxUAAAAAHQAAAAAQCQ..i&client=opera-gx&pvq=CgsvZy8xdnBwdHF4diIVCg9lbmVyZ3kgcG93ZXIgamYQAhgD&lqi=Cg9lbmVyZ3kgcG93ZXIgamZImrfz2uqAgIAIWicQABABEAIYABgBGAIiD2VuZXJneSBwb3dlciBqZioICAIQABABEAKSAR12aXRhbWluX2FuZF9zdXBwbGVtZW50c19zdG9yZZoBJENoZERTVWhOTUc5blMwVkpRMEZuU1VSb2JVbFVkRzFCUlJBQvoBBAgpECU&fvr=1&cs=1&um=1&ie=UTF-8&fb=1&gl=br&sa=X&ftid=0x989ca055861db1:0x4e2ad9b940e96bea",
+    "https://www.google.com/maps/search/?api=1&query=" +
+    encodeURIComponent(
+      "R. Barão de São João Nepomuceno, 236 - Centro, Juiz de Fora - MG, 36010-081",
+    ),
 } as const;
 
 export const WHATSAPP_HREF = `https://wa.me/${CONTACT.whatsappNumber}?text=${encodeURIComponent(CONTACT.whatsappMessage)}`;
