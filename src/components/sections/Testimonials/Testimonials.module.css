@@ -390,25 +390,41 @@
      STABLE layer makes the corners hold; .video just scales the whole layer. */
   border-radius: inherit;
   transform: translateZ(0);
+  /* Size container so .frameCover can measure the tile in cq units — the
+     cover-both-ways math below needs the box's height, which no % can give
+     a width. (This box is inset:0, so size containment costs nothing.) */
+  container-type: size;
   background:
     radial-gradient(120% 90% at 50% 18%, #d8e0cf, transparent 72%),
     linear-gradient(160deg, #c4d1b8, #a3b896);
   color: color-mix(in srgb, var(--color-green-deep) 55%, transparent);
 }
 
-/* The looping embed is a 9:16 short; size it to COVER the (slightly wider)
-   tile so there are no black bars — it's centered and the tile's overflow:hidden
-   crops the top/bottom sliver. The iframe itself can't be clicked (the hit
-   layer below owns the click), so YouTube's own chrome never surfaces. */
+/* The looping embed is a 9:16 short; size it to COVER the tile in BOTH
+   directions so no poster ever peeks through — it's centered and .media's
+   overflow:hidden crops whichever axis overflows. The iframe itself can't be
+   clicked (the hit layer below owns the click), so YouTube's own chrome never
+   surfaces. */
 /* 9:16 cover, centered with FLEX (not translate). A translate(-50%,-50%) landed
    the tall cross-origin iframe layer on a half-pixel and GPU compositing drew a
    faint hairline across its middle; flex centering keeps it pixel-aligned, and
-   .media clips the vertical overflow. */
+   .media clips the overflow. */
 .frameCover {
   position: relative;
   flex: 0 0 auto;
+  /* Fallback (pre-container-query engines): the old width-driven frame. It
+     only covered tiles WIDER than 9:16 — on tall-and-narrow boxes (phone
+     portrait: 60vw × 50svh, e.g. 216×450 on a 360×900 screen) the frame ran
+     tens of px short and the poster gradient showed as cream bars above and
+     below the footage. */
   width: 100%;
   aspect-ratio: 9 / 16;
+  /* True cover: each side takes whichever is longer — the tile's own edge or
+     the 9:16 complement of the other edge — so the pair always keeps the 9:16
+     ratio while covering both axes. The +2px of slack means layout rounding
+     can never leave a hairline of poster along an edge. */
+  width: max(calc(100cqw + 2px), calc((100cqh + 2px) * 9 / 16));
+  height: max(calc(100cqh + 2px), calc((100cqw + 2px) * 16 / 9));
 }
 .ytHost {
   position: absolute;
@@ -1036,6 +1052,77 @@
 @media (max-width: 600px) and (max-height: 500px) {
   .stack {
     width: clamp(200px, 60vw, 332px);
+  }
+}
+
+/* LANDSCAPE PHONES (both width branches — most land in the >760px desktop
+   rules, where the band's 480px floor and the video's 360px floor overflow a
+   ~330-430px viewport and clip under the sticky header). One band variable
+   drives everything: the fold minus the header minus a breath. Height-driven
+   pieces (video, pile) budget off it; the pile's side controls come back
+   BESIDE the prints (undoing the ≤600px stacked layout — sideways there IS
+   width). Placed after every other block so it wins in both branches. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .stage {
+    height: 100dvh;
+    /* The sticky header is persistent; centering the band in the full
+       viewport tucked its top ~13px underneath. Reserve the bar. */
+    padding-top: var(--header-h);
+  }
+  .row {
+    --band-h: calc(100svh - var(--header-h) - 26px);
+    height: var(--band-h);
+    gap: clamp(64px, 8vw, 120px);
+    padding: 0 clamp(20px, 4vw, 60px);
+  }
+
+  .intro { width: clamp(260px, 40vw, 420px); }
+
+  .video {
+    width: clamp(190px, 26vw, 300px);
+    height: calc(var(--band-h) - 12px);
+  }
+  .play { width: 64px; height: 64px; }
+  .play svg { width: 27px; height: 27px; }
+  .videoName {
+    left: 14px;
+    bottom: 12px;
+    font-size: clamp(15px, 4svh, 20px);
+  }
+
+  .carousel {
+    flex-direction: row;
+    margin: 0 12px;
+    gap: clamp(28px, 4vw, 56px);
+  }
+  .stackNav {
+    flex-direction: column;
+    align-self: center;
+    justify-content: center;
+    gap: clamp(14px, 4svh, 24px);
+  }
+  .navDots { flex-direction: column; }
+  .navBtn { width: 44px; height: 44px; }
+  .stack {
+    /* Width follows the band's height (5:6 prints), never the other way. */
+    width: min(clamp(252px, 31.5vw, 418px), calc((var(--band-h) - 40px) * 5 / 6));
+  }
+
+  .quote { width: clamp(280px, 36vw, 430px); }
+  .quote p { font-size: clamp(17px, 5.6svh, 26px); }
+  .quoteMark { font-size: clamp(44px, 15svh, 76px); }
+
+  .notesEyebrow { margin-bottom: 10px; }
+}
+
+/* The wall cap, desktop branch only: the base rule hardcodes the tall-screen
+   band clamp; retie it to the landscape band so the lowest cards yield into
+   the bottom fade instead of spilling past the pinned stage. (The ≤760px
+   branch already reads var(--band-h) and compensates its own 48px fade
+   padding — the landscape .row above feeds it automatically.) */
+@media (min-width: 761px) and (max-height: 520px) {
+  .notesWall {
+    max-height: calc(var(--band-h, 480px) - 56px);
   }
 }
 

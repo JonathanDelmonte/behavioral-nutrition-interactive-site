@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import styles from "./VideoLightbox.module.css";
-import { loadYouTubeIframeAPI, YT_PLAYER_STATE, type YTPlayer } from "./youtube";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import {
+  createRawPlayer,
+  YT_PLAYER_STATE,
+  type RawPlayerHandle,
+} from "./youtube";
 
 /**
  * The fullscreen video viewer, shared site-wide through a context so the two
@@ -23,9 +28,9 @@ import { loadYouTubeIframeAPI, YT_PLAYER_STATE, type YTPlayer } from "./youtube"
  * On open the page behind darkens + blurs and the video grows to fill the
  * screen (a 9:16 short, centered). YouTube's own chrome is hidden (`controls:0`,
  * the iframe is pointer-events:none); the controls you see are the site's own —
- * play/pause, mute, and a seek bar — driven through the IFrame API, which also
- * preserves the basic ability to scrub time. Calm scale+fade transitions, no
- * Framer/GSAP (house rule).
+ * play/pause, mute, and a seek bar — driven through the raw postMessage
+ * controller in youtube.ts, which also preserves the basic ability to scrub
+ * time. Calm scale+fade transitions, no Framer/GSAP (house rule).
  */
 
 export interface LightboxVideo {
@@ -79,6 +84,25 @@ function formatTime(seconds: number): string {
  *  video doesn't vanish before the backdrop has faded (kept in sync with CSS). */
 const EXIT_MS = 420;
 
+/** If nothing has PLAYED this long after mounting a player, assume the boot is
+ *  dead (broken handshake, slow embed): rebuild it once, then show the error
+ *  state — never an infinite spinner. */
+const BOOT_TIMEOUT_MS = 8000;
+
+/** Keyboard scroll keys suppressed while the viewer is open — the page behind
+ *  is no longer overflow-locked (see the keydown effect below), and these keys
+ *  target the root scroller when focus sits on <body>. Interactive targets are
+ *  exempt so Space/arrows still drive the viewer's own buttons and sliders. */
+const SCROLL_KEYS = new Set([
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
+
 function VideoLightbox({
   active,
   onClose,
@@ -89,168 +113,210 @@ function VideoLightbox({
   // `rendered` lags `active` on close so the player survives the exit fade.
   const [rendered, setRendered] = useState<LightboxVideo | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<YTPlayer | null>(null);
+  const playerRef = useRef<RawPlayerHandle | null>(null);
 
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(100);
   const [duration, setDuration] = useState(0);
   const [current, setCurrent] = useState(0);
-  // `started` flips on the FIRST PLAYING event — the cover (spinner) stays up
-  // until then so YouTube's loading/black frame never shows.
+  // `started` flips once the video is truly rendering frames — the cover
+  // (spinner) stays up until then so YouTube's loading/black frame never
+  // shows. Ref mirror lets timers/intervals read it without re-arming.
   const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
+  // The boot self-heal: bumping `attempt` rebuilds the player once; a second
+  // dead boot flips `failed` and the cover trades its spinner for an error
+  // message (plus an escape hatch straight to YouTube).
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
   const scrubbingRef = useRef(false);
 
+  const markStarted = useCallback(() => {
+    startedRef.current = true;
+    setStarted(true);
+    setFailed(false);
+  }, []);
+
   const isOpen = active !== null;
+
+  // Focus management (ver useDialogFocus): foco entra no dialog ao abrir, Tab
+  // cicla entre os controles do player + o X do header, e ao fechar o foco
+  // volta ao tile que abriu o vídeo.
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen);
 
   // Mount immediately when opening; hold through the exit fade when closing.
   useEffect(() => {
     if (active) {
       setRendered(active);
+      setAttempt(0); // fresh open → fresh retry budget
       return;
     }
     // Closing: silence right away, then drop the player once faded out.
-    try {
-      playerRef.current?.pauseVideo();
-    } catch {
-      /* player may be tearing down */
-    }
+    playerRef.current?.pause();
     const t = window.setTimeout(() => setRendered(null), EXIT_MS);
     return () => window.clearTimeout(t);
   }, [active]);
 
-  // Create / tear down the API player for the rendered video.
+  // Create / tear down the player for the rendered video (re-run by the
+  // `attempt` bump — the one-shot self-heal for a boot that never plays).
+  // createRawPlayer OWNS the listening handshake and retries it until the
+  // embed answers, so the old intermittent "audio behind a spinner frozen at
+  // 0:00" boot (the official wrapper's lost, unretried handshake) can't wedge
+  // anymore. Every readout arrives through its callbacks — no polling.
   useEffect(() => {
     const video = rendered;
-    if (!video) return;
+    const host = hostRef.current;
+    if (!video || !host) return;
 
     let cancelled = false;
+    let muteCheck: number | null = null;
     setPlaying(false);
+    startedRef.current = false;
     setStarted(false);
+    setFailed(false);
     setDuration(0);
     setCurrent(0);
     setMuted(false);
     setVolume(100);
 
-    loadYouTubeIframeAPI()
-      .then((YT) => {
-        if (cancelled || !hostRef.current) return;
-        // YT.Player REPLACES the host element with the iframe, so feed it a
-        // throwaway child we can freely recreate on each open.
-        hostRef.current.innerHTML = "";
-        const mount = document.createElement("div");
-        hostRef.current.appendChild(mount);
+    host.innerHTML = "";
+    const player = createRawPlayer({
+      host,
+      videoId: video.id,
+      title: video.title ? `Vídeo: ${video.title}` : "Vídeo de depoimento",
+      playerVars: {
+        autoplay: 1,
+        // Start MUTED so autoplay always succeeds (no wedge if a browser
+        // blocks unmuted autoplay); onReady unmutes right after — the open
+        // was a user gesture, so sound is allowed. This also means there's
+        // never audio before the first frame ("black + sound" bug).
+        mute: 1,
+        controls: 0, // hide YouTube's chrome — the site draws its own
+        rel: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        fs: 0,
+        disablekb: 1,
+        iv_load_policy: 3,
+      },
+      onReady: () => {
+        if (cancelled) return;
+        player.play();
+        // Bring sound in (still within the click's activation window).
+        player.unMute();
+        player.setVolume(100);
+        setMuted(false);
+        setVolume(100);
+        // iOS can silently refuse that programmatic unmute (readiness may
+        // land outside the tap's activation window). Read the REAL state
+        // back a beat later so the mute button tells the truth — one actual
+        // tap on it then brings the sound in.
+        muteCheck = window.setTimeout(() => {
+          if (!cancelled && typeof player.info.muted === "boolean") {
+            setMuted(player.info.muted);
+          }
+        }, 600);
+      },
+      onState: (s) => {
+        if (cancelled) return;
+        setPlaying(s === YT_PLAYER_STATE.PLAYING);
+        if (s === YT_PLAYER_STATE.PLAYING) {
+          markStarted();
+          if (player.info.duration) setDuration(player.info.duration);
+        }
+        // Park ENDED back at a paused first frame: with controls:0 the ended
+        // player paints YouTube's related-videos grid, dead to clicks here
+        // (the iframe is pointer-events:none) — it read as a broken screen.
+        // Replay is one tap on play.
+        if (s === YT_PLAYER_STATE.ENDED) {
+          player.seekTo(0);
+          player.pause();
+          setCurrent(0);
+        }
+      },
+      onInfo: (info) => {
+        if (cancelled) return;
+        // An advancing clock proves frames are decoding even if a discrete
+        // PLAYING transition were ever dropped — the cover can't wedge.
+        if (!startedRef.current && (info.currentTime ?? 0) > 0.05) {
+          markStarted();
+          setPlaying(info.playerState === YT_PLAYER_STATE.PLAYING);
+        }
+        if (info.duration) setDuration(info.duration);
+        if (!scrubbingRef.current && typeof info.currentTime === "number") {
+          setCurrent(info.currentTime);
+        }
+      },
+      // Unembeddable / removed / region-locked video: say so instead of
+      // spinning forever (the rebuild below can't heal these — the second
+      // boot just errors straight back here).
+      onError: () => {
+        if (!cancelled && !startedRef.current) setFailed(true);
+      },
+    });
+    playerRef.current = player;
 
-        playerRef.current = new YT.Player(mount, {
-          videoId: video.id,
-          width: "100%",
-          height: "100%",
-          playerVars: {
-            autoplay: 1,
-            // Start MUTED so autoplay always succeeds (no infinite spinner if a
-            // browser blocks unmuted autoplay); onReady unmutes right after —
-            // the open was a user gesture, so sound is allowed. This also means
-            // there's never audio before the first frame ("black + sound" bug).
-            mute: 1,
-            controls: 0, // hide YouTube's chrome — the site draws its own
-            rel: 0,
-            modestbranding: 1,
-            playsinline: 1,
-            fs: 0,
-            disablekb: 1,
-            iv_load_policy: 3,
-            origin: window.location.origin,
-          },
-          events: {
-            onReady: (e) => {
-              if (cancelled) return;
-              setDuration(e.target.getDuration());
-              e.target.playVideo();
-              // Bring sound in (still within the click's activation window).
-              e.target.unMute();
-              e.target.setVolume(100);
-              setMuted(false);
-              setVolume(100);
-            },
-            onStateChange: (e) => {
-              if (cancelled) return;
-              const s = e.target.getPlayerState();
-              setPlaying(s === YT_PLAYER_STATE.PLAYING);
-              if (s === YT_PLAYER_STATE.PLAYING) {
-                setStarted(true);
-                const d = e.target.getDuration();
-                if (d) setDuration(d);
-              }
-            },
-          },
-        });
-      })
-      .catch(() => {
-        /* offline / blocked — overlay stays, controls inert */
-      });
+    // Boot watchdog: no first frame after BOOT_TIMEOUT_MS → rebuild the player
+    // once (same grammar as the brain's retrying boundary); if the rebuild is
+    // also dead, trade the spinner for the error state.
+    const watchdog = window.setTimeout(() => {
+      if (cancelled || startedRef.current) return;
+      if (attempt === 0) setAttempt(1);
+      else setFailed(true);
+    }, BOOT_TIMEOUT_MS);
 
     return () => {
       cancelled = true;
-      try {
-        playerRef.current?.destroy();
-      } catch {
-        /* already gone */
-      }
+      window.clearTimeout(watchdog);
+      if (muteCheck !== null) window.clearTimeout(muteCheck);
       playerRef.current = null;
-      if (hostRef.current) hostRef.current.innerHTML = "";
+      player.destroy();
     };
-  }, [rendered]);
+  }, [rendered, attempt, markStarted]);
 
-  // Poll the clock for the seek bar while a video is loaded (rAF is paused on
-  // hidden tabs, so a timer is the reliable choice; cheap at 4 Hz).
-  useEffect(() => {
-    if (!rendered) return;
-    const id = window.setInterval(() => {
-      const p = playerRef.current;
-      if (!p || scrubbingRef.current) return;
-      try {
-        setCurrent(p.getCurrentTime());
-        if (!duration) {
-          const d = p.getDuration();
-          if (d) setDuration(d);
-        }
-      } catch {
-        /* not ready */
-      }
-    }, 250);
-    return () => window.clearInterval(id);
-  }, [rendered, duration]);
-
-  // Esc closes; lock the page scroll behind the overlay (the same html-overflow
-  // lock the index menu uses — <html> is this page's scroll container).
+  // Esc closes; scroll keys are suppressed. The page behind is NOT
+  // overflow-locked anymore: toggling overflow on the ROOT scroller
+  // invalidates layout/layerization for the entire 20k-px document on every
+  // open AND close — the same tab-freezing cost the index menu already
+  // migrated away from (see IndexOverlay.tsx). Wheel/touch are contained by
+  // the overlay itself (overflow-y:auto + overscroll-behavior:contain in the
+  // CSS); only keyboard scrolling, which targets the root scroller when focus
+  // sits on <body>, needs suppressing here.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (
+        SCROLL_KEYS.has(e.key) &&
+        !(e.target as HTMLElement | null)?.closest(
+          "a, button, input, textarea, select",
+        )
+      ) {
+        e.preventDefault();
+      }
     };
     window.addEventListener("keydown", onKey);
-
-    const { documentElement } = document;
-    const prevOverflow = documentElement.style.overflow;
-    documentElement.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      documentElement.style.overflow = prevOverflow;
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose]);
 
+  // Act on the player's REAL reported state, not the React mirror — if a
+  // state message were ever dropped the mirror lies, and the button would
+  // keep "playing" a video that's already running instead of pausing it.
   const togglePlay = useCallback(() => {
     const p = playerRef.current;
     if (!p) return;
-    if (playing) p.pauseVideo();
-    else p.playVideo();
-  }, [playing]);
+    if (p.info.playerState === YT_PLAYER_STATE.PLAYING) p.pause();
+    else p.play();
+  }, []);
 
   const toggleMute = useCallback(() => {
     const p = playerRef.current;
     if (!p) return;
-    if (p.isMuted()) {
+    if (muted) {
       p.unMute();
       // unmuting at 0 is silent — bring it back up so the slider has a value
       if (volume === 0) {
@@ -262,33 +328,25 @@ function VideoLightbox({
       p.mute();
       setMuted(true);
     }
-  }, [volume]);
+  }, [muted, volume]);
 
   const onVolume = useCallback((value: number) => {
     setVolume(value);
     const p = playerRef.current;
     if (!p) return;
-    try {
-      p.setVolume(value);
-      if (value === 0) {
-        p.mute();
-        setMuted(true);
-      } else if (p.isMuted()) {
-        p.unMute();
-        setMuted(false);
-      }
-    } catch {
-      /* not ready */
+    p.setVolume(value);
+    if (value === 0) {
+      p.mute();
+      setMuted(true);
+    } else {
+      p.unMute(); // no-op when already unmuted
+      setMuted(false);
     }
   }, []);
 
   const onSeek = useCallback((value: number) => {
     setCurrent(value);
-    try {
-      playerRef.current?.seekTo(value, true);
-    } catch {
-      /* not ready */
-    }
+    playerRef.current?.seekTo(value);
   }, []);
 
   const progress = duration > 0 ? Math.min(1, current / duration) : 0;
@@ -298,6 +356,8 @@ function VideoLightbox({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className={`${styles.overlay} ${isOpen ? styles.open : ""}`.trim()}
       role="dialog"
       aria-modal="true"
@@ -323,12 +383,27 @@ function VideoLightbox({
             aria-label={playing ? "Pausar" : "Reproduzir"}
           />
           {/* Dark cover + spinner until the first frame actually plays — no
-              black-frame-with-audio flash. Fades out once PLAYING. */}
+              black-frame-with-audio flash. Fades out once PLAYING. If the boot
+              died (watchdog/onError), the spinner gives way to a plain error
+              line with an escape hatch straight to YouTube. */}
           <div
             className={`${styles.cover} ${started ? styles.coverHidden : ""}`.trim()}
-            aria-hidden="true"
+            aria-hidden={!failed}
           >
-            <span className={styles.loading} />
+            {failed ? (
+              <span className={styles.loadError}>
+                <span>Não foi possível carregar o vídeo.</span>
+                <a
+                  href={`https://www.youtube.com/watch?v=${rendered?.id ?? ""}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Assistir no YouTube
+                </a>
+              </span>
+            ) : (
+              <span className={styles.loading} />
+            )}
           </div>
         </div>
 

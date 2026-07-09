@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./Testimonials.module.css";
 import { useVideoLightbox } from "@/components/video/VideoLightbox";
 import {
-  loadYouTubeIframeAPI,
+  createRawPlayer,
   YT_PLAYER_STATE,
-  type YTPlayer,
+  type RawPlayerHandle,
 } from "@/components/video/youtube";
 import {
   usePolaroidLightbox,
@@ -198,15 +198,18 @@ const SNAKE_LEAN = [0.5, -0.45, 0.55];
  *  crop vertically (smaller = higher) so each subject's face stays in frame as
  *  the portrait source crops to the squarish polaroid window. (`Polaroid` is
  *  shared with the expand lightbox.) */
+/* `width`/`height` = dimensões intrínsecas de cada .webp (aspect ratio p/ o
+   browser reservar layout antes do download); o tamanho renderizado segue
+   sendo 100% do CSS. Atualizar junto ao trocar as fotos. */
 const POLAROIDS_MARIANA: Polaroid[] = [
-  { src: `${BASE_PATH}/images/testimonials/mariana-1.webp`, date: "Mariana • 14 mar 2020", posY: "26%" },
-  { src: `${BASE_PATH}/images/testimonials/mariana-2.webp`, date: "Mariana • 09 set 2023", posY: "16%" },
-  { src: `${BASE_PATH}/images/testimonials/mariana-3.webp`, date: "Mariana • 21 jun 2026", posY: "20%" },
+  { src: `${BASE_PATH}/images/testimonials/mariana-1.webp`, date: "Mariana • 14 mar 2020", posY: "26%", width: 760, height: 1013 },
+  { src: `${BASE_PATH}/images/testimonials/mariana-2.webp`, date: "Mariana • 09 set 2023", posY: "16%", width: 760, height: 1014 },
+  { src: `${BASE_PATH}/images/testimonials/mariana-3.webp`, date: "Mariana • 21 jun 2026", posY: "20%", width: 760, height: 1018 },
 ];
 const POLAROIDS_CAUE: Polaroid[] = [
-  { src: `${BASE_PATH}/images/testimonials/caue-1.webp`, date: "Cauê • 11 mar 2019", posY: "22%" },
-  { src: `${BASE_PATH}/images/testimonials/caue-2.webp`, date: "Cauê • 06 out 2020", posY: "14%" },
-  { src: `${BASE_PATH}/images/testimonials/caue-3.webp`, date: "Cauê • 18 jul 2025", posY: "12%" },
+  { src: `${BASE_PATH}/images/testimonials/caue-1.webp`, date: "Cauê • 11 mar 2019", posY: "22%", width: 541, height: 1063 },
+  { src: `${BASE_PATH}/images/testimonials/caue-2.webp`, date: "Cauê • 06 out 2020", posY: "14%", width: 760, height: 943 },
+  { src: `${BASE_PATH}/images/testimonials/caue-3.webp`, date: "Cauê • 18 jul 2025", posY: "12%", width: 760, height: 942 },
 ];
 
 /** The two main cases. `videoId` is the YouTube id (the bit after /shorts/ or
@@ -330,7 +333,9 @@ function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
               <span className={styles.cardPhoto}>
                 <img
                   src={p.src}
-                  alt={depth === 0 ? `${name}, ${p.date}` : ""}
+                  alt={depth === 0 ? `Foto da evolução — ${p.date}` : ""}
+                  width={p.width}
+                  height={p.height}
                   draggable={false}
                   loading="lazy"
                 />
@@ -388,14 +393,15 @@ function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
 
 /** The video — the chapter's protagonist; grows as it reaches center stage.
  *
- *  At rest it plays a clean muted loop. It's driven by the IFrame API (NOT a
- *  plain `loop=1&playlist=` embed) on purpose: the playlist param is what makes
+ *  At rest it plays a clean muted loop. It's driven by the raw postMessage
+ *  controller in youtube.ts (NOT a plain `loop=1&playlist=` embed) on purpose:
+ *  the playlist param is what makes
  *  YouTube paint its prev/next buttons, so we loop manually instead (seamless
  *  pre-seek before the end, so the end-screen never shows). A poster covers the
  *  player until it's truly PLAYING, hiding YouTube's unstarted overlay. Click it
- *  and the shared lightbox takes over. The loop only mounts once the tile nears
- *  the viewport (never under reduced-motion), and pauses while offscreen or
- *  while the lightbox is open. */
+ *  and the shared lightbox takes over. The loop only mounts once the SECTION
+ *  nears the viewport (never under reduced-motion) and then never pauses (per
+ *  request: it keeps running offscreen instead of reloading on return). */
 function VideoTile({
   name,
   videoId,
@@ -408,7 +414,7 @@ function VideoTile({
   const { open } = useVideoLightbox();
   const rootRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<YTPlayer | null>(null);
+  const playerRef = useRef<RawPlayerHandle | null>(null);
   const [mounted, setMounted] = useState(false);
   // One-way: the poster covers the player until the stream is decoding, then
   // fades out for good. The loop is NEVER paused (per request: it keeps running
@@ -444,95 +450,79 @@ function VideoTile({
     return () => io.disconnect();
   }, []);
 
-  // Build the API player once mounted.
+  // Build the player once mounted (createRawPlayer — the raw postMessage
+  // controller that owns and RETRIES the listening handshake, see youtube.ts;
+  // the official wrapper could lose it and leave the poster up forever).
   useEffect(() => {
     if (!mounted) return;
+    const host = hostRef.current;
+    if (!host) return;
     let cancelled = false;
     let revealTimer: number | null = null;
     setRevealed(false);
 
-    loadYouTubeIframeAPI()
-      .then((YT) => {
-        if (cancelled || !hostRef.current) return;
-        hostRef.current.innerHTML = "";
-        const mount = document.createElement("div");
-        hostRef.current.appendChild(mount);
+    // Reveal a beat AFTER playback is actually decoding (the very first live
+    // frame can still flash the seam), then drop the poster for good — the
+    // loop never pauses, so it never needs to come back. Armed once, from the
+    // PLAYING transition or the advancing clock, whichever notices first.
+    const scheduleReveal = () => {
+      if (revealTimer !== null) return;
+      revealTimer = window.setTimeout(() => {
+        if (!cancelled) setRevealed(true);
+      }, 450);
+    };
 
-        playerRef.current = new YT.Player(mount, {
-          videoId,
-          width: "100%",
-          height: "100%",
-          playerVars: {
-            autoplay: 1,
-            mute: 1, // muted loop — required for autoplay
-            controls: 0,
-            rel: 0,
-            modestbranding: 1,
-            playsinline: 1,
-            fs: 0,
-            disablekb: 1,
-            iv_load_policy: 3,
-            origin: window.location.origin,
-          },
-          events: {
-            onReady: (e) => {
-              if (cancelled) return;
-              e.target.mute();
-              e.target.playVideo();
-            },
-            onStateChange: (e) => {
-              if (cancelled) return;
-              const s = e.target.getPlayerState();
-              // Reveal a beat AFTER playback is actually decoding (the very first
-              // live frame can still flash the seam), then drop the poster for
-              // good — the loop never pauses, so it never needs to come back.
-              if (s === YT_PLAYER_STATE.PLAYING && revealTimer === null) {
-                revealTimer = window.setTimeout(() => {
-                  if (!cancelled) setRevealed(true);
-                }, 450);
-              }
-              // Manual loop fallback (the pre-seek below usually beats it).
-              if (s === YT_PLAYER_STATE.ENDED) {
-                e.target.seekTo(0, true);
-                e.target.playVideo();
-              }
-            },
-          },
-        });
-      })
-      .catch(() => {
-        /* offline / blocked — the poster stays put */
-      });
+    host.innerHTML = "";
+    const player = createRawPlayer({
+      host,
+      videoId,
+      title: `Depoimento em vídeo de ${name}`,
+      playerVars: {
+        autoplay: 1,
+        mute: 1, // muted loop — required for autoplay
+        controls: 0,
+        rel: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        fs: 0,
+        disablekb: 1,
+        iv_load_policy: 3,
+      },
+      onReady: () => {
+        if (cancelled) return;
+        player.mute();
+        player.play();
+      },
+      onState: (s) => {
+        if (cancelled) return;
+        if (s === YT_PLAYER_STATE.PLAYING) scheduleReveal();
+        // Manual loop fallback (the pre-seek below usually beats it).
+        if (s === YT_PLAYER_STATE.ENDED) {
+          player.seekTo(0);
+          player.play();
+        }
+      },
+      // Rides every readout (~4 Hz while playing): an advancing clock is the
+      // reveal's belt-and-braces, and the SEAMLESS LOOP pre-seeks just before
+      // the end so YouTube's end-screen never gets a chance to paint.
+      onInfo: (info) => {
+        if (cancelled) return;
+        const t = info.currentTime ?? 0;
+        if (t > 0.1) scheduleReveal();
+        const d = info.duration ?? 0;
+        if (d > 0 && t >= d - 0.4) player.seekTo(0);
+      },
+      /* onError: the poster simply stays put — the designed still */
+    });
+    playerRef.current = player;
 
     return () => {
       cancelled = true;
       if (revealTimer !== null) window.clearTimeout(revealTimer);
-      try {
-        playerRef.current?.destroy();
-      } catch {
-        /* already gone */
-      }
       playerRef.current = null;
-      if (hostRef.current) hostRef.current.innerHTML = "";
+      player.destroy();
     };
-  }, [mounted, videoId]);
-
-  // Seamless loop: jump back to the start just before the end so YouTube's
-  // end-screen (related videos / replay) never gets a chance to paint.
-  useEffect(() => {
-    if (!mounted) return;
-    const id = window.setInterval(() => {
-      const p = playerRef.current;
-      if (!p) return;
-      try {
-        const d = p.getDuration();
-        if (d > 0 && p.getCurrentTime() >= d - 0.4) p.seekTo(0, true);
-      } catch {
-        /* not ready */
-      }
-    }, 250);
-    return () => window.clearInterval(id);
-  }, [mounted]);
+  }, [mounted, videoId, name]);
 
   return (
     <div
@@ -1052,6 +1042,8 @@ export function TestimonialsSection() {
               }`.trim()}
               src={VINE_DIVIDER}
               alt=""
+              width={1536}
+              height={372}
               draggable={false}
               loading="lazy"
             />

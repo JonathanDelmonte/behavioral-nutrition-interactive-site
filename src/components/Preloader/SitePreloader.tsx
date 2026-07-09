@@ -5,7 +5,6 @@ import {
   onPrimerProgress,
   startAssetPrimer,
 } from "@/lib/assetPrimer";
-import { loadYouTubeIframeAPI } from "@/components/video/youtube";
 import { markAppReady } from "./preloadSignal";
 import styles from "./SitePreloader.module.css";
 
@@ -104,20 +103,16 @@ async function loadWithProgress(urls: string[], onProgress: (p: number) => void)
 }
 
 /**
- * Post-reveal cache warmer: below-fold images one at a time at low priority,
- * then the YouTube IFrame API script — so the testimonial players (and the
- * lightbox) boot instantly instead of cold-loading when the visitor arrives.
+ * Post-reveal cache warmer: below-fold images one at a time at low priority.
+ * (The YouTube players no longer need a script warmed — the raw postMessage
+ * controller in video/youtube.ts talks straight to the embed iframe, and the
+ * layout's preconnect to www.youtube.com covers the connection setup.)
  * Runs during idle time; a hidden tab just warms a little later.
  */
 function warmBelowTheFold() {
   let i = 0;
   const next = () => {
-    if (i >= WARM_IMAGES.length) {
-      loadYouTubeIframeAPI().catch(() => {
-        /* offline — the tiles load it again on demand */
-      });
-      return;
-    }
+    if (i >= WARM_IMAGES.length) return;
     const img = new Image();
     img.fetchPriority = "low";
     img.decoding = "async";
@@ -309,7 +304,14 @@ export function SitePreloader() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className={styles.logo} src={LOGO_SRC} alt="" aria-hidden="true" />
+        <img
+          className={styles.logo}
+          src={LOGO_SRC}
+          alt=""
+          aria-hidden="true"
+          width={360}
+          height={328}
+        />
         <div className={styles.track} aria-hidden="true">
           <div className={styles.fill} style={{ transform: `scaleX(${progress})` }} />
         </div>
