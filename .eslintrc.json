@@ -1,0 +1,11 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    // Decisão de arquitetura, não descuido: o site é um export estático
+    // (GitHub Pages roda com images.unoptimized, então <Image /> não
+    // otimizaria nada) e as imagens já passam pelo pipeline WebP próprio
+    // (scripts/optimize-images.mjs). O <img> cru também é o que permite os
+    // truques de composição das seções (máscaras, molduras, tiles do vine).
+    "@next/next/no-img-element": "off"
+  }
+}
