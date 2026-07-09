@@ -227,4 +227,25 @@
   }
 }
 
+/* Landscape phones: the 580-640px floors above exist for portrait; sideways
+   they read as a long dead-green void around the centered copy. Content +
+   svh-eased paddings set the height instead — the finale still fills a bit
+   more than one fold, so the fruit field keeps some travel. Placed last so it
+   wins in both width branches. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .stage {
+    min-height: calc(100svh - var(--header-h));
+    padding: clamp(48px, 13svh, 80px) 24px clamp(40px, 11svh, 64px);
+  }
+  .ask {
+    font-size: clamp(2.1rem, 12svh, 3.4rem);
+  }
+  .ctaWrap {
+    margin-top: clamp(20px, 6svh, 36px);
+  }
+  .micro {
+    margin-top: 14px;
+  }
+}
+
 

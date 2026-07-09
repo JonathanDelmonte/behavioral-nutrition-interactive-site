@@ -602,6 +602,44 @@
   }
 }
 
+/* Landscape phones: the in-focus card (glyph + title + body + CTA on the last
+   step) was sized for a tall stage — at ~390px it grazes the stage edges and
+   the 220px numeral floor dwarfs the composition. Everything eases toward the
+   height; the choreography (camera, depths, blur clock) is untouched. Placed
+   after both dive blocks so it wins in either width branch. */
+@media (orientation: landscape) and (max-height: 520px) and (prefers-reduced-motion: no-preference) {
+  .enhanced .card {
+    width: min(30rem, 62vw);
+  }
+  .enhanced .glyph {
+    width: 34px;
+    height: 34px;
+  }
+  .enhanced .accent {
+    margin: 10px 0 12px;
+  }
+  .enhanced .stepTitle {
+    font-size: clamp(1.15rem, 5.6svh, 1.7rem);
+  }
+  .enhanced .stepBody {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .enhanced .ctaRow {
+    margin-top: 16px;
+  }
+  .enhanced .num {
+    font-size: clamp(120px, 52svh, 240px);
+  }
+  .enhanced .hint {
+    bottom: 12px;
+  }
+  .enhanced .rail {
+    right: clamp(14px, 2.4vw, 32px);
+  }
+}
+
 /* ---- keyframes ----------------------------------------------------------- */
 
 @keyframes moteFloat {

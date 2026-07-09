@@ -52,3 +52,15 @@
     --header-h: clamp(60px, 8.5svh, 72px);
   }
 }
+
+/* Landscape phones (and any wide-but-very-short window): the 80px desktop
+   floor above would eat ~20% of a 390px-tall viewport, and even the 60px
+   mobile floor is generous there. Height-proportional with tight bounds so
+   the bar reads as chrome, not as a section. This block is LAST on purpose —
+   it wins over both the desktop and the ≤760px tokens whenever the viewport
+   is landscape and short, whichever width branch the page is in. */
+@media (orientation: landscape) and (max-height: 520px) {
+  :root {
+    --header-h: clamp(46px, 13svh, 60px);
+  }
+}

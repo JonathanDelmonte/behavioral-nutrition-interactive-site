@@ -190,7 +190,15 @@
   vertical-align: middle;
 }
 
+/* O h1 embrulha .headline + .display só pela semântica (SEO: frase completa
+   num único heading). display:contents remove a caixa do próprio h1, então os
+   dois spans seguem participando do layout como filhos diretos do .stage —
+   tanto no flex padrão quanto nas grid-areas do ramo landscape. */
+.h1Group { display: contents; }
+
 .headline {
+  /* Era um <h1> (bloco); agora é <span> dentro do .h1Group — manter o bloco. */
+  display: block;
   font-family: var(--font-serif);
   font-weight: 400;
   color: var(--color-green-deep);
@@ -208,6 +216,8 @@
 }
 
 .display {
+  /* Era um <div> (bloco); agora é <span> dentro do .h1Group — manter o bloco. */
+  display: block;
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
@@ -532,5 +542,76 @@
      If any stack term above changes, re-derive the fit (sum the rendered
      heights at two svh points and solve the line through them). */
   .brainWrap { width: 90vw; height: min(90vw, calc(80svh - 224px)); margin-top: 6px; }
+}
+
+/* --- LANDSCAPE PHONES (wide, very short — e.g. 844×390, 667×375) ---
+   Neither branch above fits here: the desktop stack pushes CTA + brain below
+   the fold (the svh terms bottom out at their floors), and the mobile stack
+   squashes the brain to a ~76px sliver (80svh − 224 at svh ≈ 375). A vertical
+   stack simply has no budget at ~330px of usable height — so the first fold
+   turns SIDE-BY-SIDE: the copy column on the left, the brain on the right,
+   both centered in the fold. Same DOM (HeroContent's four blocks + the brain
+   spacer are all direct .stage children), re-slotted by grid areas.
+   HeroBrain.computeFrame has a matching landscape branch: the canvas frame
+   tracks the spacer's own box there (a full-width frame would park the brain
+   at the viewport center, over the copy). Placed after BOTH width branches so
+   it wins in either. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .hero {
+    /* The side-by-side fold fits again, so the exact-fold contract returns
+       (the mobile branch had relaxed it to content-height). */
+    min-height: calc(100svh - var(--header-h));
+    padding: 0 clamp(28px, 5vw, 64px);
+  }
+
+  .rail { display: none; }
+  /* Fixed at the viewport bottom, where the CTA row now lives — hidden rather
+     than fighting it for the same strip of a ~390px-tall screen. */
+  .scrollHint { display: none; }
+
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "eyebrow  brain"
+      "headline brain"
+      "display  brain"
+      "row      brain";
+    align-content: center;
+    align-items: start;
+    justify-items: center;
+    column-gap: clamp(16px, 4vw, 44px);
+    padding-top: 0;
+  }
+  .eyebrow  { grid-area: eyebrow;  font-size: 12px; margin-bottom: clamp(6px, 2svh, 12px); }
+  .headline { grid-area: headline; font-size: clamp(17px, 5.4svh, 26px); }
+  .display  {
+    grid-area: display;
+    /* svh-led with a vw guard so the two display lines never outgrow the
+       narrower copy column on SE-class landscape (667×375). */
+    font-size: clamp(34px, min(6.2vw, 11.5svh), 56px);
+    margin-top: 6px;
+  }
+
+  .row {
+    grid-area: row;
+    flex-direction: column;
+    gap: clamp(10px, 3svh, 16px);
+    margin-top: clamp(12px, 4svh, 24px);
+    margin-bottom: 0;
+  }
+  .lead { text-align: center; max-width: 320px; font-size: 11px; }
+  .heroCta.heroCta { font-size: clamp(9px, 2.6svh, 11px); }
+
+  /* The brain takes the fold's full height (minus a small breath), capped so
+     ultra-wide-but-short windows don't balloon it. Square, like every other
+     slot, so BrainStage's proportional sizing holds. */
+  .brainWrap {
+    grid-area: brain;
+    align-self: center;
+    width:  clamp(150px, calc(100svh - var(--header-h) - 40px), 340px);
+    height: clamp(150px, calc(100svh - var(--header-h) - 40px), 340px);
+    margin-top: 0;
+  }
 }
 

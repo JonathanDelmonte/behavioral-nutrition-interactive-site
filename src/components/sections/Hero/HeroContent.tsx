@@ -10,14 +10,22 @@ export function HeroContent() {
     <>
       <div className={styles.eyebrow}>início</div>
 
-      <h1 className={styles.headline}>O problema nunca foi</h1>
+      {/* SEO: a frase INTEIRA vive num único <h1> (antes o h1 era só
+          "O problema nunca foi" — um heading truncado, sem sentido para o
+          Google). O wrapper usa display:contents (.h1Group), então .headline
+          e .display continuam sendo filhos diretos do .stage para o layout —
+          o flex padrão e as grid-areas do ramo landscape enxergam o mesmo
+          DOM de antes. Render pixel-idêntico. */}
+      <h1 className={styles.h1Group}>
+        <span className={styles.headline}>O problema nunca foi</span>
 
-      <div className={styles.display}>
-        <span className={styles.line}>a sua força</span>
-        <span className={styles.line}>
-          de vontade<span className={styles.dot}>.</span>
+        <span className={styles.display}>
+          <span className={styles.line}>a sua força</span>
+          <span className={styles.line}>
+            de vontade<span className={styles.dot}>.</span>
+          </span>
         </span>
-      </div>
+      </h1>
 
       <div className={styles.row}>
         {/* Hard line break locks the wrap after "ciclo" — identical to the

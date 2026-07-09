@@ -519,7 +519,9 @@
 /* ---- MOBILE --------------------------------------------------------------- */
 
 @media (max-width: 760px) {
-  /* The masthead stacks: title, sub, then the note + signature, left-aligned. */
+  /* The masthead stacks: title, sub, then the note + signature, pinned to the
+     right so the gold rule, the italic pull-quote and Ju's signature read as
+     one right-hung column against the paper. */
   .intro {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -530,12 +532,12 @@
   }
   .aside {
     margin-top: 24px;
-    align-items: flex-start;
-    text-align: left;
+    align-items: flex-end;
+    text-align: right;
   }
   .note {
     max-width: 20ch;
-    text-align: left;
+    text-align: right;
   }
   .sig {
     margin-top: 12px;

@@ -153,3 +153,18 @@
     white-space: normal;
   }
 }
+
+/* Landscape phones: the header token drops to ~46-60px there (tokens.css), so
+   the lockup compresses to keep the script name + gold role inside the thin
+   bar. The logo needs no rule — it already scales off --header-h above. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .brandmarkCompact .name {
+    font-size: 18px;
+    white-space: nowrap;
+  }
+  .brandmarkCompact .role {
+    font-size: 7.5px;
+    letter-spacing: 0.2em;
+    margin-top: 3px;
+  }
+}
