@@ -73,6 +73,10 @@ export function Header() {
             onClick={handleClick}
             aria-haspopup="dialog"
             aria-expanded={open}
+            // Marca este botão como o "Fechar" compartilhado dos overlays: o
+            // focus trap deles (useDialogFocus) inclui este X no ciclo de Tab,
+            // já que ele vive FORA da subtree de cada dialog.
+            data-overlay-close=""
             aria-label={
               video
                 ? "Fechar vídeo"

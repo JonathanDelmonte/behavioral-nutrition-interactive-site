@@ -253,6 +253,26 @@
   }
 }
 
+/* Landscape phones (after the ≤760px block so it wins in both width branches):
+   the column stays — eyebrow, pile, path — but every vertical breath tightens
+   and the pile takes the largest share the short viewport can hold. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .overlay {
+    padding: 10px 20px 12px;
+  }
+  .stage {
+    gap: clamp(8px, 2.4svh, 14px);
+  }
+  .eyebrow {
+    margin-bottom: clamp(12px, 4svh, 24px);
+    font-size: 15px;
+  }
+  .pile,
+  .progress {
+    width: min(40vw, calc(58svh * 5 / 6));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .overlay,
   .open,

@@ -150,3 +150,12 @@
      resizing the SVG would throw the X centring off. Only the click
      target shrinks on mobile. */
 }
+
+/* Landscape phones: the bar thins via the --header-h token (tokens.css), and
+   the side insets match the Hero's landscape padding (same clamp — the two
+   must stay in step so the brandmark aligns with the hero copy edge). Placed
+   after the ≤760px block so it wins in both width branches. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .inner { padding: 0 clamp(28px, 5vw, 64px); gap: 14px; }
+  .menuButton { width: 36px; height: 36px; }
+}

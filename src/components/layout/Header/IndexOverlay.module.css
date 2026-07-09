@@ -216,3 +216,36 @@
     font-size: 17px;
   }
 }
+
+/* Landscape phones (both width branches — placed last so it wins): eight rows
+   must fit ~320-460px of height under the header. Same svh-compression idea as
+   the phone block, just tighter floors; `safe center` + overflow-y on the base
+   rule still take over if a row count ever outgrows even this. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .overlay {
+    height: 100lvh;
+    bottom: auto;
+    justify-content: flex-start;
+    background: var(--color-offwhite-green);
+    padding: calc(var(--header-h) + clamp(8px, 2svh, 14px)) 0 14px;
+  }
+  .content {
+    max-width: 640px;
+    padding: 0 clamp(26px, 5vw, 56px);
+  }
+  .eyebrow {
+    font-size: 13px;
+    margin-bottom: clamp(6px, 1.6svh, 12px);
+  }
+  .link {
+    padding: clamp(3px, 1.4svh, 8px) 0;
+    gap: 18px;
+  }
+  .num {
+    font-size: 15px;
+    min-width: 32px;
+  }
+  .label {
+    font-size: 14px;
+  }
+}

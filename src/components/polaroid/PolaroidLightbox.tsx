@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import styles from "./PolaroidLightbox.module.css";
 
 /**
@@ -27,7 +28,15 @@ import styles from "./PolaroidLightbox.module.css";
  * own motif); click a dot to jump. Calm scale+fade only, no Framer/GSAP.
  */
 
-export type Polaroid = { src: string; date: string; posY?: string };
+export type Polaroid = {
+  src: string;
+  date: string;
+  posY?: string;
+  /** Dimensões intrínsecas do arquivo — vão nos atributos width/height dos
+   *  <img> (aspect ratio p/ reserva de layout); o tamanho visual é do CSS. */
+  width?: number;
+  height?: number;
+};
 
 export interface LightboxPile {
   name: string;
@@ -88,6 +97,11 @@ function PolaroidLightbox({
   const [flying, setFlying] = useState<number | null>(null);
   const flyTimer = useRef<number | null>(null);
   const isOpen = active !== null;
+
+  // Focus management (ver useDialogFocus): foco entra no dialog ao abrir, Tab
+  // cicla entre pilha/dots + o X do header, e ao fechar o foco volta ao botão
+  // de expandir que abriu a pilha.
+  const dialogRef = useDialogFocus<HTMLDivElement>(isOpen);
 
   const photos = rendered?.photos ?? [];
   const n = photos.length;
@@ -156,6 +170,8 @@ function PolaroidLightbox({
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className={`${styles.overlay} ${isOpen ? styles.open : ""}`.trim()}
       role="dialog"
       aria-modal="true"
@@ -192,7 +208,9 @@ function PolaroidLightbox({
                 <span className={styles.cardPhoto}>
                   <img
                     src={p.src}
-                    alt={depth === 0 ? p.date : ""}
+                    alt={depth === 0 ? `Foto da evolução — ${p.date}` : ""}
+                    width={p.width}
+                    height={p.height}
                     draggable={false}
                   />
                 </span>

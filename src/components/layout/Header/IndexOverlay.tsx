@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { CSSProperties, MouseEvent } from "react";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
 import styles from "./IndexOverlay.module.css";
 
 /** Ease-in-out cubic — slow lift-off, brisk middle, decelerating arrival.
@@ -134,6 +135,11 @@ export function IndexOverlay({ open, onClose }: Props) {
   const cancelGlide = useRef<(() => void) | null>(null);
   useEffect(() => () => cancelGlide.current?.(), []);
 
+  // Focus management (ver useDialogFocus): foco entra no dialog ao abrir, Tab
+  // cicla entre os links + o X do header, e ao fechar o foco volta ao
+  // hambúrguer. aria-modal sozinho não segura o TECLADO fora da página velada.
+  const dialogRef = useDialogFocus<HTMLDivElement>(open);
+
   // Clicking a section: dissolve the overlay and glide the page to the
   // section instead of the browser's hard hash-jump. The CSS opacity fade on
   // the overlay (0.25s) lifts the veil while the page is still gliding, so the
@@ -184,6 +190,8 @@ export function IndexOverlay({ open, onClose }: Props) {
 
   return (
     <div
+      ref={dialogRef}
+      tabIndex={-1}
       className={`${styles.overlay} ${open ? styles.open : ""}`.trim()}
       role="dialog"
       aria-modal="true"
