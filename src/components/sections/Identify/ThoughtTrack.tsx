@@ -180,9 +180,13 @@ export function ThoughtTrack() {
             desktop this is display:none and the real .intro shows in flow. */}
         <div className={styles.stageIntro}>
           <div className={styles.eyebrow}>você se identifica?</div>
-          <h2 className={styles.title}>
+          {/* Cópia phone-only do título da seção (o .intro real fica
+              display:none no celular). <p role="heading"> em vez de <h2> para
+              não duplicar o h2 no outline do documento (SEO) — role/aria-level
+              preservam o heading para leitores de tela no celular. */}
+          <p className={styles.title} role="heading" aria-level={2}>
             Você reconhece <em>esses pensamentos?</em>
-          </h2>
+          </p>
           <p className={styles.sub}>
             Cada um deles já passou pela mente de muita gente. Talvez
             agora esteja passando pela sua.

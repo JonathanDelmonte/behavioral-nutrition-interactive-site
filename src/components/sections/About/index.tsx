@@ -606,6 +606,10 @@ export function AboutSection() {
               src={VINES}
               alt=""
               aria-hidden="true"
+              /* Dimensões intrínsecas — só o aspect ratio p/ reserva de layout
+                 (CLS 0); o tamanho final continua 100% do CSS. */
+              width={1024}
+              height={1536}
               draggable={false}
               loading="lazy"
               decoding="async"
@@ -614,6 +618,8 @@ export function AboutSection() {
               <img
                 src={PORTRAIT}
                 alt="Juliana Delmonte, nutricionista, sorrindo"
+                width={1023}
+                height={1538}
                 draggable={false}
                 loading="lazy"
                 decoding="async"

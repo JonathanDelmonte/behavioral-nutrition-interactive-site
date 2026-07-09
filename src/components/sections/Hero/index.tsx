@@ -60,6 +60,11 @@ export function Hero() {
                 }`.trim()}
                 src={VINE_DIVIDER}
                 alt=""
+                /* Dimensões intrínsecas: o CSS continua mandando no tamanho
+                   final; os atributos só dão o aspect ratio ao browser antes
+                   do download (reserva de layout — CLS 0). */
+                width={1536}
+                height={372}
                 draggable={false}
               />
             ))}
