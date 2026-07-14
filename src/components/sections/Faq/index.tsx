@@ -220,7 +220,7 @@ export function FaqSection() {
               “Algumas dúvidas aparecem antes do primeiro passo.”
             </p>
             <span className={styles.sig}>
-              Ju.
+              Juliana.
             </span>
           </div>
         </header>
@@ -231,7 +231,7 @@ export function FaqSection() {
               <Avatar />
               <div className={styles.rBubble}>
                 <p>
-                  Oi! Eu sou a Ju. Separei aqui o que mais me perguntam antes
+                  Oi! Eu sou a Juliana. Separei aqui o que mais me perguntam antes
                   de começar. Escolhe uma dúvida que eu te respondo:
                 </p>
               </div>
