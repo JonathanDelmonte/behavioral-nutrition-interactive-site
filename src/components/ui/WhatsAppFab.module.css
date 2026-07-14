@@ -1,0 +1,181 @@
+/* Mobile-only floating WhatsApp disc (see WhatsAppFab.tsx for the show/hide
+   logic and the two-layer transform structure). Identity: the disc wears the
+   finale's gold — --color-gold-soft, the same color as the "Vamos conversar?"
+   script in the Contact section — with the mark in deep green, so it reads as
+   a detail of the site's gold-on-green pair, not as the stock WhatsApp-green
+   bubble. The gradient models a soft top-left light on a convex coin ("luz de
+   fim de tarde", the finale's lighting), which is what keeps it from reading
+   as a flat sticker. */
+
+/* First-fold marker for the reveal. <body> is not a containing block
+   (position: static), so top: 0 anchors this to the top of the DOCUMENT, not
+   of the viewport. It only needs geometry — visibility: hidden keeps the box
+   measurable by the IntersectionObserver without painting or hit-testing. */
+.sentinel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100svh;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Outer layer: fixed positioning + the INTERACTIVE transforms (entrance
+   transition, press feedback). The ambient float lives on .disc inside —
+   keyframes with literal values, per the site's var()-in-@keyframes gotcha —
+   so neither motion stomps the other's `transform`. */
+.fab {
+  /* Desktop default: not rendered at all. The mobile width branch and the
+     landscape-short band below are the only places that turn it on. */
+  display: none;
+
+  position: fixed;
+  /* Below the index overlay (200) and the lightboxes (240) on purpose: when
+     any of them opens, they cover the disc. Header is 250, preloader 9999. */
+  z-index: 120;
+  /* Safe-area terms keep it clear of the iOS home indicator and of the
+     notch edge in landscape. */
+  right: calc(22px + env(safe-area-inset-right, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+
+  /* Hidden resting state — the .shown class (JS) reveals it. visibility flips
+     after the fade so the hidden disc is untappable and unfocusable. */
+  opacity: 0;
+  transform: translateY(14px) scale(0.88);
+  visibility: hidden;
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0.5s;
+}
+
+.shown {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Press feedback only — no hover state (the element is touch-only). The
+   squeeze rides the outer layer, so the ambient float underneath continues
+   undisturbed through the tap. */
+.shown:active {
+  transform: scale(0.92);
+  transition-duration: 0.15s;
+}
+
+/* Two-tone focus ring readable on every background the disc floats over:
+   off-white inner ring separates it from the gold, deep-green outer ring
+   carries the contrast on the light sections; on the green finale the inner
+   ring does that job. */
+.fab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px var(--color-offwhite),
+    0 0 0 5px var(--color-green-deep);
+}
+
+/* Inner layer: the gold coin itself + the ambient float. Gradient hexes are
+   the gold ramp around the tokens: #DFC183 lit ≈ gold-soft +L, #C9A35F =
+   --color-gold-soft, #A8823E shaded ≈ --color-gold −L. Literal values (not
+   var()) also inside the keyframes below — Chrome resolves var() in
+   @keyframes against the wrong scope on first paint (see tokens.css). */
+.disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  color: var(--color-green-deep);
+  background: radial-gradient(
+    130% 130% at 32% 26%,
+    #dfc183 0%,
+    #c9a35f 52%,
+    #a8823e 100%
+  );
+  /* Elevation pool tinted with the finale's deep green + a crisp contact
+     shadow, then the coin rim: hairline top light and a soft inner shade
+     along the bottom edge (what makes it convex instead of flat). */
+  box-shadow:
+    0 22px 40px -16px rgba(5, 46, 20, 0.55),
+    0 4px 10px -3px rgba(42, 42, 38, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -11px 16px -10px rgba(122, 88, 33, 0.6);
+  animation: float 5.6s ease-in-out infinite;
+}
+
+/* Idle float — a slow, small breath ("vivo, mas calmo"): ±2.5px around rest,
+   the shadow riding along so the whole coin drifts. Paused while the button
+   is hidden so the compositor isn't animating an invisible layer. */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.fab:not(.shown) .disc {
+  animation-play-state: paused;
+}
+
+.glyph {
+  /* WhatsAppGlyph's viewBox is padded ~2 units around the 24-unit artwork, so
+     a 38px box paints a ~33px visible mark — about half the disc. */
+  width: 38px;
+  height: 38px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab {
+    transform: none;
+    transition:
+      opacity 0.25s ease,
+      visibility 0s linear 0.25s;
+  }
+  .shown {
+    transition: opacity 0.25s ease;
+  }
+  .shown:active {
+    transform: none;
+  }
+  .disc {
+    animation: none;
+  }
+}
+
+/* ---- MOBILE (the only consumers) -------------------------------------------- */
+
+@media (max-width: 760px) {
+  .fab {
+    display: block;
+  }
+}
+
+/* Landscape phones: the ≤760px branch misses them (an iPhone sideways is
+   ~844px wide). pointer: coarse keeps genuinely short DESKTOP windows out —
+   this element is phone-only, not short-window. Slightly smaller and tighter
+   in the corner, since here the viewport has little height to spare. Placed
+   last so it wins over the width branch (site convention). */
+@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  .fab {
+    display: block;
+    width: 56px;
+    height: 56px;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .glyph {
+    width: 34px;
+    height: 34px;
+  }
+}

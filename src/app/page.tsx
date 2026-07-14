@@ -9,6 +9,7 @@ import { ContactSection } from "@/components/sections/Contact";
 import { BrainStage, BrainStageProvider } from "@/components/BrainStage";
 import { SiteFooter } from "@/components/layout/Footer";
 import { ScrollRestoration } from "@/components/ScrollRestoration";
+import { WhatsAppFab } from "@/components/ui/WhatsAppFab";
 
 /**
  * Landing page. Sections are composed top-to-bottom in scroll order — add
@@ -37,6 +38,9 @@ export default function Page() {
       </main>
       <SiteFooter />
       <BrainStage />
+      {/* Mobile-only floating WhatsApp shortcut — fixed at the bottom-right
+          corner, revealed after the first fold scrolls away. */}
+      <WhatsAppFab />
     </BrainStageProvider>
   );
 }
