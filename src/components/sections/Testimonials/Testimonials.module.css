@@ -78,6 +78,48 @@
   align-items: center;
 }
 
+/* Stage lighting. The pin shows ONE viewport of a section many viewports
+   tall, so any "scene" light must live on the sticky stage (viewport-locked)
+   — on the section it would slide upward during the pin. Two static layers
+   behind the rail:
+     ::before — a horizontal light band at the row's height plus a penumbra
+       toward the top/bottom edges, so the green reads as a lit wall with the
+       pieces on stage instead of a flat paint fill;
+     ::after  — the same fine feTurbulence grain the Method sky uses: gives
+       the green its matéria and kills gradient banding on big screens.
+   Both are plain paints (no animation, no backdrop-filter, painted once), so
+   no data-gpu-tier trim is needed. z-index: -1 tucks them under the rail
+   inside the stage's own stacking context (sticky creates one).
+   Knobs: band alpha (0.38), penumbra alphas (0.42 top / 0.5 bottom). */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(140% 44% at 50% 52%, rgba(46, 107, 71, 0.38), transparent 72%),
+    linear-gradient(
+      180deg,
+      rgba(3, 30, 14, 0.42) 0%,
+      transparent 26%,
+      transparent 74%,
+      rgba(3, 30, 14, 0.5) 100%
+    );
+}
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  /* Plain low opacity, NOT Method's mix-blend overlay: the sticky stage is an
+     isolated group, so a blend here would composite against the near-empty
+     ::before instead of the section's green — plain grain reads the same and
+     costs less. */
+  opacity: 0.05;
+}
+
 .row {
   position: relative; /* offsetParent anchor for the piece-geometry cache */
   display: flex;
