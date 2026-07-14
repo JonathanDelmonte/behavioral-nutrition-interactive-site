@@ -592,7 +592,7 @@ export function AboutSection() {
         <h2 className={styles.heading} id="about-title">
           Oi, eu sou
           <span className={styles.headingTail}>
-            a <em>Ju.</em>
+            a <em>Juliana.</em>
           </span>
         </h2>
         <div className={styles.prose}>

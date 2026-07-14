@@ -11,8 +11,8 @@
    The figure = vine ARCH (img) with the portrait standing inside it. It
    floats right and the bio text wraps a conservative CSS silhouette around
    the arch's leafy contour. The display heading sits in
-   a LOWER layer (z1 vs figure z2) so the staggered "a Ju." tucks its gold
-   tail into the foliage.
+   a LOWER layer (z1 vs figure z2) so the staggered "a Juliana." tucks its
+   gold tail into the foliage.
 
    Vertical rhythm: top and bottom paddings are the SAME clamp, and .prose is
    a flow-root so the floated figure's bottom is contained — first ink from
@@ -106,15 +106,80 @@
   color: var(--color-green-deep);
   text-wrap: balance;
 }
+/* "Juliana." — set in the brandmark's Allura script so the name reads as her
+   signature (Playfair's italic J read as an "f"). Allura's x-height is far
+   smaller than Playfair's, so the script upscales to hold the same optical
+   weight on the line. */
 .heading em {
-  font-style: italic;
+  font-family: var(--font-script);
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 1.22em;
+  line-height: 1;
+  /* inline-block + padding grows the PAINT box past the line box so the
+     text-clipped gradient reaches Allura's tall loops and deep J descender
+     (glyph parts outside the box would render unfilled). The negative
+     margins hand that space straight back to layout. */
+  display: inline-block;
+  padding: 0.3em 0.25em;
+  margin: -0.3em -0.25em;
+  /* Polished gold, same grammar as the header's role line: the brandmark's
+     5-stop metal ramp lives in the two OUTER thirds of a 300%-wide image
+     (identical, so the loop is seamless), and a brighter cream glint sits in
+     the middle third. @keyframes goldSheen rests on one outer third, then
+     slowly slides the window so the glint passes across the name — metal
+     catching light, not a shimmer loop. */
   color: var(--color-gold);
+  background: linear-gradient(
+    100deg,
+    #8A6E37 0%,
+    #B8924A 7.3%,
+    #E8C97A 16.7%,
+    #B8924A 26%,
+    #8A6E37 33.4%,
+    #B8924A 41%,
+    #F6E7AE 50%,
+    #B8924A 59%,
+    #8A6E37 66.7%,
+    #B8924A 74%,
+    #E8C97A 83.4%,
+    #B8924A 92.7%,
+    #8A6E37 100%
+  );
+  background-size: 300% 100%;
+  background-position: 100% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: goldSheen 9s linear infinite;
 }
-/* Second line staggered toward the arch so the gold "Ju." tucks into the
-   leaves (foliage may cover type; her face never does). */
+/* Long rest on the polished ramp, then a ~2.3s glide of the cream glint
+   left→right. 100% and 0% frames show identical pixels (outer thirds match)
+   so the loop never snaps. Literal values only — var() inside @keyframes
+   freezes at initial in Chrome. */
+@keyframes goldSheen {
+  0% {
+    background-position: 100% 50%;
+  }
+  64% {
+    background-position: 100% 50%;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  90% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+/* Second line staggered toward the arch so the gold "Juliana." tucks into
+   the leaves (foliage may cover type; her face never does). 22% — not the
+   40% of the old "Ju." — because the script name is ~200px longer; this
+   lands its final glyphs at the same spot inside the foliage. */
 .headingTail {
   display: block;
-  margin-left: 40%;
+  margin-left: 22%;
 }
 
 /* ---- Prose with arch runaround ------------------------------------------ */
@@ -310,6 +375,13 @@
   .headingTail {
     margin-left: clamp(20px, 8vw, 56px);
   }
+  /* No floated arch beside the tail line here (the figure centers BELOW the
+     heading), so the script name can take the freed width. The vw term caps
+     it so "a Juliana." still clears a 320px screen; 1.85em rules at the wide
+     end of this branch. */
+  .heading em {
+    font-size: min(1.85em, 18.5vw);
+  }
   /* Tall narrow section + cover = the art blows up behind the body text.
      Confine the pond to a bottom band that melts into the page instead. */
   .bg {
@@ -348,11 +420,26 @@
   .figure {
     animation: none !important;
   }
+  /* The name keeps its static polished-gold ramp; only the glint stops. */
+  .heading em {
+    animation: none !important;
+  }
   .vines {
     animation: none !important;
     transform: none !important;
   }
   .portrait {
     transform: none !important;
+  }
+}
+
+/* ---- Landscape-short band (phone on its side) ---------------------------- */
+
+/* The ≤860px upsize above would spend ~30% of a ~400px-tall screen on the
+   name alone; keep the desktop's modest scale. At the END of the file so it
+   beats both width branches. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .heading em {
+    font-size: 1.22em;
   }
 }
