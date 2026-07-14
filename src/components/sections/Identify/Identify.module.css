@@ -558,11 +558,12 @@
   box-shadow:
     0 10px 24px -12px rgba(0, 0, 0, .5),
     0 1px 0 rgba(255, 255, 255, .08) inset;
-  /* Desktop size — a touch larger than the base .cta's 11px. padding, gap and
-     the WhatsApp glyph are all in em, so the whole pill scales from this single
-     font-size. The phone breakpoint below swaps in a fluid clamp that eases it
-     back down on narrow screens. */
-  font-size: 12px;
+  /* Desktop size — a good deal larger than the base .cta's 11px so the pill
+     reads big on wide screens. padding, gap and the WhatsApp glyph are all in
+     em, so the whole pill scales from this single font-size. The phone
+     breakpoint below swaps in a fluid clamp that eases it back down on narrow
+     screens. */
+  font-size: 15px;
   padding: 1.64em 2.55em;
   gap: 1.27em;
 }
@@ -804,10 +805,11 @@
     line-height: 1.26;
     margin-bottom: 0;
   }
-  /* The pill eases down a touch on phones — desktop sets a fixed 12px above; this
-     keeps the previous (smaller) fluid mobile size unchanged. */
+  /* The pill shrinks noticeably on phones — desktop sets a fixed 15px above;
+     here a fluid clamp eases it well down so it stays compact on narrow
+     screens. */
   .lightCta.lightCta {
-    font-size: clamp(9.5px, 2.2vw, 11px);
+    font-size: clamp(8px, 2vw, 9.5px);
   }
 
   /* Progress dots are too cramped at phone width. */

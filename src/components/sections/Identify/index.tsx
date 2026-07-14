@@ -39,7 +39,7 @@ export function IdentifySection() {
           Vamos conversar.
         </p>
         <CTAButton className={styles.lightCta}>
-          Quero conversar com a Ju
+          Quero conversar
         </CTAButton>
       </footer>
     </section>
