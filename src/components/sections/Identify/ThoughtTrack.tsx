@@ -252,7 +252,7 @@ export function ThoughtTrack() {
             Vamos conversar.
           </p>
           <CTAButton className={styles.lightCta}>
-            Quero conversar com a Ju
+            Quero conversar
           </CTAButton>
         </div>
 

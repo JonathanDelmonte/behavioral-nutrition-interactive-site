@@ -59,7 +59,7 @@ const SECTIONS = [
   { num: "01", label: "Início",              href: "#inicio" },
   { num: "02", label: "Você se identifica?", href: "#para-quem" },
   { num: "03", label: "Como funciona",       href: "#como-funciona" },
-  { num: "04", label: "Sobre Ju",            href: "#sobre" },
+  { num: "04", label: "Sobre Juliana",       href: "#sobre" },
   { num: "05", label: "Depoimentos",         href: "#depoimentos" },
   { num: "06", label: "Atendimento",         href: "#atendimento" },
   { num: "07", label: "Dúvidas",             href: "#duvidas" },
