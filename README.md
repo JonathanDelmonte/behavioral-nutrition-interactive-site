@@ -308,12 +308,14 @@ npm run build
 npm run start
 ```
 
-Não há variáveis de ambiente obrigatórias em desenvolvimento. As duas usadas no build de produção são definidas pelo workflow de deploy:
+Não há variáveis de ambiente obrigatórias em desenvolvimento. As de produção são definidas por quem faz o build — o workflow do GitHub Pages ou o painel do host estático:
 
 | Variável | Efeito |
 |---|---|
-| `BUILD_FOR_GH_PAGES=1` | Ativa `output: "export"` + `basePath`/`assetPrefix` do GitHub Pages (gera `out/`) |
-| `NEXT_PUBLIC_NOINDEX=1` | Emite `<meta name="robots" content="noindex">` (usada só no staging) |
+| `STATIC_EXPORT=1` | Ativa `output: "export"` (gera `out/`) sem prefixo de caminho — para host estático com o site na raiz |
+| `BUILD_FOR_GH_PAGES=1` | O mesmo export **mais** o `basePath`/`assetPrefix` do GitHub Pages de projeto (`/<repo>`) |
+| `SITE_ORIGIN` | Origem pública do deploy (canonical, OG, JSON-LD, robots, sitemap). Sem ela, cai no `github.io` do staging |
+| `NEXT_PUBLIC_NOINDEX=1` | Emite `<meta name="robots" content="noindex">` — obrigatória em QUALQUER URL temporária (staging, `*.pages.dev`) |
 
 Scripts auxiliares:
 
@@ -334,12 +336,12 @@ Push na `main` dispara [`deploy.yml`](.github/workflows/deploy.yml): build está
 
 **https://jonathandelmonte.github.io/behavioral-nutrition-interactive-site/**
 
-O export é 100% estático e qualquer host de arquivos serve o site; fora do GitHub Pages basta remover a env `BUILD_FOR_GH_PAGES` (o `basePath` some) ou usar a build Node padrão.
+O export é 100% estático e qualquer host de arquivos serve o site. Fora do GitHub Pages o build é `STATIC_EXPORT=1 npm run build` com output `out/`: mesmo export, sem o `basePath` (que só existe porque o Pages de projeto serve sob `/<repo>`). Numa Cloudflare Pages, por exemplo, isso e mais `NODE_VERSION=20`, `SITE_ORIGIN` e — enquanto o endereço for temporário — `NEXT_PUBLIC_NOINDEX=1` no painel.
 
 ### Checklist de lançamento (domínio definitivo)
 
 1. Remover a linha `NEXT_PUBLIC_NOINDEX: "1"` do `deploy.yml`; o `noindex` de staging some sozinho.
-2. Trocar `SITE_ORIGIN` em [`src/lib/site.ts`](src/lib/site.ts), o ponto único de onde canonical, Open Graph, JSON-LD, robots e sitemap leem.
+2. Apontar a env `SITE_ORIGIN` para o domínio (no painel do host, ou no `deploy.yml` se o deploy for pelo GitHub Pages). É o ponto único de onde canonical, Open Graph, JSON-LD, robots e sitemap leem; sem ela o build cai no `github.io` de staging.
 3. Preencher no JSON-LD ([`src/app/layout.tsx`](src/app/layout.tsx)) o `geo` (coordenadas do Perfil da Empresa no Google); o CRN real já está lá como `hasCredential`.
 4. `robots.txt`/`sitemap.xml` só valem na raiz de um domínio próprio (com `basePath` saem sob `/<repo>/`, onde crawlers não olham).
 
