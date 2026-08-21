@@ -340,7 +340,7 @@ O export é 100% estático e qualquer host de arquivos serve o site; fora do Git
 
 1. Remover a linha `NEXT_PUBLIC_NOINDEX: "1"` do `deploy.yml`; o `noindex` de staging some sozinho.
 2. Trocar `SITE_ORIGIN` em [`src/lib/site.ts`](src/lib/site.ts), o ponto único de onde canonical, Open Graph, JSON-LD, robots e sitemap leem.
-3. Preencher no JSON-LD ([`src/app/layout.tsx`](src/app/layout.tsx)) o `geo` (coordenadas do Perfil da Empresa no Google) e o CRN real (`hasCredential`).
+3. Preencher no JSON-LD ([`src/app/layout.tsx`](src/app/layout.tsx)) o `geo` (coordenadas do Perfil da Empresa no Google); o CRN real já está lá como `hasCredential`.
 4. `robots.txt`/`sitemap.xml` só valem na raiz de um domínio próprio (com `basePath` saem sob `/<repo>/`, onde crawlers não olham).
 
 ---
@@ -355,7 +355,6 @@ O que resta é **conteúdo, não engenharia**:
 
 | Pendência | Onde |
 |---|---|
-| CRN real e especialização (hoje `CRN-0 00000` / `[especialização]`) | Seção Sobre, rodapé e JSON-LD |
 | Vídeos de depoimento definitivos (os atuais são exemplos de terceiros; os finais serão *unlisted* no YouTube com embed liberado) | Seção 05 (`CASES` em [`Testimonials/index.tsx`](src/components/sections/Testimonials/index.tsx)) |
 | Fotos e avaliações reais de pacientes | Seção 05 |
 | Revisão final de copy pela cliente | Todas as seções |

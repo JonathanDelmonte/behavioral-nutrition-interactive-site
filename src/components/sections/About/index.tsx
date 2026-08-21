@@ -643,7 +643,7 @@ export function AboutSection() {
             tempo, sem culpa.
           </p>
           <p className={styles.creds}>
-            CRN-0 00000 · Pós em Nutrição Comportamental · [especialização]
+            CRN-9 38277 · Pós em Nutrição Comportamental · Neuroterapeuta
           </p>
         </div>
       </div>

@@ -99,10 +99,10 @@ const FAQ_LD: Array<[question: string, answer: string]> = [
 
 /** Dados estruturados (schema.org) para busca local — negócio + pessoa + FAQ
  *  num só @graph. Nome, endereço, telefone e Instagram espelham o
- *  rodapé/lib/contact.ts. O CRN fica de fora de propósito enquanto for
- *  placeholder (entra como hasCredential na Person quando for real); `geo`
- *  idem — preencher com as coordenadas do pin do Perfil da Empresa no Google
- *  no lançamento, para não publicar um ponto aproximado errado. */
+ *  rodapé/lib/contact.ts; o CRN real entra como hasCredential na Person (o
+ *  mesmo número exibido no rodapé e na seção Sobre). `geo` continua de fora
+ *  de propósito — preencher com as coordenadas do pin do Perfil da Empresa no
+ *  Google no lançamento, para não publicar um ponto aproximado errado. */
 const BUSINESS_ID = `${SITE_URL}#negocio`;
 const PERSON_ID = `${SITE_URL}#juliana`;
 const JSON_LD = {
@@ -139,11 +139,22 @@ const JSON_LD = {
       "@type": "Person",
       "@id": PERSON_ID,
       name: "Juliana Delmonte",
-      jobTitle: "Nutricionista",
+      jobTitle: ["Nutricionista", "Neuroterapeuta"],
       description:
-        "Nutricionista comportamental — atendimento presencial em Juiz de Fora e online.",
+        "Nutricionista comportamental e neuroterapeuta — atendimento presencial em Juiz de Fora e online.",
       worksFor: { "@id": BUSINESS_ID },
-      knowsAbout: ["Nutrição comportamental"],
+      knowsAbout: ["Nutrição comportamental", "Neuroterapia"],
+      // Registro profissional: `identifier` leva o número do CRN e
+      // `recognizedBy`, o conselho que o emite (CRN-9 = Minas Gerais).
+      hasCredential: {
+        "@type": "EducationalOccupationalCredential",
+        credentialCategory: "Registro profissional",
+        identifier: "CRN-9 38277",
+        recognizedBy: {
+          "@type": "Organization",
+          name: "Conselho Regional de Nutricionistas da 9ª Região (CRN-9)",
+        },
+      },
       sameAs: [CONTACT.instagramUrl],
     },
     {
