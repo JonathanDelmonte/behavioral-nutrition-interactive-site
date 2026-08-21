@@ -643,7 +643,10 @@ export function AboutSection() {
             tempo, sem culpa.
           </p>
           <p className={styles.creds}>
-            CRN-9 38277 · Pós em Nutrição Comportamental · Neuroterapeuta
+            {/* &nbsp; antes de cada ·: o separador gruda na palavra anterior,
+                então numa quebra ele fecha a linha em vez de abrir a seguinte
+                (a linha quebra em duas no celular e no desktop). */}
+            CRN-9 38277&nbsp;· Pós em Nutrição Comportamental&nbsp;· Neuroterapeuta
           </p>
         </div>
       </div>
