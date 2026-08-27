@@ -400,7 +400,7 @@ export function JourneySection() {
           E na prática, <em>como funciona?</em>
         </h2>
         <p className={styles.sub} data-reveal>
-          Quatro passos separam o primeiro oi de uma relação em paz com a comida.
+          Quatro passos para compreender seus hábitos, seus comportamentos, sua relação com a comida e cuidar de você.
         </p>
       </div>
 

@@ -15,7 +15,7 @@ import { SITE_ORIGIN, BASE_PATH, SITE_URL } from "@/lib/site";
 
 /** Nome da marca — usado no og:siteName/og:title (cards de WhatsApp/redes,
  *  onde a marca importa mais que a keyword) e no JSON-LD. */
-const SITE_TITLE = "Juliana Delmonte · Nutrição Comportamental";
+const SITE_TITLE = "Juliana Delmonte · Nutricionista Comportamental";
 /** Frase-assinatura — fica nos cards sociais e no JSON-LD. */
 const SITE_DESCRIPTION =
   "Nutrição comportamental para sair do ciclo de recomeçar toda segunda-feira.";

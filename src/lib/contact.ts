@@ -3,7 +3,7 @@ export const CONTACT = {
   whatsappNumber: "5532999711717",
   whatsappMessage:
     "Oi, Juliana! Vim pelo site e gostaria de conversar sobre acompanhamento nutricional. Pode me orientar sobre os próximos passos?",
-  email: "julianaadelmonte@gmail.com",
+  email: "contato@julianadelmonte.com.br",
   instagram: "@nutrijuliana_delmonte",
   instagramUrl: "https://www.instagram.com/nutrijuliana_delmonte",
   // Maps URL API (documented, stable) com o endereço por extenso — o link

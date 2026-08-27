@@ -135,7 +135,7 @@ export function SiteFooter() {
         <div className={styles.grid}>
           <div className={styles.brand} data-reveal>
             <span className={styles.script}>Juliana Delmonte</span>
-            <span className={styles.role}>Nutrição Comportamental</span>
+            <span className={styles.role}>Nutricionista Comportamental</span>
             <span className={styles.crn}>Neuroterapeuta · CRN-9 38277</span>
           </div>
 

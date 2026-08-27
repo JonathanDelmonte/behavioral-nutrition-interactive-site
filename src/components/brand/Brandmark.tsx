@@ -15,7 +15,7 @@ export function Brandmark({ compact = false }: Props) {
     <a
       className={`${styles.brandmark} ${compact ? styles.brandmarkCompact : ""}`.trim()}
       href="#"
-      aria-label="Juliana Delmonte · Nutrição Comportamental"
+      aria-label="Juliana Delmonte · Nutricionista Comportamental"
     >
       {/* width/height = dimensões intrínsecas do arquivo (aspect ratio p/ o
           browser reservar layout); o tamanho renderizado segue vindo do CSS. */}
@@ -27,7 +27,7 @@ export function Brandmark({ compact = false }: Props) {
       />
       <span className={styles.lockup}>
         <span className={styles.name}>Juliana Delmonte</span>
-        <span className={styles.role}>Nutrição Comportamental</span>
+        <span className={styles.role}>Nutricionista Comportamental</span>
       </span>
     </a>
   );
