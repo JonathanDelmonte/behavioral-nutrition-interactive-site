@@ -98,12 +98,19 @@ const FAQ_LD: Array<[question: string, answer: string]> = [
   ],
 ];
 
+/** Ficha da profissional no Google (Perfil da Empresa) na forma canônica por
+ *  CID. O URL longo que o Maps mostra na barra carrega parâmetros de sessão e
+ *  muda; este não. */
+const GOOGLE_BUSINESS_URL = "https://maps.google.com/?cid=2184787568694251848";
+
 /** Dados estruturados (schema.org) para busca local — negócio + pessoa + FAQ
  *  num só @graph. Nome, endereço, telefone e Instagram espelham o
  *  rodapé/lib/contact.ts; o CRN real entra como hasCredential na Person (o
- *  mesmo número exibido no rodapé e na seção Sobre). `geo` continua de fora
- *  de propósito — preencher com as coordenadas do pin do Perfil da Empresa no
- *  Google no lançamento, para não publicar um ponto aproximado errado. */
+ *  mesmo número exibido no rodapé e na seção Sobre). `geo`,
+ *  `openingHoursSpecification` e o `sameAs` do negócio espelham o Perfil da
+ *  Empresa no Google — pino, horário e a própria ficha — para que o Google
+ *  entenda site e perfil como a MESMA entidade, em vez de dois resultados
+ *  disputando a mesma busca. */
 const BUSINESS_ID = `${SITE_URL}#negocio`;
 const PERSON_ID = `${SITE_URL}#juliana`;
 const JSON_LD = {
@@ -128,13 +135,40 @@ const JSON_LD = {
         addressCountry: "BR",
       },
       hasMap: CONTACT.mapsUrl,
+      // Coordenadas do pino do Perfil da Empresa (Centro de Juiz de Fora),
+      // entregues prontas em vez de deixar o Google inferir do endereço
+      // escrito. Só entraram quando a ficha do Maps passou a existir de fato —
+      // publicar um ponto aproximado errado seria pior que não ter nenhum.
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: -21.7617274,
+        longitude: -43.347454,
+      },
+      // Segunda a sábado, 06:00-22:00. Domingo não aparece de propósito: no
+      // schema.org, dia sem entrada é dia fechado. Mesmo horário publicado no
+      // Perfil da Empresa — as duas fontes têm que contar a mesma história.
+      openingHoursSpecification: [
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+          ],
+          opens: "06:00",
+          closes: "22:00",
+        },
+      ],
       // Presencial na cidade + online para o país inteiro.
       areaServed: [
         { "@type": "City", name: "Juiz de Fora" },
         { "@type": "Country", name: "Brasil" },
       ],
       founder: { "@id": PERSON_ID },
-      sameAs: [CONTACT.instagramUrl],
+      sameAs: [CONTACT.instagramUrl, GOOGLE_BUSINESS_URL],
     },
     {
       "@type": "Person",
