@@ -5,6 +5,7 @@ import { PRIME_ASSETS } from "@/components/BrainModel/constants";
 import { CONTACT } from "@/lib/contact";
 import { Header } from "@/components/layout/Header/Header";
 import { SitePreloader } from "@/components/Preloader/SitePreloader";
+import { CopyGuard } from "@/components/CopyGuard";
 import { VideoLightboxProvider } from "@/components/video/VideoLightbox";
 import { PolaroidLightboxProvider } from "@/components/polaroid/PolaroidLightbox";
 
@@ -229,6 +230,7 @@ export default function RootLayout({
         {/* Boot loading screen — covers everything (incl. the header) until the
             heavy first-screen assets are down and the brain has painted. */}
         <SitePreloader />
+        <CopyGuard />
       </body>
     </html>
   );

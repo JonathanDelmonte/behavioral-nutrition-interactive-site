@@ -42,3 +42,15 @@ body {
   overflow-x: hidden;
   overflow-x: clip;
 }
+
+/* Sem formulário no site (ver layout.tsx), então bloqueia seleção/cópia em
+   toda a página, incluindo o menu de "salvar imagem" do long-press no iOS. O
+   contextmenu (botão direito) e os atalhos de copiar são bloqueados em JS por
+   CopyGuard (components/CopyGuard.tsx). */
+html,
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
