@@ -618,8 +618,8 @@ export function AboutSection() {
               <img
                 src={PORTRAIT}
                 alt="Juliana Delmonte, nutricionista, sorrindo"
-                width={1023}
-                height={1538}
+                width={1019}
+                height={1543}
                 draggable={false}
                 loading="lazy"
                 decoding="async"
