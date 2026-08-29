@@ -633,8 +633,9 @@ export function AboutSection() {
             de vontade. Era a forma de olhar.
           </p>
           <p>
-            Foi por isso que escolhi a <em>nutrição comportamental</em>. Em vez
-            de entregar mais uma dieta, eu te ajudo a entender o que acontece
+            Foi por isso que escolhi a <em>nutrição comportamental</em> e a{" "}
+            <em>neuroterapia</em>. Em vez de entregar mais uma dieta, eu te
+            ajudo a entender o que acontece
             antes do prato: os gatilhos, a história, a sua relação com o
             comer. É aí que a mudança finalmente passa a durar.
           </p>

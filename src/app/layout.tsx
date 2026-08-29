@@ -28,8 +28,8 @@ const SEO_TITLE =
 /** Meta description (~150 chars): keyword + cidade + a frase da marca + o
  *  diferencial. É o texto do snippet no Google, não aparece na página. */
 const SEO_DESCRIPTION =
-  "Nutricionista comportamental em Juiz de Fora e online. Saia do ciclo de " +
-  "recomeçar toda segunda-feira: acompanhamento sem dieta restritiva e sem culpa.";
+  "Nutricionista comportamental e neuroterapeuta em Juiz de Fora e online. " +
+  "Saia do ciclo de recomeçar toda segunda-feira, sem dieta restritiva e sem culpa.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_ORIGIN),
