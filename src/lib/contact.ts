@@ -1,6 +1,6 @@
 export const CONTACT = {
-  phoneLabel: "(32) 99971-1717",
-  whatsappNumber: "5532999711717",
+  phoneLabel: "(32) 99991-1717",
+  whatsappNumber: "5532999911717",
   whatsappMessage:
     "Oi, Juliana! Vim pelo site e gostaria de conversar sobre acompanhamento nutricional. Pode me orientar sobre os próximos passos?",
   email: "contato@julianadelmonte.com.br",
