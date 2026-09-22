@@ -172,7 +172,7 @@ Todas as imagens raster são **WebP geradas por script** (`npm run optimize:imag
 - **Vivo, mas calmo.** Movimento sentido, nunca notado. Amplitudes pequenas, ciclos longos, fases dessincronizadas por elemento. Na dúvida, atenuar.
 - **Uma linguagem por seção.** Cada seção estreia a própria mecânica de interação; nenhuma recicla a anterior.
 - **Nada com "cara de IA".** Sem glow pulsante, shimmer varrendo ou gradiente animado em loop. As micro-interações usam a gramática autoral do site: o traço dourado que se desenha, brotos botânicos, física sutil.
-- **Progressive enhancement sempre.** Sem JavaScript e sob `prefers-reduced-motion`, cada seção entrega uma versão estática digna e completa, nunca conteúdo faltando.
+- **Progressive enhancement sempre.** Sem JavaScript, cada seção entrega uma versão estática digna e completa, nunca conteúdo faltando. O mesmo vale para o modo calmo da política de movimento — que, por decisão de produto, não é mais acionado pela preferência do sistema (ver *Acessibilidade*).
 - **A narrativa conduz a técnica.** O efeito existe para contar a história (a virada, a companhia no caminho), não para exibir tecnologia.
 - **Anti-referências explícitas:** sites de emagrecimento agressivos (antes/depois, urgência, desconto) e landing pages genéricas de template (grids de cards iguais, fade-up uniforme).
 
@@ -222,7 +222,8 @@ Os loops e o lightbox falam o **protocolo `postMessage` cru** do embed do YouTub
 
 ### Acessibilidade
 
-- `prefers-reduced-motion` respeitado em toda seção, com fallback estático equivalente.
+- **Movimento é política do site, decidida em um lugar só** ([`src/lib/motion.ts`](src/lib/motion.ts)). O site **não** liga mais suas animações à preferência `prefers-reduced-motion` do sistema, e vale dizer por quê: a estrutura daqui *é* o movimento (o cérebro que viaja entre seções, o mergulho do Atendimento, os depoimentos fixados). Tratar a preferência como chave geral não entregava um site mais quieto — entregava um site que **parecia quebrado**: cérebro preso no Hero deixando frame fantasma sobre outras seções, etapas empilhadas sem a câmera, nenhuma entrada animando. A gramática de movimento do site já é deliberadamente contida (fades longos, deslocamentos curtos, nada piscando, girando ou em loop), que é o risco real que a preferência existe para cobrir.
+  O caminho calmo **continua inteiro no código**, só que atrás de `html[data-motion="calm"]` em vez da media query: virar `RESPECT_OS_REDUCED_MOTION` para `true` devolve o comportamento anterior — agora sem os buracos estruturais — numa linha.
 - Conteúdo íntegro sem JavaScript (gates `.enhanced` por seção).
 - Focus trap compartilhado dos overlays ([`src/hooks/useDialogFocus.ts`](src/hooks/useDialogFocus.ts)) que inclui o "X" do header no ciclo de Tab; `aria-live` no fio de conversa do FAQ; overlays contêm o scroll no próprio elemento (`overscroll-behavior: contain`) em vez de travar o `overflow` da raiz, que congelava a página inteira.
 
