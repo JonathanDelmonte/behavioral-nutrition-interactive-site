@@ -5,6 +5,7 @@ import { CTAButton } from "@/components/ui/CTAButton";
 import { IdentifyBrainSlot } from "./IdentifyBrainSlot";
 import { IdentifyQuestions } from "./IdentifyQuestions";
 import styles from "./Identify.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /** The five validated thoughts (see memory: reference_identify_section). */
 const THOUGHTS = [
@@ -64,7 +65,7 @@ export function ThoughtTrack() {
     const track = trackRef.current;
     const stage = stageRef.current;
     if (!track || !stage) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     if (!reduce) setArmed(true);
 
     let raf: number | null = null;

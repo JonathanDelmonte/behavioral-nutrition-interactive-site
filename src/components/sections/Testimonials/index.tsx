@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./Testimonials.module.css";
 import { useVideoLightbox } from "@/components/video/VideoLightbox";
+import { prefersReducedMotion } from "@/lib/motion";
 import {
   createRawPlayer,
   YT_PLAYER_STATE,
@@ -291,7 +292,7 @@ function PolaroidStack({ name, photos }: { name: string; photos: Polaroid[] }) {
   const advance = () => {
     if (flying !== null) return; // mid-animation — ignore
     armIdleReset();
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     if (reduce) {
       setActive((a) => (a + 1) % n); // no flight: just swap the top print
       return;
@@ -435,7 +436,7 @@ function VideoTile({
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
 
     const io = new IntersectionObserver(
       (entries) => {
@@ -639,7 +640,7 @@ export function TestimonialsSection() {
     const row = rowRef.current;
     if (!track || !stage || !row) return;
 
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     // The scrolljack runs at EVERY width (per client request, phones included:
     // you scroll DOWN, the rail moves sideways). Only reduced-motion falls
     // back to a native horizontal scroll.

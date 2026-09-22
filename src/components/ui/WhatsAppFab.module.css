@@ -135,22 +135,25 @@
   height: 38px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .fab {
-    transform: none;
-    transition:
-      opacity 0.25s ease,
-      visibility 0s linear 0.25s;
-  }
-  .shown {
-    transition: opacity 0.25s ease;
-  }
-  .shown:active {
-    transform: none;
-  }
-  .disc {
-    animation: none;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .fab {
+  transform: none;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s linear 0.25s;
+}
+:global(html[data-motion="calm"]) .shown {
+  transition: opacity 0.25s ease;
+}
+:global(html[data-motion="calm"]) .shown:active {
+  transform: none;
+}
+:global(html[data-motion="calm"]) .disc {
+  animation: none;
 }
 
 /* ---- MOBILE (the only consumers) -------------------------------------------- */

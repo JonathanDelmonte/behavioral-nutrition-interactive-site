@@ -1168,51 +1168,54 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .stage {
-    position: static;
-    height: auto;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 70px 0;
-  }
-  .row,
-  .piece {
-    transform: none !important;
-  }
-  .play::after,
-  .hintArrow {
-    animation: none;
-  }
-  /* Pile stays stacked (cards keep their --d transform), but nothing animates:
-     the top print swaps instantly and the controls sit still. */
-  .card,
-  .cardVeil,
-  .navBtn {
-    transition: none;
-  }
-  .flying {
-    animation: none;
-  }
-  .navArrow svg {
-    animation: none;
-  }
-  /* No idle float, no zoom/press travel, no snake — the cards rest perfectly
-     still (hover/press still warm the gold edge, just without motion). The JS
-     already skips the column transforms when reduced; this is belt-and-braces. */
-  .noteFloat {
-    animation: none;
-  }
-  .note {
-    transform: none;
-  }
-  .noteSlot {
-    transform: none !important;
-  }
-  .notesEyebrow {
-    opacity: 1 !important;
-    transform: none !important;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .stage {
+  position: static;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 70px 0;
+}
+:global(html[data-motion="calm"]) .row,
+:global(html[data-motion="calm"]) .piece {
+  transform: none !important;
+}
+:global(html[data-motion="calm"]) .play::after,
+:global(html[data-motion="calm"]) .hintArrow {
+  animation: none;
+}
+/* Pile stays stacked (cards keep their --d transform), but nothing animates:
+   the top print swaps instantly and the controls sit still. */
+:global(html[data-motion="calm"]) .card,
+:global(html[data-motion="calm"]) .cardVeil,
+:global(html[data-motion="calm"]) .navBtn {
+  transition: none;
+}
+:global(html[data-motion="calm"]) .flying {
+  animation: none;
+}
+:global(html[data-motion="calm"]) .navArrow svg {
+  animation: none;
+}
+/* No idle float, no zoom/press travel, no snake — the cards rest perfectly
+   still (hover/press still warm the gold edge, just without motion). The JS
+   already skips the column transforms when reduced; this is belt-and-braces. */
+:global(html[data-motion="calm"]) .noteFloat {
+  animation: none;
+}
+:global(html[data-motion="calm"]) .note {
+  transform: none;
+}
+:global(html[data-motion="calm"]) .noteSlot {
+  transform: none !important;
+}
+:global(html[data-motion="calm"]) .notesEyebrow {
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* ---- keyframes -------------------------------------------------------------- */

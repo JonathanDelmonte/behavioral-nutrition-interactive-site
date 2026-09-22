@@ -288,12 +288,21 @@ export function BrainStage() {
       // apart from one that has scrolled past (both sit at progress 1), so later
       // sections stay fully clickable.
       const progress = progressRef.current;
-      const atHeroRest = progress < 0.04;
       const frac = progress - Math.floor(progress);
       const atSlot = frac < 0.04 || frac > 0.96;
       const onScreen =
         nextFrame.top + nextFrame.height > 0 &&
         nextFrame.top < window.innerHeight;
+      // Hero rest must ALSO be on screen. Progress only advances when two or
+      // more slots are mounted; with a single slot it is pinned at 0 forever,
+      // which used to read as "resting in the Hero" no matter how far down the
+      // page the reader was — leaving the full-viewport canvas hit-testing over
+      // every section below. That state is reachable whenever a later slot is
+      // absent: during mount, and for the whole session if the motion policy
+      // opts Identify out (see IdentifyBrainSlot). Requiring the footprint to
+      // overlap the viewport costs nothing at the real Hero rest, where it
+      // always does.
+      const atHeroRest = progress < 0.04 && onScreen;
       const isDesktop = window.innerWidth > MOBILE_BREAKPOINT;
       const interactive = atHeroRest || (isDesktop && atSlot && onScreen);
       if (lastInteractive.current !== interactive) {
@@ -389,11 +398,23 @@ export function BrainStage() {
 
   // Ground glow under the brain — its own frame-sized box, so it stays anchored
   // to the brain footprint even when the stage (canvas) is full-viewport.
+  // Pausing the frameloop stops R3F from DRAWING, but the canvas keeps
+  // presenting whatever it drew last — and this box is position:fixed over the
+  // whole viewport, so that leftover image stays pinned on screen. Pausing
+  // while the brain is still painted is a normal thing to happen (the ÍNDICE
+  // overlay does it on purpose, to keep the render off the GPU while the
+  // sumário fades in); if the reader then lands somewhere the brain does not
+  // belong, the stale frame hangs over that section like a ghost. Hiding both
+  // boxes whenever the loop is parked makes that impossible, and costs nothing
+  // — a parked loop means the brain is off screen or veiled anyway.
+  const parked: CSSProperties = stageActive ? {} : { visibility: "hidden" };
+
   const shadowStyle: CSSProperties = {
     left: frame.left,
     top: frame.top,
     width: frame.width,
     height: frame.height,
+    ...parked,
   };
 
   // Full-viewport canvas (oversize is always on). This box is position:fixed, so
@@ -408,12 +429,13 @@ export function BrainStage() {
   // overflow horizontally. Height stays 100vh (vertical size never caused the
   // drift, and the brain placement reads the live rect either way).
   const stageStyle: CSSProperties = oversize
-    ? { left: 0, right: 0, top: 0, height: "100vh" }
+    ? { left: 0, right: 0, top: 0, height: "100vh", ...parked }
     : {
         left: frame.left,
         top: frame.top,
         width: frame.width,
         height: frame.height,
+        ...parked,
       };
 
   return (

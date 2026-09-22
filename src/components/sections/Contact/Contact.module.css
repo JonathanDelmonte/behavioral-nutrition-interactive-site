@@ -190,27 +190,28 @@
 
 /* ---- REVEALS (site grammar: things arrive by coming into focus) ------------ */
 
-@media (prefers-reduced-motion: no-preference) {
-  .enhanced .title,
-  .enhanced .ask,
-  .enhanced .ctaWrap,
-  .enhanced .micro {
-    transition:
-      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .enhanced .ask { transition-delay: 0.14s; }
-  .enhanced .ctaWrap { transition-delay: 0.28s; }
-  .enhanced .micro { transition-delay: 0.42s; }
-  .enhanced .title:not(.in),
-  .enhanced .ask:not(.in),
-  .enhanced .ctaWrap:not(.in),
-  .enhanced .micro:not(.in) {
-    opacity: 0;
-    transform: translateY(26px);
-    filter: blur(6px);
-  }
+/* Motion policy (lib/motion.ts): unconditional now. This block used to sit
+   inside @media (prefers-reduced-motion: no-preference); the real gate is
+   the .enhanced class below, and the OS preference no longer switches the layout off. */
+.enhanced .title,
+.enhanced .ask,
+.enhanced .ctaWrap,
+.enhanced .micro {
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.enhanced .ask { transition-delay: 0.14s; }
+.enhanced .ctaWrap { transition-delay: 0.28s; }
+.enhanced .micro { transition-delay: 0.42s; }
+.enhanced .title:not(.in),
+.enhanced .ask:not(.in),
+.enhanced .ctaWrap:not(.in),
+.enhanced .micro:not(.in) {
+  opacity: 0;
+  transform: translateY(26px);
+  filter: blur(6px);
 }
 /* The magnetic tilt is JS-driven and the pointer listeners are never attached
    under reduced motion, so the pill simply stays flat — no CSS override needed. */

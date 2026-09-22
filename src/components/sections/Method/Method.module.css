@@ -520,23 +520,29 @@
 }
 
 /* ---- Reduced motion ---------------------------------------------------- */
-@media (prefers-reduced-motion: reduce) {
-  .muted::after,
-  .sgrow,
-  .pnum,
-  .picon :is(path, circle, line, polyline),
-  .ptitle,
-  .pbody {
-    transition: none !important;
-    animation: none !important;
-  }
-  .turn,
-  .tipHalo,
-  .ring {
-    animation: none !important;
-  }
-  .tip,
-  .tipM {
-    display: none;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .muted::after,
+:global(html[data-motion="calm"]) .sgrow,
+:global(html[data-motion="calm"]) .pnum,
+:global(html[data-motion="calm"]) .picon :is(path,
+:global(html[data-motion="calm"]) circle,
+:global(html[data-motion="calm"]) line,
+:global(html[data-motion="calm"]) polyline),
+:global(html[data-motion="calm"]) .ptitle,
+:global(html[data-motion="calm"]) .pbody {
+  transition: none !important;
+  animation: none !important;
+}
+:global(html[data-motion="calm"]) .turn,
+:global(html[data-motion="calm"]) .tipHalo,
+:global(html[data-motion="calm"]) .ring {
+  animation: none !important;
+}
+:global(html[data-motion="calm"]) .tip,
+:global(html[data-motion="calm"]) .tipM {
+  display: none;
 }

@@ -6,6 +6,7 @@ import { WhatsAppGlyph } from "@/components/ui/WhatsAppGlyph";
 import { WHATSAPP_HREF } from "@/lib/contact";
 import type { FieldPointer } from "./FruitField";
 import styles from "./Contact.module.css";
+import { prefersReducedMotion, watchReducedMotion } from "@/lib/motion";
 
 /**
  * Section 8 — "Vamos conversar": the final CTA over a zero-gravity fruit
@@ -56,10 +57,9 @@ export function ContactSection() {
 
     section.classList.add(styles.enhanced);
 
-    const mqReduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduce(mqReduce.matches);
-    const onMq = () => setReduce(mqReduce.matches);
-    mqReduce.addEventListener("change", onMq);
+    // Motion policy (lib/motion.ts), not the raw OS media query — see there
+    // for why the site no longer treats the preference as a kill-switch.
+    const stopWatchingMotion = watchReducedMotion(setReduce);
 
     // Reveal-on-scroll (site grammar).
     const revealEls = Array.from(section.querySelectorAll<HTMLElement>("[data-reveal]"));
@@ -161,7 +161,7 @@ export function ContactSection() {
     const runIO = new IntersectionObserver(
       ([e]) => {
         setActive(e.isIntersecting);
-        if (e.isIntersecting && !mqReduce.matches) {
+        if (e.isIntersecting && !prefersReducedMotion()) {
           stage.addEventListener("pointermove", onMove, { passive: true });
           stage.addEventListener("pointerleave", onLeave, { passive: true });
           stage.addEventListener("pointerdown", onDown, { passive: true });
@@ -178,7 +178,7 @@ export function ContactSection() {
     runIO.observe(stage);
 
     return () => {
-      mqReduce.removeEventListener("change", onMq);
+      stopWatchingMotion();
       revealIO.disconnect();
       runIO.disconnect();
       stage.removeEventListener("pointermove", onMove);

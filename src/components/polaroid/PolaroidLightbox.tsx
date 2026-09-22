@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import styles from "./PolaroidLightbox.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * Fullscreen viewer for a case's pile of prints — the "expand" twin of the
@@ -127,7 +128,7 @@ function PolaroidLightbox({
 
   const advance = useCallback(() => {
     if (n < 2 || flying !== null) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     if (reduce) {
       setIndex((i) => (i + 1) % n);
       return;

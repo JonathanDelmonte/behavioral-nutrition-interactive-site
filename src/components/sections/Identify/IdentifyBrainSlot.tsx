@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useBrainSlot, type BrainFrame } from "@/components/BrainStage";
+import { watchReducedMotion } from "@/lib/motion";
 import styles from "./Identify.module.css";
 
 /**
@@ -51,23 +52,26 @@ function layoutDocTop(el: HTMLElement): number {
 
 export function IdentifyBrainSlot({ thinkKey = -1 }: { thinkKey?: number }) {
   // The travel runs on phone AND desktop now (the Identify stage is sticky and
-  // 2-column at every width — see Identify.module.css). The ONLY opt-out is
-  // prefers-reduced-motion: with reduced motion the brain just rests in the Hero
-  // and this section shows its decorative rings + stacked thoughts.
+  // 2-column at every width — see Identify.module.css). The ONLY opt-out left
+  // is the calm branch of the site's motion policy (lib/motion.ts), which is
+  // OFF by default: when it is on, the brain rests in the Hero and this section
+  // shows its decorative rings + stacked thoughts.
+  //
+  // Opting out is not free, and that is why the policy no longer hangs off the
+  // OS preference. Skipping the registration leaves <BrainStage /> with a
+  // single slot, which pins its travel progress at 0 forever — so the brain
+  // reads as permanently "at Hero rest", its full-viewport canvas never gets
+  // muted, and a frameloop paused while the brain is still painted (opening the
+  // ÍNDICE overlay does exactly that) leaves a stale frame hanging over
+  // whatever section the reader jumps to. BrainStage.tsx now hides the canvas
+  // whenever its loop is parked, so that ghost cannot come back, but the
+  // cheapest fix is simply to let the brain travel.
   const [travelEnabled, setTravelEnabled] = useState(false);
 
-  useEffect(() => {
-    const reducedMq = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    const sync = () => setTravelEnabled(!reducedMq.matches);
-
-    sync();
-    reducedMq.addEventListener("change", sync);
-
-    return () => {
-      reducedMq.removeEventListener("change", sync);
-    };
-  }, []);
+  useEffect(
+    () => watchReducedMotion((reduced) => setTravelEnabled(!reduced)),
+    [],
+  );
 
   const computeFrame = useCallback((rect: DOMRect): BrainFrame => {
     const bleed = rect.height * BLEED_RATIO;

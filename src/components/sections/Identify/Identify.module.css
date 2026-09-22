@@ -1034,35 +1034,38 @@
 
 /* ---- reduced motion ----------------------------------------------------- */
 
-@media (prefers-reduced-motion: reduce) {
-  .bubble.active {
-    animation: none;
-    opacity: 1;
-  }
-  .bubble.leaving {
-    animation: none;
-    opacity: 0;
-  }
-  .tailDot {
-    animation: none;
-    opacity: 1;
-    scale: none;
-  }
-  .qmark {
-    animation: none;
-    display: none;
-  }
-  .thinkRing {
-    display: none;
-  }
-  .stageIntro {
-    opacity: 1 !important;
-    translate: none !important;
-  }
-  /* The headline never dissolves under reduced motion, so the block must stay
-     parked in row 2 below it — recentring would slide the brain up into the
-     permanently-visible headline. */
-  .stageMid {
-    translate: none !important;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .bubble.active {
+  animation: none;
+  opacity: 1;
+}
+:global(html[data-motion="calm"]) .bubble.leaving {
+  animation: none;
+  opacity: 0;
+}
+:global(html[data-motion="calm"]) .tailDot {
+  animation: none;
+  opacity: 1;
+  scale: none;
+}
+:global(html[data-motion="calm"]) .qmark {
+  animation: none;
+  display: none;
+}
+:global(html[data-motion="calm"]) .thinkRing {
+  display: none;
+}
+:global(html[data-motion="calm"]) .stageIntro {
+  opacity: 1 !important;
+  translate: none !important;
+}
+/* The headline never dissolves under reduced motion, so the block must stay
+   parked in row 2 below it — recentring would slide the brain up into the
+   permanently-visible headline. */
+:global(html[data-motion="calm"]) .stageMid {
+  translate: none !important;
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { CTAButton } from "@/components/ui/CTAButton";
 import { FruitGlyph, PlanGlyph, ReturnsGlyph, TeaGlyph } from "./icons";
 import styles from "./Journey.module.css";
+import { prefersReducedMotion, watchReducedMotion } from "@/lib/motion";
 
 /**
  * Section 6 — "Atendimento": the journey in four steps, told as a depth dive.
@@ -156,10 +157,10 @@ export function JourneySection() {
     // CSS simply renders everything visible.
     section.classList.add(styles.enhanced);
 
-    const mqReduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    // The dive runs at every width now — touch included; only reduced-motion
-    // (or no-JS) falls back to the stacked column.
-    const isJacked = () => !mqReduce.matches;
+    // The dive runs at every width now — touch included. The only fallback to
+    // the stacked column is no-JS, plus the calm branch of the site's motion
+    // policy (lib/motion.ts), which is off by default.
+    const isJacked = () => !prefersReducedMotion();
 
     // Stacked-mode entrances (also primes glyph drawing on mobile).
     const revealEls = Array.from(section.querySelectorAll<HTMLElement>("[data-reveal]"));
@@ -357,13 +358,13 @@ export function JourneySection() {
       if (!j) clearDive();
     };
     window.addEventListener("resize", onModeChange);
-    mqReduce.addEventListener("change", onModeChange);
+    const stopWatchingMotion = watchReducedMotion(onModeChange);
 
     return () => {
       revealIO.disconnect();
       runIO.disconnect();
       window.removeEventListener("resize", onModeChange);
-      mqReduce.removeEventListener("change", onModeChange);
+      stopWatchingMotion();
       window.removeEventListener("mousemove", onMove);
       if (raf !== null) cancelAnimationFrame(raf);
     };
@@ -373,7 +374,7 @@ export function JourneySection() {
   const goTo = (i: number) => {
     const track = trackRef.current;
     if (!track) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     const behavior: ScrollBehavior = reduce ? "auto" : "smooth";
     if (!jackedRef.current) {
       track.querySelectorAll<HTMLElement>("[data-step]")[i]?.scrollIntoView({

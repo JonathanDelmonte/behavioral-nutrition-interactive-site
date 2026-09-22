@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./About.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const PORTRAIT = `${BASE_PATH}/images/about/juliana.webp`;
@@ -130,7 +131,7 @@ export function AboutSection() {
 
   /* Opt into the ambient layer only when motion is welcome. */
   useEffect(() => {
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!prefersReducedMotion()) {
       setEnhanced(true);
     }
   }, []);

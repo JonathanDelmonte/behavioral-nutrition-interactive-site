@@ -3,6 +3,7 @@ import "./globals.css";
 import { fontSans, fontSerif, fontScript, fontQuestion } from "@/styles/fonts";
 import { PRIME_ASSETS } from "@/components/BrainModel/constants";
 import { CONTACT } from "@/lib/contact";
+import { MOTION_BOOT_SCRIPT } from "@/lib/motion";
 import { Header } from "@/components/layout/Header/Header";
 import { SitePreloader } from "@/components/Preloader/SitePreloader";
 import { CopyGuard } from "@/components/CopyGuard";
@@ -217,8 +218,17 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`${fontSans.variable} ${fontSerif.variable} ${fontScript.variable} ${fontQuestion.variable}`}
+      // MOTION_BOOT_SCRIPT stamps data-motion onto this element before React
+      // hydrates. Without this, hydration flags the attribute it didn't render.
+      suppressHydrationWarning
     >
       <body>
+        {/* Política de movimento do site (ver lib/motion.ts) — carimba
+            <html data-motion> ANTES do primeiro paint, para que os blocos
+            html[data-motion="calm"] das folhas de estilo já estejam decididos
+            no primeiro frame. Primeiro filho do <body> de propósito: roda
+            antes de qualquer conteúdo abaixo ser pintado. */}
+        <script dangerouslySetInnerHTML={{ __html: MOTION_BOOT_SCRIPT }} />
         {/* Warm the connections the YouTube embeds will need (React hoists
             these into <head>). The testimonial loops + lightbox pull the
             player from www.youtube-nocookie.com (privacy-enhanced embed —

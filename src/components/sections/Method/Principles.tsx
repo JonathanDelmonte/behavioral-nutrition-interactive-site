@@ -9,6 +9,7 @@ import {
 } from "react";
 import styles from "./Method.module.css";
 import { CycleIcon, LensIcon, SproutIcon } from "./icons";
+import { prefersReducedMotion } from "@/lib/motion";
 
 interface Principle {
   num: string;
@@ -178,7 +179,7 @@ export function Principles() {
 
   /* Measure the thread + build the sprig field (client-only geometry). */
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     const mql = window.matchMedia("(max-width: 760px)");
     const compute = () => {
       const mobile = mql.matches;

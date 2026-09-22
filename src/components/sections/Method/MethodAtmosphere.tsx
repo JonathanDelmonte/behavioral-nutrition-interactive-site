@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import styles from "./Method.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * The sticky sky Section 3 scrolls over, now the section's single CLOCK plus
@@ -69,7 +70,7 @@ export function MethodAtmosphere() {
     const canvas = canvasRef.current;
     const section = sky?.closest("section");
     if (!sky || !canvas || !section) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
 
     const sec = section as HTMLElement;
     sec.classList.add(styles.enh);

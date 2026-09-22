@@ -66,15 +66,18 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .logo {
-    animation: none;
-    opacity: 1;
-  }
-  .fill {
-    transition: none;
-  }
-  .overlay {
-    transition: opacity 0.2s linear;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .logo {
+  animation: none;
+  opacity: 1;
+}
+:global(html[data-motion="calm"]) .fill {
+  transition: none;
+}
+:global(html[data-motion="calm"]) .overlay {
+  transition: opacity 0.2s linear;
 }

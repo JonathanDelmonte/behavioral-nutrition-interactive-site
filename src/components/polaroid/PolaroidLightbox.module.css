@@ -273,18 +273,21 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .overlay,
-  .open,
-  .stage,
-  .open .stage,
-  .card,
-  .cardVeil,
-  .fill,
-  .dot {
-    transition-duration: 0.01ms;
-  }
-  .flying {
-    animation: none;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .overlay,
+:global(html[data-motion="calm"]) .open,
+:global(html[data-motion="calm"]) .stage,
+:global(html[data-motion="calm"]) .open .stage,
+:global(html[data-motion="calm"]) .card,
+:global(html[data-motion="calm"]) .cardVeil,
+:global(html[data-motion="calm"]) .fill,
+:global(html[data-motion="calm"]) .dot {
+  transition-duration: 0.01ms;
+}
+:global(html[data-motion="calm"]) .flying {
+  animation: none;
 }

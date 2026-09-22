@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
 import styles from "./IndexOverlay.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /** Ease-in-out cubic — slow lift-off, brisk middle, decelerating arrival.
  *  The same "calm but alive" arc the rest of the site uses for travel. */
@@ -170,7 +171,7 @@ export function IndexOverlay({ open, onClose }: Props) {
     const arrive = () => history.replaceState(null, "", href);
 
     // Reduced motion → land instantly, no glide.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (prefersReducedMotion()) {
       window.scrollTo(0, dest);
       arrive();
       return;

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./Identify.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * Floating hand-drawn question marks — the doubts themselves, murmuring across
@@ -46,7 +47,7 @@ export function IdentifyQuestions() {
 
   /* Decide the grid on mount + on real width changes (motion-gated). */
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     const apply = () => {
       const next = gridFor(window.innerWidth, window.innerHeight);
       setGrid((prev) =>

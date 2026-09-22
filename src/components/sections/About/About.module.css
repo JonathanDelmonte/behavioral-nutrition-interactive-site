@@ -410,27 +410,30 @@
 
 /* ---- Reduced motion ------------------------------------------------------ */
 
-@media (prefers-reduced-motion: reduce) {
-  .kicker,
-  .heading,
-  .prose p,
-  .figure {
-    transition: none !important;
-  }
-  .figure {
-    animation: none !important;
-  }
-  /* The name keeps its static polished-gold ramp; only the glint stops. */
-  .heading em {
-    animation: none !important;
-  }
-  .vines {
-    animation: none !important;
-    transform: none !important;
-  }
-  .portrait {
-    transform: none !important;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .kicker,
+:global(html[data-motion="calm"]) .heading,
+:global(html[data-motion="calm"]) .prose p,
+:global(html[data-motion="calm"]) .figure {
+  transition: none !important;
+}
+:global(html[data-motion="calm"]) .figure {
+  animation: none !important;
+}
+/* The name keeps its static polished-gold ramp; only the glint stops. */
+:global(html[data-motion="calm"]) .heading em {
+  animation: none !important;
+}
+:global(html[data-motion="calm"]) .vines {
+  animation: none !important;
+  transform: none !important;
+}
+:global(html[data-motion="calm"]) .portrait {
+  transform: none !important;
 }
 
 /* ---- Landscape-short band (phone on its side) ---------------------------- */

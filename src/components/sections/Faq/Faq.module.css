@@ -441,79 +441,80 @@
   stroke-dashoffset: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .enhanced .qaBody {
-    transition: grid-template-rows 0.55s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.55s;
-  }
-  .enhanced .miniRow {
-    animation: rowIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
-  }
-  .enhanced .check :first-child {
-    transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
-  }
+/* Motion policy (lib/motion.ts): unconditional now. This block used to sit
+   inside @media (prefers-reduced-motion: no-preference); the real gate is
+   the .enhanced class below, and the OS preference no longer switches the layout off. */
+.enhanced .qaBody {
+  transition: grid-template-rows 0.55s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.55s;
+}
+.enhanced .miniRow {
+  animation: rowIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+}
+.enhanced .check :first-child {
+  transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
+}
 
-  .enhanced .qa.cur .qSent {
-    animation: sentIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  }
-  .enhanced .typing {
-    animation: rowIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  }
-  .enhanced .tDot {
-    animation: tPulse 1.05s ease-in-out infinite;
-  }
-  .enhanced .tDot:nth-child(2) { animation-delay: 0.16s; }
-  .enhanced .tDot:nth-child(3) { animation-delay: 0.32s; }
+.enhanced .qa.cur .qSent {
+  animation: sentIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.enhanced .typing {
+  animation: rowIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.enhanced .tDot {
+  animation: tPulse 1.05s ease-in-out infinite;
+}
+.enhanced .tDot:nth-child(2) { animation-delay: 0.16s; }
+.enhanced .tDot:nth-child(3) { animation-delay: 0.32s; }
 
-  /* The answer comes into focus — the section 6 motif continued. */
-  .enhanced .qa.cur .answer {
-    transform: translateY(14px);
-    filter: blur(6px);
-  }
-  .enhanced .qa.cur.open .answer {
-    transform: translateY(0);
-    filter: blur(0);
-    transition:
-      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      visibility 0.7s;
-  }
+/* The answer comes into focus — the section 6 motif continued. */
+.enhanced .qa.cur .answer {
+  transform: translateY(14px);
+  filter: blur(6px);
+}
+.enhanced .qa.cur.open .answer {
+  transform: translateY(0);
+  filter: blur(0);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0.7s;
+}
 
-  .enhanced .closing {
-    animation: rowIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards;
-  }
+.enhanced .closing {
+  animation: rowIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards;
+}
 
-  /* Intro + sheet arrive by coming into focus (same reveal grammar as
-     Journey). The chips deal themselves onto the tray with a stagger. */
-  .enhanced .title,
-  .enhanced .sub,
-  .enhanced .aside {
-    transition:
-      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .enhanced .sub { transition-delay: 0.12s; }
-  .enhanced .aside { transition-delay: 0.24s; }
-  .enhanced .title:not(.in),
-  .enhanced .sub:not(.in),
-  .enhanced .aside:not(.in) {
-    opacity: 0;
-    transform: translateY(26px);
-    filter: blur(6px);
-  }
+/* Intro + sheet arrive by coming into focus (same reveal grammar as
+   Journey). The chips deal themselves onto the tray with a stagger. */
+.enhanced .title,
+.enhanced .sub,
+.enhanced .aside {
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.enhanced .sub { transition-delay: 0.12s; }
+.enhanced .aside { transition-delay: 0.24s; }
+.enhanced .title:not(.in),
+.enhanced .sub:not(.in),
+.enhanced .aside:not(.in) {
+  opacity: 0;
+  transform: translateY(26px);
+  filter: blur(6px);
+}
 
-  .enhanced .stage.in .welcome {
-    animation: rowIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
-  }
-  .enhanced .stage.in .chip {
-    animation: chipIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-    animation-delay: calc(var(--d, 0) * 75ms + 0.35s);
-  }
-  .enhanced .stage:not(.in) .welcome,
-  .enhanced .stage:not(.in) .chip {
-    opacity: 0;
-  }
+.enhanced .stage.in .welcome {
+  animation: rowIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+}
+.enhanced .stage.in .chip {
+  animation: chipIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--d, 0) * 75ms + 0.35s);
+}
+.enhanced .stage:not(.in) .welcome,
+.enhanced .stage:not(.in) .chip {
+  opacity: 0;
 }
 
 /* ---- MOBILE --------------------------------------------------------------- */

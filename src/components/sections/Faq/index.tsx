@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CTAButton } from "@/components/ui/CTAButton";
 import styles from "./Faq.module.css";
+import { prefersReducedMotion } from "@/lib/motion";
 
 /**
  * Section 7 — "Dúvidas": the objection-breaking FAQ staged as a conversation.
@@ -172,7 +173,7 @@ export function FaqSection() {
     });
     setCurrent(i);
 
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     if (wasAnswered || reduce) {
       // Reopening is instant; reduced motion skips the staged typing too.
       setPhase("open");
@@ -190,7 +191,7 @@ export function FaqSection() {
     if (current === null) return;
     const el = document.getElementById(`faq-qa-${current}`);
     if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduce = prefersReducedMotion();
     const t = window.setTimeout(() => {
       el.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
       if (phase === "open") {

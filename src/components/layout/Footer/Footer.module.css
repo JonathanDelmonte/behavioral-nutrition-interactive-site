@@ -289,70 +289,71 @@ a.row:focus-visible .rowText::after {
   border: 1px solid var(--color-gold);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .ch {
-    transition:
-      color 0.55s ease,
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  /* Travelling glint: the overshoot bezier pushes each letter's color past
-     its target gold for a breath (the glint) before it settles; 22ms of
-     delay per letter turns that into one light pass across the text. */
-  .devmark:hover .ch {
-    transform: translateY(-1px);
-    transition-duration: 0.45s;
-    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-    transition-delay: calc(var(--i) * 22ms);
-  }
-  /* The chrome pass rides the same 22ms clock: each specular flashes
-     white-hot and cools into ocean cyan as it hands off to the gold. */
-  .devmark:hover .ch::before {
-    animation: chrome-glint 0.55s ease-out;
-    animation-delay: calc(var(--i) * 22ms);
-  }
-  .devmark:hover .markBase {
-    /* The mark's slot in the letter sequence (6 × 22ms). */
-    transition-delay: 132ms;
-  }
-  .devmark:hover .markGhost {
-    animation: chrome-glint 0.55s ease-out;
-    animation-delay: 132ms;
-  }
+/* Motion policy (lib/motion.ts): unconditional now. This block used to sit
+   inside @media (prefers-reduced-motion: no-preference); the real gate is
+   the .devmark:hover state below, and the OS preference no longer switches the layout off. */
+.ch {
+  transition:
+    color 0.55s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Travelling glint: the overshoot bezier pushes each letter's color past
+   its target gold for a breath (the glint) before it settles; 22ms of
+   delay per letter turns that into one light pass across the text. */
+.devmark:hover .ch {
+  transform: translateY(-1px);
+  transition-duration: 0.45s;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: calc(var(--i) * 22ms);
+}
+/* The chrome pass rides the same 22ms clock: each specular flashes
+   white-hot and cools into ocean cyan as it hands off to the gold. */
+.devmark:hover .ch::before {
+  animation: chrome-glint 0.55s ease-out;
+  animation-delay: calc(var(--i) * 22ms);
+}
+.devmark:hover .markBase {
+  /* The mark's slot in the letter sequence (6 × 22ms). */
+  transition-delay: 132ms;
+}
+.devmark:hover .markGhost {
+  animation: chrome-glint 0.55s ease-out;
+  animation-delay: 132ms;
+}
 
-  /* The mark is liquid: every press turns it half over, with enough
-     overshoot to read as inertia. Hover blooms it slightly. */
-  .markWrap {
-    transform: rotate(var(--spin, 0deg));
-    transition: transform 0.65s cubic-bezier(0.3, 1.25, 0.4, 1);
-  }
-  .devmark:hover .markWrap {
-    transform: rotate(var(--spin, 0deg)) scale(1.07);
-    transition-delay: 132ms;
-  }
-  .devmark:active .markWrap {
-    transform: rotate(var(--spin, 0deg));
-    transition-delay: 0s;
-  }
+/* The mark is liquid: every press turns it half over, with enough
+   overshoot to read as inertia. Hover blooms it slightly. */
+.markWrap {
+  transform: rotate(var(--spin, 0deg));
+  transition: transform 0.65s cubic-bezier(0.3, 1.25, 0.4, 1);
+}
+.devmark:hover .markWrap {
+  transform: rotate(var(--spin, 0deg)) scale(1.07);
+  transition-delay: 132ms;
+}
+.devmark:active .markWrap {
+  transform: rotate(var(--spin, 0deg));
+  transition-delay: 0s;
+}
 
-  /* Press: unified dip of the whole credit; letters drop their hover lift
-     so the stamp reads as one piece. */
-  .devmark {
-    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .devmark:active {
-    transform: translateY(0.5px) scale(0.985);
-    transition-duration: 0.12s;
-  }
-  .devmark:active .ch {
-    transform: none;
-  }
+/* Press: unified dip of the whole credit; letters drop their hover lift
+   so the stamp reads as one piece. */
+.devmark {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.devmark:active {
+  transform: translateY(0.5px) scale(0.985);
+  transition-duration: 0.12s;
+}
+.devmark:active .ch {
+  transform: none;
+}
 
-  .ringSplash {
-    animation: seal-ring 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .ringSettle {
-    animation: seal-ring 0.9s cubic-bezier(0.22, 1, 0.36, 1) 90ms;
-  }
+.ringSplash {
+  animation: seal-ring 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ringSettle {
+  animation: seal-ring 0.9s cubic-bezier(0.22, 1, 0.36, 1) 90ms;
 }
 
 /* Literal values only in here (site rule: var() freezes in @keyframes). */
@@ -383,28 +384,29 @@ a.row:focus-visible .rowText::after {
 
 /* ---- REVEALS (site grammar) ----------------------------------------------------- */
 
-@media (prefers-reduced-motion: no-preference) {
-  .enhanced [data-reveal] {
-    transition:
-      opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .enhanced [data-reveal]:nth-child(2) { transition-delay: 0.1s; }
-  .enhanced [data-reveal]:nth-child(3) { transition-delay: 0.2s; }
-  .enhanced [data-reveal]:not(.in) {
-    opacity: 0;
-    transform: translateY(20px);
-    filter: blur(5px);
-  }
-  .enhanced .bottom {
-    transition: opacity 1s ease 0.35s;
-  }
-  .enhanced .bottom:not(.in) {
-    opacity: 0;
-    transform: none;
-    filter: none;
-  }
+/* Motion policy (lib/motion.ts): unconditional now. This block used to sit
+   inside @media (prefers-reduced-motion: no-preference); the real gate is
+   the .enhanced class below, and the OS preference no longer switches the layout off. */
+.enhanced [data-reveal] {
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.enhanced [data-reveal]:nth-child(2) { transition-delay: 0.1s; }
+.enhanced [data-reveal]:nth-child(3) { transition-delay: 0.2s; }
+.enhanced [data-reveal]:not(.in) {
+  opacity: 0;
+  transform: translateY(20px);
+  filter: blur(5px);
+}
+.enhanced .bottom {
+  transition: opacity 1s ease 0.35s;
+}
+.enhanced .bottom:not(.in) {
+  opacity: 0;
+  transform: none;
+  filter: none;
 }
 
 /* ---- MOBILE ----------------------------------------------------------------------- */

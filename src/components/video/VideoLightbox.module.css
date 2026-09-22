@@ -430,17 +430,20 @@
   background: rgba(8, 30, 16, 0.78);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .overlay,
-  .open,
-  .stage,
-  .open .stage,
-  .cover {
-    transition-duration: 0.01ms;
-  }
-  .loading {
-    animation: none;
-  }
+/* Motion policy (lib/motion.ts): re-gated from
+   @media (prefers-reduced-motion: reduce) onto html[data-motion="calm"], so
+   these fallbacks arm only when the site decides to run calm — never straight
+   off the OS preference. Left wired (not deleted) so flipping
+   RESPECT_OS_REDUCED_MOTION is a one-line change. Inert by default. */
+:global(html[data-motion="calm"]) .overlay,
+:global(html[data-motion="calm"]) .open,
+:global(html[data-motion="calm"]) .stage,
+:global(html[data-motion="calm"]) .open .stage,
+:global(html[data-motion="calm"]) .cover {
+  transition-duration: 0.01ms;
+}
+:global(html[data-motion="calm"]) .loading {
+  animation: none;
 }
 
 @keyframes ytSpin {
