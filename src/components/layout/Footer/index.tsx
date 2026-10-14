@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { CONTACT, WHATSAPP_HREF } from "@/lib/contact";
 import styles from "./Footer.module.css";
 
@@ -14,10 +14,11 @@ import styles from "./Footer.module.css";
  * bar — same green family as the background, readable only for whoever goes
  * looking (per the agency's request for a hidden watermark). Hover runs a
  * liquid-chrome pass: a cyan-white specular (Zirtuno's own ocean) sweeps
- * the letters and cools into the site's gold. Pressing stirs the liquid —
- * the mark turns half over with inertia, holds its chrome while pressed,
- * and a cyan splash ring settles into a gold echo.
+ * the letters and cools into the site's gold. Clicking opens Zirtuno's
+ * Instagram in a new tab; there is no press animation, only the hover.
  */
+
+const ZIRTUNO_INSTAGRAM_URL = "https://www.instagram.com/zirtuno";
 
 const stroke = {
   fill: "none",
@@ -106,8 +107,6 @@ function GlintText({ text, from }: { text: string; from: number }) {
 
 export function SiteFooter() {
   const ref = useRef<HTMLElement>(null);
-  /** Bumped on each press; keys the seal ring so its animation restarts. */
-  const [seal, setSeal] = useState(0);
 
   useEffect(() => {
     const el = ref.current;
@@ -186,29 +185,22 @@ export function SiteFooter() {
 
         <div className={`${styles.bottom}`} data-reveal>
           <span>© 2026 Juliana Delmonte · Todos os direitos reservados</span>
-          <span
+          <a
             className={styles.devmark}
-            onPointerDown={() => setSeal((n) => n + 1)}
+            href={ZIRTUNO_INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
           >
             <span className={styles.srOnly}>made by Zirtuno</span>
             <span className={styles.chrome} aria-hidden>
               <GlintText text="made by" from={0} />
-              <span
-                className={styles.markWrap}
-                style={{ "--spin": `${seal * 180}deg` } as CSSProperties}
-              >
+              <span className={styles.markWrap}>
                 <ZirtunoMark className={styles.markBase} />
                 <ZirtunoMark className={styles.markGhost} />
-                {seal > 0 && (
-                  <span key={`s${seal}`} className={styles.ringSplash} />
-                )}
-                {seal > 0 && (
-                  <span key={`g${seal}`} className={styles.ringSettle} />
-                )}
               </span>
               <GlintText text="Zirtuno" from={7} />
             </span>
-          </span>
+          </a>
         </div>
       </div>
 
